@@ -16,10 +16,9 @@ static fuse_operations openbookfs_oper;
 
 int main(int argc, char** argv)
 {
-
     openbookfs_oper.getattr     = openbookfs_getattr;
     openbookfs_oper.readlink    = openbookfs_readlink;
-    openbookfs_oper.getdir      = openbookfs_getdir;
+    openbookfs_oper.getdir      = NULL;
     openbookfs_oper.mknod       = openbookfs_mknod;
     openbookfs_oper.mkdir       = openbookfs_mkdir;
     openbookfs_oper.unlink      = openbookfs_unlink;
@@ -30,7 +29,7 @@ int main(int argc, char** argv)
     openbookfs_oper.chmod       = openbookfs_chmod;
     openbookfs_oper.chown       = openbookfs_chown;
     openbookfs_oper.truncate    = openbookfs_truncate;
-    openbookfs_oper.utime       = openbookfs_utime;
+    openbookfs_oper.utime       = NULL;
     openbookfs_oper.open        = openbookfs_open;
     openbookfs_oper.read        = openbookfs_read;
     openbookfs_oper.write       = openbookfs_write;
@@ -56,10 +55,18 @@ int main(int argc, char** argv)
     openbookfs_oper.fgetattr    = openbookfs_fgetattr;
     openbookfs_oper.lock        = openbookfs_lock;
     openbookfs_oper.utimens     = openbookfs_utimens;
-    openbookfs_oper.bmap        = openbookfs_bmap;
+    openbookfs_oper.bmap        = NULL;
     openbookfs_oper.ioctl       = openbookfs_ioctl;
     openbookfs_oper.poll        = openbookfs_poll;
 
     umask(0);
-    return fuse_main(argc, argv, &openbookfs_oper, NULL);
+
+    openbookfs_createSingleton(argc,argv);
+    openbookfs_getFuseArgs(&argc,&argv);
+
+    int fuseResult = fuse_main(argc, argv, &openbookfs_oper, NULL);
+
+    openbookfs_destroySingleton();
+
+    return fuseResult;
 }

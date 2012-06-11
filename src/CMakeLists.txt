@@ -1,12 +1,15 @@
 find_package(Fuse REQUIRED)
+find_package(Boost COMPONENTS filesystem)
                                                                     
 include_directories( 
     ${FUSE_INCLUDE_DIR}
+    ${Boost_INCLUDE_DIRS}
     )
 
 
 set(LIBS ${LIBS} 
     ${FUSE_LIBRARY}
+    ${Boost_LIBRARIES}
     )
 
 add_executable( ${CMAKE_PROJECT_NAME} 

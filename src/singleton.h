@@ -8,14 +8,21 @@
 #ifndef OPENBOOKFS_SINGLETON_H_
 #define OPENBOOKFS_SINGLETON_H_
 
+#ifndef FUSE_USE_VERSION
 #define FUSE_USE_VERSION 26
+#endif
+
 #include <fuse.h>
 
 extern "C"
 {
+    void openbookfs_createSingleton( int argc, char** argv );
+    void openbookfs_getFuseArgs( int* argc, char*** argv );
+    void openbookfs_destroySingleton( );
+
     int openbookfs_getattr (const char *, struct stat *);
     int openbookfs_readlink (const char *, char *, size_t);
-    int openbookfs_getdir (const char *, fuse_dirh_t, fuse_dirfil_t);
+//  int openbookfs_getdir (const char *, fuse_dirh_t, fuse_dirfil_t);
     int openbookfs_mknod (const char *, mode_t, dev_t);
     int openbookfs_mkdir (const char *, mode_t);
     int openbookfs_unlink (const char *);
@@ -26,7 +33,7 @@ extern "C"
     int openbookfs_chmod (const char *, mode_t);
     int openbookfs_chown (const char *, uid_t, gid_t);
     int openbookfs_truncate (const char *, off_t);
-    int openbookfs_utime (const char *, struct utimbuf *);
+//  int openbookfs_utime (const char *, struct utimbuf *);
     int openbookfs_open (const char *, struct fuse_file_info *);
     int openbookfs_read (const char *, char *, size_t, off_t,
                             struct fuse_file_info *);

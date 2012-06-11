@@ -9,252 +9,295 @@
 #include "OpenbookFS.h"
 
 
-
-
-
-int openbookfs_getattr (const char *, struct stat *)
+namespace openbookfs
 {
-    return 0;
+    OpenbookFS* g_singleton;
+}
+
+
+using namespace openbookfs;
+
+void openbookfs_createSingleton( int argc, char** argv )
+{
+    g_singleton = new OpenbookFS(argc,argv);
+}
+
+void openbookfs_getFuseArgs( int* argc, char*** argv )
+{
+    g_singleton->getFuseArgs(argc,argv);
+}
+
+void openbookfs_destroySingleton()
+{
+    delete g_singleton;
 }
 
 
 
-int openbookfs_readlink (const char *, char *, size_t)
+
+int openbookfs_getattr (const char *path, struct stat *out)
 {
-    return 0;
+    return g_singleton->getattr(path,out);
 }
 
 
 
-int openbookfs_getdir (const char *, fuse_dirh_t, fuse_dirfil_t)
+int openbookfs_readlink (const char *path, char *buf, size_t bufsize)
 {
-    return 0;
+    return g_singleton->readlink(path,buf,bufsize);
 }
 
 
 
-int openbookfs_mknod (const char *, mode_t, dev_t)
+//int openbookfs_getdir (const char *, fuse_dirh_t, fuse_dirfil_t)
+//{
+//    return 0;
+//}
+
+
+
+int openbookfs_mknod (const char *pathname, mode_t mode, dev_t dev)
 {
-    return 0;
+    return g_singleton->mknod(pathname,mode,dev);
 }
 
 
 
-int openbookfs_mkdir (const char *, mode_t)
+int openbookfs_mkdir (const char *pathname, mode_t mode)
 {
-    return 0;
+    return g_singleton->mkdir(pathname,mode);
 }
 
 
 
-int openbookfs_unlink (const char *)
+int openbookfs_unlink (const char *pathname)
 {
-    return 0;
+    return g_singleton->unlink(pathname);
 }
 
 
 
-int openbookfs_rmdir (const char *)
+int openbookfs_rmdir (const char *pathname)
 {
-    return 0;
+    return g_singleton->rmdir(pathname);
 }
 
 
 
-int openbookfs_symlink (const char *, const char *)
+int openbookfs_symlink (const char *oldpath, const char *newpath)
 {
-    return 0;
+    return g_singleton->symlink(oldpath,newpath);
 }
 
 
 
-int openbookfs_rename (const char *, const char *)
+int openbookfs_rename (const char *oldpath, const char *newpath)
 {
-    return 0;
+    return g_singleton->rename(oldpath,newpath);
 }
 
 
 
-int openbookfs_link (const char *, const char *)
+int openbookfs_link (const char *oldpath, const char *newpath)
 {
-    return 0;
+    return g_singleton->link(oldpath,newpath);
 }
 
 
 
-int openbookfs_chmod (const char *, mode_t)
+int openbookfs_chmod (const char *path, mode_t mode)
 {
-    return 0;
+    return g_singleton->chmod(path,mode);
 }
 
 
 
-int openbookfs_chown (const char *, uid_t, gid_t)
+int openbookfs_chown (const char *path, uid_t owner, gid_t group)
 {
-    return 0;
+    return g_singleton->chown(path,owner,group);
 }
 
 
 
-int openbookfs_truncate (const char *, off_t)
+int openbookfs_truncate (const char *path, off_t length)
 {
-    return 0;
+    return g_singleton->truncate(path,length);
 }
 
 
 
-int openbookfs_utime (const char *, struct utimbuf *)
+//int openbookfs_utime (const char *, struct utimbuf *)
+//{
+//    return 0;
+//}
+
+
+
+int openbookfs_open (const char *pathname, struct fuse_file_info *info)
 {
-    return 0;
+    return g_singleton->open(pathname,info);
 }
 
 
 
-int openbookfs_open (const char *, struct fuse_file_info *)
+int openbookfs_read (const char *pathname,
+                        char *buf,
+                        size_t bufsize,
+                        off_t offset,
+                        struct fuse_file_info *info)
 {
-    return 0;
+    return g_singleton->read(pathname,buf,bufsize,offset,info);
 }
 
 
 
-int openbookfs_read (const char *, char *, size_t, off_t,
-                        struct fuse_file_info *)
+int openbookfs_write (const char *pathname,
+                        const char *buf,
+                        size_t bufsize,
+                        off_t offset,
+                      struct fuse_file_info *info)
 {
-    return 0;
+    return g_singleton->write(pathname,buf,bufsize,offset,info);
 }
 
 
 
-int openbookfs_write (const char *, const char *, size_t, off_t,
-                      struct fuse_file_info *)
+int openbookfs_statfs (const char *path, struct statvfs *buf)
 {
-    return 0;
+    return g_singleton->statfs(path,buf);
 }
 
 
 
-int openbookfs_statfs (const char *, struct statvfs *)
+int openbookfs_flush (const char *path, struct fuse_file_info *info)
 {
-    return 0;
+    return g_singleton->flush(path,info);
 }
 
 
 
-int openbookfs_flush (const char *, struct fuse_file_info *)
+int openbookfs_release (const char *path, struct fuse_file_info *info)
 {
-    return 0;
+    return g_singleton->release(path,info);
 }
 
 
 
-int openbookfs_release (const char *, struct fuse_file_info *)
+int openbookfs_fsync (const char *path,
+                        int syncdata,
+                        struct fuse_file_info *info)
 {
-    return 0;
+    return g_singleton->fsync(path,syncdata,info);
 }
 
 
 
-int openbookfs_fsync (const char *, int, struct fuse_file_info *)
+int openbookfs_setxattr (const char *pathname,
+                            const char *key,
+                            const char *value,
+                            size_t bufsize,
+                            int unknown)
 {
-    return 0;
+    return g_singleton->setxattr(pathname,key,value,bufsize,unknown);
 }
 
 
 
-int openbookfs_setxattr (const char *, const char *, const char *, size_t, int)
+int openbookfs_getxattr (const char *pathname,
+                        const char *key,
+                        char *buf,
+                        size_t bufsize)
 {
-    return 0;
+    return g_singleton->getxattr(pathname,key,buf,bufsize);
 }
 
 
 
-int openbookfs_getxattr (const char *, const char *, char *, size_t)
+int openbookfs_listxattr (const char *pathname,
+                            char *buf,
+                            size_t bufsize)
 {
-    return 0;
+    return g_singleton->listxattr(pathname,buf,bufsize);
 }
 
 
 
-int openbookfs_listxattr (const char *, char *, size_t)
+int openbookfs_removexattr (const char *pathname, const char *key)
 {
-    return 0;
+    return g_singleton->removexattr(pathname,key);
 }
 
 
 
-int openbookfs_removexattr (const char *, const char *)
+int openbookfs_opendir (const char *path,
+                            struct fuse_file_info *fi)
 {
-    return 0;
+    return g_singleton->opendir(path,fi);
 }
 
 
 
-int openbookfs_opendir (const char *, struct fuse_file_info *)
+int openbookfs_readdir (const char *path,
+                        void *buf,
+                        fuse_fill_dir_t filler,
+                        off_t offset,
+                        struct fuse_file_info *fi)
 {
-    return 0;
+    return g_singleton->readdir(path,buf,filler,offset,fi);
 }
 
 
 
-int openbookfs_readdir (const char *, void *, fuse_fill_dir_t, off_t,
-                        struct fuse_file_info *)
+int openbookfs_releasedir (const char *path, struct fuse_file_info *fi)
 {
-    return 0;
+    return g_singleton->releasedir(path,fi);
 }
 
 
 
-int openbookfs_releasedir (const char *, struct fuse_file_info *)
+int openbookfs_fsyncdir (const char *path, int datasync,
+                            struct fuse_file_info *fi)
 {
-    return 0;
-}
-
-
-
-int openbookfs_fsyncdir (const char *, int, struct fuse_file_info *)
-{
-    return 0;
+    return g_singleton->fsyncdir(path,datasync,fi);
 }
 
 
 
 void *openbookfs_init (struct fuse_conn_info *conn)
 {
-    using namespace openbookfs;
-
-    OpenbookFS* ctx = new OpenbookFS();
-    return ctx;
+    return g_singleton;
 }
 
 
 
-void openbookfs_destroy (void* pData)
+void openbookfs_destroy (void* private_data)
 {
-    using namespace openbookfs;
-
-    OpenbookFS* ctx = static_cast<OpenbookFS*>(pData);
-    delete ctx;
+    return;
 }
 
 
 
-int openbookfs_access (const char *, int)
+int openbookfs_access (const char *path, int mode)
 {
-    return 0;
+    return g_singleton->access(path,mode);
 }
 
 
 
-int openbookfs_create (const char *, mode_t, struct fuse_file_info *)
+int openbookfs_create (const char *path,
+                        mode_t mode,
+                        struct fuse_file_info *fi)
 {
-    return 0;
+    return g_singleton->create(path,mode,fi);
 }
 
 
 
-int openbookfs_ftruncate (const char *, off_t, struct fuse_file_info *)
+int openbookfs_ftruncate (const char *path,
+                            off_t length,
+                            struct fuse_file_info *fi)
 {
-    return 0;
+    return g_singleton->ftruncate(path,length,fi);
 }
 
 
