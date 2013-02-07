@@ -302,9 +302,11 @@ int openbookfs_ftruncate (const char *path,
 
 
 
-int openbookfs_fgetattr (const char *, struct stat *, struct fuse_file_info *)
+int openbookfs_fgetattr (   const char *path,
+                            struct stat *fs,
+                            struct fuse_file_info *fi)
 {
-    return 0;
+    return g_singleton->fgetattr(path,fs,fi);
 }
 
 

@@ -56,8 +56,8 @@ OpenbookFS::OpenbookFS(int argc, char** argv)
     strftime (currentYear,5,"%Y",timeinfo);
 
     fs::path homeDir     = getenv("HOME");
-    fs::path dfltDataDir = homeDir / "OpenbookFS::data";
-    fs::path dfltMountDir= homeDir / "OpenbookFS::mount";
+    fs::path dfltDataDir = homeDir / ".openbook/data";
+    fs::path dfltMountDir= homeDir / "openbook";
 
 
     std::stringstream sstream;
@@ -462,8 +462,7 @@ int OpenbookFS::open (const char *path, struct fuse_file_info *fi)
 
 
 
-    int fh = ::open(    wrap(path),
-                        fi->flags );
+    int fh = ::open(  wrap(path), fi->flags );
     fi->fh = fh;
 
     return result_or_errno(( fh > 0 ) ? 0 : fh);
@@ -487,8 +486,9 @@ int OpenbookFS::read (const char *pathname,
 
     if(fi->fh)
     {
-        return result_or_errno(
+        int result = result_or_errno(
                 ::pread(fi->fh,buf,bufsize,offset) );
+        return result;
     }
     else
         return -EBADF;
@@ -555,9 +555,7 @@ int OpenbookFS::release (const char *path, struct fuse_file_info *fi)
 
     if(fi->fh)
     {
-        int result = result_or_errno(
-                ::close(fi->fh)
-                );
+        int result = result_or_errno( ::close(fi->fh) );
         return result;
     }
     else
@@ -809,9 +807,7 @@ int OpenbookFS::fgetattr (const char *path,
     std::cerr << "getattr: " << path
                 << "(" << (m_dataDir / path) << ")" << std::endl;
 
-    return result_or_errno(
-            ::fstat( fi->fh, out )
-             );
+    return result_or_errno( ::fstat( fi->fh, out ) );
 }
 
 

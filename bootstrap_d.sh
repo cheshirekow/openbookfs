@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export PREFIX=$HOME/Codes/devroot/usr
+export PREFIX=$HOME/devroot/usr
 
 export SCRIPT_DIR=`dirname $0`;
 export CMAKE_PREFIX_PATH=$PREFIX:$CMAKE_PREFIX_PATH
@@ -10,6 +10,7 @@ cmake \
     -DECLIPSE_CDT4_GENERATE_SOURCE_PROJECT=TRUE \
     -DCMAKE_INSTALL_PREFIX=$PREFIX $SCRIPT_DIR \
     -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
+    -DCMAKE_MODULE_PATH="$PREFIX/share/cmake-2.8/Modules" \
     -DCMAKE_BUILD_TYPE=Debug \
     -DCMAKE_ECLIPSE_MAKE_ARGUMENTS="-j6"
 
