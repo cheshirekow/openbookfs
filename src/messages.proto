@@ -9,6 +9,7 @@ package openbook.filesystem.messages;
 // sent by the client to start the authentication handshake
 message Registration_RequestA {
     optional int32  req_id      = 1;    // client specific request id
+    optional string public_key  = 2;    // clients public key
 }
 
 // sent by the server in response to RequestPublicKey
@@ -24,8 +25,6 @@ message Registration_ReplyA {
 message Registration_RequestB {
     optional int32  req_id      = 1;    // client specific request id
     optional string hased_pw    = 2;    // hashed salted password
-    optional string public_key  = 3;    // client's public key, to store for
-                                        // later authentication
 }
 
 // sent by the server in response to a registration request indicating 
