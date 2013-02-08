@@ -30,7 +30,6 @@ if( (FUSE_FOUND)
     
     add_executable( openbookfs_d
                     main.cpp
-                    ${CMAKE_CURRENT_BINARY_DIR}/server.pb.h
                     ${CMAKE_CURRENT_BINARY_DIR}/server.pb.cc
                              )
                             
