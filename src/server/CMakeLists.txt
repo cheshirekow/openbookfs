@@ -24,12 +24,15 @@ if( (FUSE_FOUND)
         ${FUSE_LIBRARY}
         ${Boost_LIBRARIES}
         ${Protobuf_LIBRARY}
+        ${CPPThreads_LIBRARY}
+        ${THREADS_LIBRARIES}
         )
         
     set_source_files_properties( ${MESSAGES_PB_CC} GENERATED )      
         
     add_executable( openbookfs_d
                     main.cpp
+                    RequestHandler.cpp
                     ${MESSAGES_PB_CC}
                              )
     add_dependencies(openbookfs_d proto_messages)

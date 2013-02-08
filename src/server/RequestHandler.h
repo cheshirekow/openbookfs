@@ -17,7 +17,7 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/server/Handler.h
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/server/RequestHandler.h
  *
  *  @date   Feb 8, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
@@ -37,30 +37,31 @@
 #include <iostream>
 #include <cpp-pthreads.h>
 #include <vector>
+#include "Pool.h"
 
 namespace   openbook {
 namespace filesystem {
 
 
-class HandlerPool;
 
 
-class Handler
+class RequestHandler
 {
     private:
+        typedef Pool<RequestHandler>    Pool_t;
         static const unsigned int sm_bufsize = 256;
 
-        HandlerPool*        m_pool;             ///< pool to which this belongs
+        Pool_t*             m_pool;             ///< pool to which this belongs
         pthreads::Thread    m_thread;           ///< the thread we're running in
         pthreads::Mutex     m_mutex;            ///< locks this data
         char                m_buf[sm_bufsize];  ///< socket buffer
         int                 m_sock;             ///< socket fd
 
     public:
-        Handler();
+        RequestHandler();
 
         /// set the parent pointer
-        void init( HandlerPool* );
+        void init( Pool_t* );
 
         /// start the handler interfacing with the client on the socket
         void start( int sockfd );
@@ -70,25 +71,6 @@ class Handler
 
 };
 
-class HandlerPool
-{
-    private:
-        static const unsigned int sm_maxconn = 10;
-
-        pthreads::Mutex         m_mutex;                ///< locks the pool
-        Handler                 m_handlers[sm_maxconn]; ///< pool of handlers
-        std::vector<Handler*>   m_available;            ///< inactive handlers
-
-    public:
-        /// initializes the free store
-        HandlerPool();
-
-        /// retrieve an available handler
-        Handler* getAvailable();
-
-        /// reinsert a handler which has just become available
-        void reassign( Handler* );
-};
 
 
 } // namespace filesystem

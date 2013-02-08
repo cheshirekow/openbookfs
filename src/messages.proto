@@ -1,4 +1,5 @@
-package openbook;
+package openbook.filesystem.messages;
+
 
 // ----------------------------------------------------------------------------
 //                  Client Registration with Server
@@ -36,6 +37,8 @@ message Registration_ReplyB {
                                         // or not
     optional int32  reg_id      = 3;    // identifier for the registration 
 }
+
+
 
 
 
@@ -170,4 +173,6 @@ message NewVersion {
     optional int32  version     = 2;    // version number of the file
     optional string path        = 3;    // path of the file 
 }
+
+
 

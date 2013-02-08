@@ -17,31 +17,33 @@
  *  along with gltk.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/server/Handler.cpp
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/server/RequestHandler.cpp
  *
  *  @date   Feb 8, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#include "Handler.h"
+#include "RequestHandler.h"
 #include <protobuf/message.h>
 #include <protobuf/wire_format.h>
+#include "messages.h"
+#include "messages.pb.h"
 
 namespace   openbook {
 namespace filesystem {
 
-Handler::Handler():
+RequestHandler::RequestHandler():
     m_pool(0)
 {
 }
 
-void Handler::init(HandlerPool* pool)
+void RequestHandler::init(Pool_t* pool)
 {
     m_pool = pool;
 }
 
-void Handler::start( int sockfd )
+void RequestHandler::start( int sockfd )
 {
     // lock scope
     {
@@ -54,19 +56,32 @@ void Handler::start( int sockfd )
     }
 }
 
-void* Handler::operator()()
+void* RequestHandler::operator()()
 {
     using namespace pthreads;
     ScopedLock lock(m_mutex);
 
     int received = 0;
 
-    //create protobuf object
-    google::protobuf::ClientDetails client;
+    //create message buffers
+    namespace msg = openbook::filesystem::messages;
+    msg::Registration_RequestA   reg_a;
+    msg::Registration_RequestB   reg_b;
+    msg::Authentication_RequestA auth_a;
+    msg::Authentication_RequestB auth_b;
+
+
 
     while(1)
     {
-        //the first bytes of the message are the varint length of the message
+        // the first byte of the message is the type enum
+        char         type;
+
+        received=recv(m_sock, &type, 1, 0);
+        if(received < 0)
+            return 0;
+
+        // the first bytes of the message are the varint length of the message
         unsigned int length     = 0;
         int          recv_bytes = 0;
         char         bite;
@@ -121,15 +136,23 @@ void* Handler::operator()()
         //allocate packet buffer
 
         //read varint delimited protobuf object in to buffer
-        google::protobuf::io::ArrayInputStream arrayIn(m_buf, recv_bytes);
-        google::protobuf::io::CodedInputStream codedIn(&arrayIn);
+        google::protobuf::io::CodedInputStream codedIn(
+                                        (unsigned char*)m_buf, recv_bytes);
         google::protobuf::io::CodedInputStream::Limit msgLimit
                                         = codedIn.PushLimit(recv_bytes);
-        client.ParseFromCodedStream(&codedIn);
-        codedIn.PopLimit(msgLimit);
 
-        //purge buffer
-        free(buffer);
+        switch(type)
+        {
+            case REGISTRATION_REQUEST_A:
+                reg_a.ParseFromCodedStream(&codedIn);
+                break;
+
+            case REGISTRATION_REQUEST_B:
+                reg_a.ParseFromCodedStream(&codedIn);
+                break;
+        }
+
+        codedIn.PopLimit(msgLimit);
     }
 
     // when finished we put ourselves back in the thread pool
@@ -140,41 +163,6 @@ void* Handler::operator()()
 
 
 
-HandlerPool::HandlerPool()
-{
-    m_mutex.init();
-    pthreads::ScopedLock lock(m_mutex);
-
-    m_available.reserve(sm_maxconn);
-    for(int i=0; i < sm_maxconn; i++)
-    {
-        m_handlers[i].init(this);
-        m_available.push_back(m_handlers + i);
-    }
-}
-
-Handler* HandlerPool::getAvailable()
-{
-    Handler* h = 0;
-
-    // lock scope
-    {
-        pthreads::ScopedLock lock(m_mutex);
-        if( m_available.size() == 0 )
-            return 0;
-
-        h = m_available.back();
-        m_available.pop_back();
-    }
-
-    return h;
-}
-
-void HandlerPool::reassign( Handler* h )
-{
-    pthreads::ScopedLock lock(m_mutex);
-    m_available.push_back(h);
-}
 
 
 
