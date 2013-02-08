@@ -33,6 +33,12 @@
 namespace   openbook {
 namespace filesystem {
 
+
+void RequestHandler::cleanup()
+{
+    close(m_sock);
+}
+
 RequestHandler::RequestHandler():
     m_pool(0)
 {
@@ -79,7 +85,11 @@ void* RequestHandler::operator()()
 
         received=recv(m_sock, &type, 1, 0);
         if(received < 0)
+        {
+            cleanup();
             return 0;
+        }
+
 
         // the first bytes of the message are the varint length of the message
         unsigned int length     = 0;
@@ -88,8 +98,11 @@ void* RequestHandler::operator()()
 
         // read the first byte
         received=recv(m_sock, &bite, 1, 0);
-        if(received<0)
+        if(received < 0)
+        {
+            cleanup();
             return 0;
+        }
 
         recv_bytes += received;
         length      = (bite & 0x7f);
@@ -104,7 +117,10 @@ void* RequestHandler::operator()()
             received    = recv(m_sock, &bite, 1, 0);
 
             if(received < 0)
+            {
+                cleanup();
                 return 0;
+            }
 
             recv_bytes += received;
 
@@ -128,7 +144,10 @@ void* RequestHandler::operator()()
             received = recv(m_sock, m_buf + (sizeof(char)*recv_bytes),
                                 length-recv_bytes, 0);
             if( received < 0 )
+            {
+                cleanup();
                 return 0;
+            }
         }
 
         // now we have received a complete message from the client, so we

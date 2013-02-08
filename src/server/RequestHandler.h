@@ -57,6 +57,8 @@ class RequestHandler
         char                m_buf[sm_bufsize];  ///< socket buffer
         int                 m_sock;             ///< socket fd
 
+        void cleanup();
+
     public:
         RequestHandler();
 
