@@ -26,12 +26,13 @@ if( (FUSE_FOUND)
         ${Protobuf_LIBRARY}
         )
         
-     protoc( server.proto )
-    
+    set_source_files_properties( ${MESSAGES_PB_CC} GENERATED )      
+        
     add_executable( openbookfs_d
                     main.cpp
-                    ${CMAKE_CURRENT_BINARY_DIR}/server.pb.cc
+                    ${MESSAGES_PB_CC}
                              )
+    add_dependencies(openbookfs_d proto_messages)
                             
     target_link_libraries( openbookfs_d ${LIBS})
     
