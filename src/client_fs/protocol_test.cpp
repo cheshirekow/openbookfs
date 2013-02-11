@@ -53,6 +53,7 @@
 #include <netinet/in.h>
 
 #include "Bytes.h"
+#include "MessageBuffer.h"
 #include "messages.h"
 #include "messages.pb.h"
 
@@ -271,6 +272,41 @@ int main(int argc, char** argv)
         std::cerr << "Failed to open connection to host "
                   << hostName << " on port " << hostPort << std::endl;
         return 1;
+    }
+
+    try
+    {
+
+    // send an authentication request
+    messages::AuthRequest authReq;
+    authReq.set_req_id(1);
+    authReq.set_public_key("Dummy String");
+
+    MessageBuffer msg;
+    std::cout << "Writing first message:\n" << authReq.DebugString()
+              << std::endl;
+    std::cout << "sent " << msg.write(sockfd,MSG_AUTH_REQ,authReq)
+                         << " bytes\n";
+
+    sleep(1);
+
+    //msg.read(sockfd);
+
+    messages::AuthSolution authSoln;
+    authSoln.set_req_id(2);
+    authSoln.set_solution("Dummy String");
+
+    std::cout << "Writing second message:\n" << authSoln.DebugString()
+              << std::endl;
+    std::cout << "sent " << msg.write(sockfd,MSG_AUTH_SOLN,authSoln)
+              << " bytes\n";
+
+    sleep(1);
+
+    }
+    catch( std::exception& ex )
+    {
+        std::cerr << ex.what() << std::endl;
     }
 
     // close the socket

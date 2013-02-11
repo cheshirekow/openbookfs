@@ -27,26 +27,44 @@
 #ifndef OPENBOOK_HANDLER_H_
 #define OPENBOOK_HANDLER_H_
 
-#include <stdio.h>
+#include <cstdio>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 #include <unistd.h>
 #include <netinet/in.h>
 #include <iostream>
 #include <cpp-pthreads.h>
 #include <vector>
+
 #include "Pool.h"
+#include "MessageBuffer.h"
+#include "ExceptionStream.h"
+#include "Protocol.h"
 
 namespace   openbook {
 namespace filesystem {
 
 
+class RequestException :
+    public std::runtime_error
+{
+    public:
+        RequestException( const std::string& msg ) throw():
+            std::runtime_error(msg)
+        {}
+
+        virtual ~RequestException() throw(){}
+};
+
 
 
 class RequestHandler
 {
+    public:
+        typedef ExceptionStream<RequestException> ex;
+
     private:
         typedef Pool<RequestHandler>    Pool_t;
         static const unsigned int sm_bufsize = 256;
@@ -54,7 +72,8 @@ class RequestHandler
         Pool_t*             m_pool;             ///< pool to which this belongs
         pthreads::Thread    m_thread;           ///< the thread we're running in
         pthreads::Mutex     m_mutex;            ///< locks this data
-        char                m_buf[sm_bufsize];  ///< socket buffer
+        MessageBuffer       m_msg;              ///< message buffer
+        Protocol            m_protocol;         ///< protocol handler
         int                 m_sock;             ///< socket fd
 
         void cleanup();

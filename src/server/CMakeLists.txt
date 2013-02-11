@@ -31,7 +31,10 @@ if( (Boost_FOUND)
         
     add_executable( openbookfs_d
                     main.cpp
+                    Protocol.cpp
                     RequestHandler.cpp
+                    ../messages.cpp
+                    ../MessageBuffer.cpp
                     ${MESSAGES_PB_CC}
                              )
     add_dependencies(openbookfs_d proto_messages)

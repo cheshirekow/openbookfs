@@ -24,10 +24,10 @@
  *  @brief  
  */
 
-#include "RequestHandler.h"
 #include <protobuf/message.h>
-#include <protobuf/wire_format.h>
+#include <protobuf/io/zero_copy_stream_impl.h>
 #include <errno.h>
+#include "RequestHandler.h"
 #include "messages.h"
 #include "messages.pb.h"
 
@@ -38,6 +38,10 @@ namespace filesystem {
 void RequestHandler::cleanup()
 {
     close(m_sock);
+    // when finished we put ourselves back in the thread pool
+    std::cout << "Handler " << (void*) this << " is returning to the pool"
+              << std::endl;
+    m_pool->reassign(this);
 }
 
 RequestHandler::RequestHandler():
@@ -105,143 +109,25 @@ void* RequestHandler::operator()()
     int received = 0;
 
     //create message buffers
-    namespace msg = openbook::filesystem::messages;
-    msg::Registration_RequestA   reg_a;
-    msg::Registration_RequestB   reg_b;
-    msg::Authentication_RequestA auth_a;
-    msg::Authentication_RequestB auth_b;
-
     std::cerr << "handler " << (void*) this << " is starting up"
               << std::endl;
 
+    try
+    {
+
     while(1)
     {
-        // the first byte of the message is the type enum
-        char         type;
-
-        received=recv(m_sock, &type, 1, 0);
-        if(received < 0)
-        {
-            cleanup();
-            std::cerr << "failed to read message type from client" << std::endl;
-            break;
-        }
-        if( received == 0 )
-        {
-            cleanup();
-            std::cerr << "client disconnected" << std::endl;
-            break;
-        }
-
-        // the first bytes of the message are the varint length of the message
-        unsigned int length     = 0;
-        int          recv_bytes = 0;
-        char         bite;
-
-        // read the first byte
-        received=recv(m_sock, &bite, 1, 0);
-        if(received < 0)
-        {
-            cleanup();
-            std::cerr << "failed to read message size from client"
-                      << std::endl;
-            break;
-        }
-        if( received == 0 )
-        {
-            cleanup();
-            std::cerr << "client disconnected" << std::endl;
-            break;
-        }
-
-        recv_bytes += received;
-        length      = (bite & 0x7f);
-
-        // all bytes in the varint have the first bit set
-        while(bite & 0x80)
-        {
-            // clear out the bite
-            memset(&bite, 0, 1);
-
-            // read in another byte
-            received    = recv(m_sock, &bite, 1, 0);
-
-            if(received < 0)
-            {
-                cleanup();
-                std::cerr << "failed to read message size from client"
-                      << std::endl;
-                break;
-            }
-            if( received == 0 )
-            {
-                cleanup();
-                std::cerr << "client disconnected" << std::endl;
-                break;
-            }
-
-            recv_bytes += received;
-
-            // the remaining 7bits are actual data so OR it into our
-            // length binary buffer
-            length |= (bite & 0x7F) << (7*(recv_bytes-1));
-        }
-
-        if( length > sm_bufsize )
-        {
-            std::cerr << "Received a message with size " << length <<
-                         " whereas my buffer is only size " << sm_bufsize;
-        }
-
-        // now we can read in the rest of the message
-        // since we know it's length
-        //receive remainder of message
-        recv_bytes = 0;
-        while(recv_bytes < length)
-        {
-            received = recv(m_sock, m_buf + (sizeof(char)*recv_bytes),
-                                length-recv_bytes, 0);
-            if( received < 0 )
-            {
-                cleanup();
-                break;
-            }
-            if( received == 0 )
-            {
-                cleanup();
-                std::cerr << "client disconnected" << std::endl;
-                break;
-            }
-        }
-
-        // now we have received a complete message from the client, so we
-        // need to deserialize it
-        //allocate packet buffer
-
-        //read varint delimited protobuf object in to buffer
-        google::protobuf::io::CodedInputStream codedIn(
-                                        (unsigned char*)m_buf, recv_bytes);
-        google::protobuf::io::CodedInputStream::Limit msgLimit
-                                        = codedIn.PushLimit(recv_bytes);
-
-        switch(type)
-        {
-            case REGISTRATION_REQUEST_A:
-                reg_a.ParseFromCodedStream(&codedIn);
-                break;
-
-            case REGISTRATION_REQUEST_B:
-                reg_a.ParseFromCodedStream(&codedIn);
-                break;
-        }
-
-        codedIn.PopLimit(msgLimit);
+        int msgBytes = m_msg.read(m_sock);
+        m_protocol.dispatch(&m_msg);
     }
 
-    // when finished we put ourselves back in the thread pool
-    std::cout << "Handler " << (void*) this << " is returning to the pool"
-              << std::endl;
-    m_pool->reassign(this);
+    }
+    catch ( std::exception& ex )
+    {
+        std::cerr << ex.what() << std::endl;
+        cleanup();
+        return 0;
+    }
 
     return 0;
 }

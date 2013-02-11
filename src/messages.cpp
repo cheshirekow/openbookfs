@@ -17,35 +17,38 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/messages.h
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/messages.cpp
  *
- *  @date   Feb 8, 2013
+ *  @date   Feb 11, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_MESSAGES_H_
-#define OPENBOOK_MESSAGES_H_
+#include "messages.h"
 
 namespace   openbook {
 namespace filesystem {
 
-enum MessageId
-{
-    MSG_AUTH_REQ,
-    MSG_AUTH_CHALLENGE,
-    MSG_AUTH_SOLN,
-    MSG_AUTH_RESULT,
-    NUM_MSG
-};
 
-const char* messageIdToString( char id );
+const char* messageIdToString( char id )
+{
+    const char* str[] =
+    {
+        "MSG_AUTH_REQ",
+        "MSG_AUTH_CHALLENGE",
+        "MSG_AUTH_SOLUTION",
+        "MSG_AUTH_RESULT",
+        "INVALID_ID"
+    };
+
+    if( 0 < id && id < NUM_MSG )
+        return str[id];
+    else
+        return str[NUM_MSG];
+}
 
 
 
 } // namespace filesystem
 } // namespace openbook
 
-
-
-#endif // MESSAGES_H_

@@ -96,6 +96,7 @@ if( (Boost_FOUND)
         
     add_executable( client_protocol_test
                     ../base64.cpp
+                    ../MessageBuffer.cpp
                     protocol_test.cpp
                     ${MESSAGES_PB_CC}
                              )
