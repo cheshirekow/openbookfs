@@ -44,7 +44,8 @@ Protocol::~Protocol()
 
 void Protocol::dispatch( MessageBuffer* msg )
 {
-    std::cout << "Handing message of type: " << (int)msg->type() << std::endl;
+    std::cout << "Handing message of type: "
+              << (int)msg->type() << std::endl;
 
     switch(m_state)
     {

@@ -3,13 +3,16 @@ find_package(Threads)
 find_package(CPPThreads)
 find_package(Protobuf)
 find_package(Tclap)
+find_package(Crypto++)
                              
                              
 if( (Boost_FOUND)
     AND (THREADS_FOUND)
     AND (CPPThreads_FOUND)
     AND (Protobuf_FOUND)
-    AND (Tclap_FOUND) )
+    AND (Crypto++_FOUND)
+    AND (Tclap_FOUND) 
+    )
                                                                     
     include_directories( 
         ${Boost_INCLUDE_DIRS}
@@ -17,6 +20,7 @@ if( (Boost_FOUND)
         ${CPPThreads_INCLUDE_DIR}
         ${Protobuf_INCLUDE_DIR}
         ${Tclap_INCLUDE_DIR}
+        ${Crypto++_INCLUDE_DIR}
         )
     
     
@@ -25,6 +29,7 @@ if( (Boost_FOUND)
         ${Protobuf_LIBRARY}
         ${CPPThreads_LIBRARY}
         ${THREADS_LIBRARIES}
+        ${Crypto++_LIBRARY}
         )
         
     set_source_files_properties( ${MESSAGES_PB_CC} GENERATED )      
@@ -33,6 +38,7 @@ if( (Boost_FOUND)
                     main.cpp
                     Protocol.cpp
                     RequestHandler.cpp
+                    Server.cpp
                     ../messages.cpp
                     ../MessageBuffer.cpp
                     ${MESSAGES_PB_CC}
@@ -63,6 +69,10 @@ else()
     
     if( NOT (Tclap_FOUND) )
         set(MISSING "${MISSING} tclap,")
+    endif()
+    
+    if( NOT (Crypto++_FOUND) )
+        set(MISSING "${MISSING} crypto++,")
     endif()
     
     message( WARNING "Can't build openbookfs server, missing: ${MISSING}")

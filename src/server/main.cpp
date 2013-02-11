@@ -25,11 +25,10 @@
  */
 
 
-#include <stdio.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include <stdlib.h>
-#include <string.h>
+#include <cstdlib>
+#include <cstring>
 #include <unistd.h>
 #include <netinet/in.h>
 #include <iostream>
@@ -38,9 +37,14 @@
 #include <boost/filesystem.hpp>
 #include <tclap/CmdLine.h>
 
+#include <crypto++/files.h>
+#include <crypto++/rsa.h>
+#include <crypto++/rng.h>
+
 #include "Pool.h"
 #include "Bytes.h"
 #include "RequestHandler.h"
+#include "Server.h"
 
 using namespace openbook::filesystem;
 
@@ -67,7 +71,7 @@ int main(int argc, char** argv)
     strftime (currentYear,5,"%Y",timeinfo);
 
     fs::path homeDir     = getenv("HOME");
-    fs::path dfltDataDir = homeDir / "openbook";
+    fs::path dfltDataDir = "./data";
     fs::path dfltPubKey  = "./rsa-openssl-pub.der";
     fs::path dfltPrivKey = "./rsa-openssl-priv.der";
     int      dfltPort    = 3031;
@@ -150,10 +154,22 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    Server server;
 
+    try
+    {
+        server.initData( dataDir );
+        server.initKeys( pubKey, privKey );
+    }
+    catch( std::exception& ex )
+    {
+        std::cerr << "Exception while initializing server data: "
+                  << ex.what() << std::endl;
+        return 1;
+    }
 
     int serversock, clientsock;
-    struct sockaddr_in server, client;
+    struct sockaddr_in server_in, client_in;
 
     //  Create the TCP socket
     if ((serversock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
@@ -163,14 +179,13 @@ int main(int argc, char** argv)
     }
 
     //  Construct the server sockaddr_in structure
-    memset(&server, 0, sizeof(server));       //  Clear struct
-    server.sin_family       = AF_INET;            //  Internet/IP
-    server.sin_addr.s_addr  = htonl(INADDR_ANY);  //  Incoming addr
-    server.sin_port         = htons(port);        //  server port
+    memset(&server_in, 0, sizeof(server_in));       //  Clear struct
+    server_in.sin_family       = AF_INET;            //  Internet/IP
+    server_in.sin_addr.s_addr  = htonl(INADDR_ANY);  //  Incoming addr
+    server_in.sin_port         = htons(port);        //  server port
 
     //  Bind the server socket
-    if (bind(serversock, (struct sockaddr *) &server,
-    sizeof(server)) < 0)
+    if (bind(serversock, (struct sockaddr *) &server_in, sizeof(server_in)) < 0)
     {
         std::cerr << "Failed to bind the server socket\n";
         return 1;
@@ -189,11 +204,11 @@ int main(int argc, char** argv)
     //  Run until cancelled
     while (1)
     {
-        unsigned int clientlen = sizeof(client);
+        unsigned int clientlen = sizeof(client_in);
         //  Wait for client connection
         clientsock = accept(
                 serversock,
-                (struct sockaddr *) &client,
+                (struct sockaddr *) &client_in,
                 &clientlen );
 
         if (clientsock < 0)
@@ -202,7 +217,7 @@ int main(int argc, char** argv)
             return 1;
         }
 
-        Bytes<in_addr_t> ip( &client.sin_addr.s_addr );
+        Bytes<in_addr_t> ip( &client_in.sin_addr.s_addr );
 
         std::cout << "Client connected: "
                   << ip[0] << "."

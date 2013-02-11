@@ -70,7 +70,8 @@ if( (Boost_FOUND)
     AND (Protobuf_FOUND)
     AND (Crypto++_FOUND)
     AND (RE2_FOUND)
-    AND (Tclap_FOUND) )
+    AND (Tclap_FOUND) 
+    )
                                                                     
     include_directories( 
         ${Boost_INCLUDE_DIRS}
