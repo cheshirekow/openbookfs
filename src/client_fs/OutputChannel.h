@@ -17,15 +17,15 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/server/RequestHandler.h
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/client_fs/OutputChannel.h
  *
  *  @date   Feb 8, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_HANDLER_H_
-#define OPENBOOK_HANDLER_H_
+#ifndef OPENBOOK_OUTPUTCHANNEL_H_
+#define OPENBOOK_OUTPUTCHANNEL_H_
 
 #include <stdio.h>
 #include <sys/socket.h>
@@ -37,42 +37,35 @@
 #include <iostream>
 #include <cpp-pthreads.h>
 #include <vector>
-#include "Pool.h"
 
 namespace   openbook {
 namespace filesystem {
 
 
-
-
-class RequestHandler
+/// tcp/ip connection handler for queries sent by the client
+class OutputChannel
 {
     private:
-        typedef Pool<RequestHandler>    Pool_t;
         static const unsigned int sm_bufsize = 256;
 
-        Pool_t*             m_pool;             ///< pool to which this belongs
-        pthreads::Thread    m_thread;           ///< the thread we're running in
-        pthreads::Mutex     m_mutex;            ///< locks this data
-        char                m_buf[sm_bufsize];  ///< socket buffer
-        int                 m_sock;             ///< socket fd
+        char    m_buf[sm_bufsize];  ///< socket buffer
+        int     m_sockfd;           ///< socket file descriptor
 
         void cleanup();
 
     public:
-        RequestHandler();
-        ~RequestHandler();
+        OutputChannel();
 
-        /// set the parent pointer
-        void init( Pool_t* );
+        // performs server handshake and authentication
+        bool handshake( int sockfd );
 
-        /// start the handler interfacing with the client on the socket
-        void start( int sockfd );
 
-        /// makes this a callable object that can be sent to the thread
-        void* operator()();
 
 };
+
+
+
+
 
 
 
@@ -82,15 +75,4 @@ class RequestHandler
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-#endif // HANDLER_H_
+#endif // OUTPUTCHANNEL_H_

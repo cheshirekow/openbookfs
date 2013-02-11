@@ -35,92 +35,205 @@
 #include <iostream>
 #include <cpp-pthreads.h>
 
-#define MAXPENDING 5    /* Max connection requests */
-#define BUFFSIZE 32
+#include <boost/filesystem.hpp>
+#include <tclap/CmdLine.h>
 
-void HandleClient(int sock)
-{
-    char buffer[BUFFSIZE];
-    int received = -1;
-    /* Receive message */
-    if ((received = recv(sock, buffer, BUFFSIZE, 0)) < 0)
-    {
-        std::cerr << "Failed to receive initial bytes from client\n";
-        exit(1);
-    }
-    /* Send bytes and check for more incoming data in loop */
-    while (received > 0)
-    {
-        /* Send back received data */
-        if (send(sock, buffer, received, 0) != received)
-        {
-            std::cerr << "Failed to send bytes to client\n";
-            exit(1);
-        }
+#include "Pool.h"
+#include "Bytes.h"
+#include "RequestHandler.h"
 
-        /* Check for more data */
-        if ((received = recv(sock, buffer, BUFFSIZE, 0)) < 0)
-        {
-            std::cerr << "Failed to receive additional bytes from client\n";
-            exit(1);
-        }
-    }
-    close(sock);
-}
+using namespace openbook::filesystem;
+
 
 int main(int argc, char** argv)
 {
-    int serversock, clientsock;
-    struct sockaddr_in echoserver, echoclient;
+    namespace fs = boost::filesystem;
 
-    if (argc != 2)
-    {
-        std::cerr << "USAGE: echoserver <port>\n";
-        exit(1);
+    std::string pubKey;
+    std::string privKey;
+    std::string dataDir;
+    int         port;
+
+    // Wrap everything in a try block.  Do this every time,
+    // because exceptions will be thrown for problems.
+    try {
+
+    time_t      rawtime;
+    tm*         timeinfo;
+    char        currentYear[5];
+
+    ::time( &rawtime );
+    timeinfo = ::localtime( &rawtime );
+    strftime (currentYear,5,"%Y",timeinfo);
+
+    fs::path homeDir     = getenv("HOME");
+    fs::path dfltDataDir = homeDir / "openbook";
+    fs::path dfltPubKey  = "./rsa-openssl-pub.der";
+    fs::path dfltPrivKey = "./rsa-openssl-priv.der";
+    int      dfltPort    = 3031;
+
+
+    std::stringstream sstream;
+    sstream << "Openbook Filesystem Server\n"
+            << "Copyright (c) 2012-" << currentYear
+            << " Josh Bialkowski <jbialk@mit.edu>";
+
+    // Define the command line object, and insert a message
+    // that describes the program. The "Command description message"
+    // is printed last in the help text. The second argument is the
+    // delimiter (usually space) and the last one is the version number.
+    // The CmdLine object parses the argv array based on the Arg objects
+    // that it contains.
+    TCLAP::CmdLine cmd(sstream.str().c_str(), ' ', "0.1.0");
+
+    // Define a value argument and add it to the command line.
+    // A value arg defines a flag and a type of value that it expects,
+    // such as "-n Bishop".
+    TCLAP::ValueArg<std::string> pubKeyArg(
+            "b",
+            "pubkey",
+            "path to the ssh public key",
+            false,
+            dfltPubKey.string(),
+            "path"
+            );
+
+    TCLAP::ValueArg<std::string> privKeyArg(
+            "v",
+            "privkey",
+            "path to the ssh private key",
+            false,
+            dfltPrivKey.string(),
+            "path"
+            );
+
+    TCLAP::ValueArg<std::string> dataDirArg(
+            "d",
+            "data",
+            "path to root of file system",
+            false,
+            dfltDataDir.string(),
+            "path"
+            );
+
+    TCLAP::ValueArg<int> portArg(
+            "p",
+            "port",
+            "port to listen on",
+            false,
+            dfltPort,
+            "integer"
+            );
+
+    // Add the argument nameArg to the CmdLine object. The CmdLine object
+    // uses this Arg to parse the command line.
+    cmd.add( pubKeyArg );
+    cmd.add( privKeyArg );
+    cmd.add( dataDirArg );
+    cmd.add( portArg );
+
+    // Parse the argv array.
+    cmd.parse( argc, argv );
+
+    // Get the value parsed by each arg.
+    pubKey  = pubKeyArg.getValue();
+    privKey = privKeyArg.getValue();
+    dataDir = dataDirArg.getValue();
+    port    = portArg.getValue();
+
     }
 
-    /* Create the TCP socket */
+    catch (TCLAP::ArgException &e)  // catch any exceptions
+    {
+        std::cerr   << "error: " << e.error() << " for arg "
+                    << e.argId() << std::endl;
+        return 1;
+    }
+
+
+
+    int serversock, clientsock;
+    struct sockaddr_in server, client;
+
+    //  Create the TCP socket
     if ((serversock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
     {
         std::cerr << "Failed to create socket\n";
         return 1;
     }
-    /* Construct the server sockaddr_in structure */
-    memset(&echoserver, 0, sizeof(echoserver));       /* Clear struct */
-    echoserver.sin_family = AF_INET;                  /* Internet/IP */
-    echoserver.sin_addr.s_addr = htonl(INADDR_ANY);   /* Incoming addr */
-    echoserver.sin_port = htons(atoi(argv[1]));       /* server port */
 
-    /* Bind the server socket */
-    if (bind(serversock, (struct sockaddr *) &echoserver,
-    sizeof(echoserver)) < 0)
+    //  Construct the server sockaddr_in structure
+    memset(&server, 0, sizeof(server));       //  Clear struct
+    server.sin_family       = AF_INET;            //  Internet/IP
+    server.sin_addr.s_addr  = htonl(INADDR_ANY);  //  Incoming addr
+    server.sin_port         = htons(port);        //  server port
+
+    //  Bind the server socket
+    if (bind(serversock, (struct sockaddr *) &server,
+    sizeof(server)) < 0)
     {
         std::cerr << "Failed to bind the server socket\n";
         return 1;
     }
-    /* Listen on the server socket */
-    if (listen(serversock, MAXPENDING) < 0)
+
+    //  Listen on the server socket, 10 max pending connections
+    if (listen(serversock, 10) < 0)
     {
         std::cerr << "Failed to listen on server socket\n";
+        return 1;
     }
 
-    /* Run until cancelled */
+    // Pool of request handlers, 20 handlers
+    Pool<RequestHandler> handlerPool(20);
+
+    //  Run until cancelled
     while (1)
     {
-        unsigned int clientlen = sizeof(echoclient);
-        /* Wait for client connection */
+        unsigned int clientlen = sizeof(client);
+        //  Wait for client connection
         clientsock = accept(
                 serversock,
-                (struct sockaddr *) &echoclient,
+                (struct sockaddr *) &client,
                 &clientlen );
+
         if (clientsock < 0)
         {
             std::cerr << "Failed to accept client connection\n";
             return 1;
         }
-        fprintf(stdout, "Client connected: %s\n",
-                    inet_ntoa(echoclient.sin_addr));
-        HandleClient(clientsock);
+
+        Bytes<in_addr_t> ip( &client.sin_addr.s_addr );
+
+        std::cout << "Client connected: "
+                  << ip[0] << "."
+                  << ip[1] << "."
+                  << ip[2] << "."
+                  << ip[3] << "\n";
+
+        // set a timeout on the socket
+        timeval tv = {2,0};
+        int optResult = setsockopt(clientsock, SOL_SOCKET,
+                            SO_RCVTIMEO, (char *)&tv,  sizeof tv);
+        if( optResult < 0 )
+        {
+            std::cerr << "Failed to set timeout on client sock"
+                      << std::endl;
+            return 1;
+        }
+
+        // get a request handler
+        RequestHandler* handler = handlerPool.getAvailable();
+
+        if(handler)
+            handler->start(clientsock);
+        else
+        {
+            std::cerr << "no available handlers, terminating connection"
+                      << std::endl;
+            close(clientsock);
+        }
+
+
     }
 }
 

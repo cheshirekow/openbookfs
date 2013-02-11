@@ -1,20 +1,20 @@
 /*
  *  Copyright (C) 2012 Josh Bialkowski (jbialk@mit.edu)
  *
- *  This file is part of cppfreetype.
+ *  This file is part of openbook.
  *
- *  cppfreetype is free software: you can redistribute it and/or modify
+ *  openbook is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation, either version 3 of the License, or
  *  (at your option) any later version.
  *
- *  cppfreetype is distributed in the hope that it will be useful,
+ *  openbook is distributed in the hope that it will be useful,
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
  *  You should have received a copy of the GNU General Public License
- *  along with gltk.  If not, see <http://www.gnu.org/licenses/>.
+ *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
  *  @file   /home/josh/Codes/cpp/openbookfs/src/server/RequestHandler.cpp
@@ -27,6 +27,7 @@
 #include "RequestHandler.h"
 #include <protobuf/message.h>
 #include <protobuf/wire_format.h>
+#include <errno.h>
 #include "messages.h"
 #include "messages.pb.h"
 
@@ -42,6 +43,12 @@ void RequestHandler::cleanup()
 RequestHandler::RequestHandler():
     m_pool(0)
 {
+
+}
+
+RequestHandler::~RequestHandler()
+{
+
 }
 
 void RequestHandler::init(Pool_t* pool)
@@ -57,8 +64,36 @@ void RequestHandler::start( int sockfd )
         ScopedLock lock(m_mutex);
         m_sock = sockfd;
 
-        Attr<Thread> attr; attr << DETACHED;
-        m_thread.launch(attr,this);
+        Attr<Thread> attr;
+        attr.init();
+        attr << DETACHED;
+        int result = m_thread.launch(attr,this);
+        attr.destroy();
+
+        if( result )
+        {
+            std::cerr << "Failed to start handler thread: ";
+            switch(result)
+            {
+                case EAGAIN:
+                    std::cerr << "EAGAIN";
+                    break;
+
+                case EINVAL:
+                    std::cerr << "EINVAL";
+                    break;
+
+                case EPERM:
+                    std::cerr << "EPERM";
+                    break;
+
+                default:
+                    std::cerr << "unexpected errno";
+                    break;
+            }
+            std::cerr << std::endl;
+            m_pool->reassign(this);
+        }
     }
 }
 
@@ -76,7 +111,8 @@ void* RequestHandler::operator()()
     msg::Authentication_RequestA auth_a;
     msg::Authentication_RequestB auth_b;
 
-
+    std::cerr << "handler " << (void*) this << " is starting up"
+              << std::endl;
 
     while(1)
     {
@@ -87,9 +123,15 @@ void* RequestHandler::operator()()
         if(received < 0)
         {
             cleanup();
-            return 0;
+            std::cerr << "failed to read message type from client" << std::endl;
+            break;
         }
-
+        if( received == 0 )
+        {
+            cleanup();
+            std::cerr << "client disconnected" << std::endl;
+            break;
+        }
 
         // the first bytes of the message are the varint length of the message
         unsigned int length     = 0;
@@ -101,7 +143,15 @@ void* RequestHandler::operator()()
         if(received < 0)
         {
             cleanup();
-            return 0;
+            std::cerr << "failed to read message size from client"
+                      << std::endl;
+            break;
+        }
+        if( received == 0 )
+        {
+            cleanup();
+            std::cerr << "client disconnected" << std::endl;
+            break;
         }
 
         recv_bytes += received;
@@ -119,7 +169,15 @@ void* RequestHandler::operator()()
             if(received < 0)
             {
                 cleanup();
-                return 0;
+                std::cerr << "failed to read message size from client"
+                      << std::endl;
+                break;
+            }
+            if( received == 0 )
+            {
+                cleanup();
+                std::cerr << "client disconnected" << std::endl;
+                break;
             }
 
             recv_bytes += received;
@@ -146,7 +204,13 @@ void* RequestHandler::operator()()
             if( received < 0 )
             {
                 cleanup();
-                return 0;
+                break;
+            }
+            if( received == 0 )
+            {
+                cleanup();
+                std::cerr << "client disconnected" << std::endl;
+                break;
             }
         }
 
@@ -175,6 +239,8 @@ void* RequestHandler::operator()()
     }
 
     // when finished we put ourselves back in the thread pool
+    std::cout << "Handler " << (void*) this << " is returning to the pool"
+              << std::endl;
     m_pool->reassign(this);
 
     return 0;

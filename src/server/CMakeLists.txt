@@ -1,27 +1,26 @@
-find_package(Fuse)
 find_package(Boost COMPONENTS filesystem)
 find_package(Threads)
 find_package(CPPThreads)
 find_package(Protobuf)
+find_package(Tclap)
                              
                              
-if( (FUSE_FOUND)
-    AND (Boost_FOUND)
+if( (Boost_FOUND)
     AND (THREADS_FOUND)
     AND (CPPThreads_FOUND)
-    AND (Protobuf_FOUND) )
+    AND (Protobuf_FOUND)
+    AND (Tclap_FOUND) )
                                                                     
     include_directories( 
-        ${FUSE_INCLUDE_DIRS}
         ${Boost_INCLUDE_DIRS}
         ${THREADS_INCLUDE_DIRS}
         ${CPPThreads_INCLUDE_DIR}
         ${Protobuf_INCLUDE_DIR}
+        ${Tclap_INCLUDE_DIR}
         )
     
     
     set(LIBS ${LIBS} 
-        ${FUSE_LIBRARY}
         ${Boost_LIBRARIES}
         ${Protobuf_LIBRARY}
         ${CPPThreads_LIBRARY}
@@ -43,10 +42,6 @@ else()
 
     set(MISSING, "")
     
-    if( NOT (FUSE_FOUND) )
-        set(MISSING "${MISSING} libfuse,")
-    endif()
-    
     if( NOT (Boost_FOUND) )
         set(MISSING "${MISSING} boost-filesystem,")
     endif()
@@ -61,6 +56,10 @@ else()
     
     if( NOT (Protobuf_FOUND) )
         set(MISSING "${MISSING} protobuf,")
+    endif()
+    
+    if( NOT (Tclap_FOUND) )
+        set(MISSING "${MISSING} tclap,")
     endif()
     
     message( WARNING "Can't build openbookfs server, missing: ${MISSING}")

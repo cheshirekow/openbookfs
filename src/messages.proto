@@ -54,7 +54,8 @@ message Authentication_RequestA {
 // challenge sent by the server
 message Authentication_ReplyA {
     optional int32  req_id   = 1;    // request to which server is responding
-    optional string challenge= 2;    // encrypted phrase
+    optional bool   accept   = 2;    // if server has client registered
+    optional string challenge= 3;    // encrypted phrase
 }
 
 // response to challenge sent by the client
