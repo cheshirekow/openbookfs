@@ -17,55 +17,36 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/server/Server.h
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/server/Client.h
  *
  *  @date   Feb 11, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_SERVER_H_
-#define OPENBOOK_SERVER_H_
-
-#include <cpp-pthreads.h>
+#ifndef OPENBOOK_CLIENT_H_
+#define OPENBOOK_CLIENT_H_
 
 #include <crypto++/rsa.h>
 #include <cryptopp/osrng.h>
-
-#include <boost/filesystem.hpp>
 
 
 namespace   openbook {
 namespace filesystem {
 
 
-/// encapsulates details about the server
-class Server
+/// encapsulates details about the connected client
+class Client
 {
     private:
-        pthreads::Mutex             m_mutex;    ///< locks this data
-        boost::filesystem::path     m_dataDir;  ///< data directory
-        std::string                 m_pubStr;   ///< public key file as string
-        CryptoPP::RSA::PublicKey    m_pubKey;   ///< public key
-        CryptoPP::RSA::PrivateKey   m_privKey;  ///< private key
-
-        CryptoPP::AutoSeededRandomPool  m_rng;  ///< random number generator
-
+        CryptoPP::RSA::PublicKey        m_pubKey;
+        CryptoPP::AutoSeededRandomPool  m_rng;
 
     public:
-        Server();
-        ~Server();
-
-        void initData( const std::string& dataDir );
-        void initKeys( const std::string& pubKey,
-                       const std::string& privKey );
-        void decrypt( const std::string& cipher,
-                      std::string& plain );
-
-
+        void initKey( const std::string& pubKey );
+        void encrypt( const std::string& plain,
+                      std::string& cipher );
 };
-
-
 
 
 } // namespace filesystem
@@ -73,4 +54,7 @@ class Server
 
 
 
-#endif // SERVER_H_
+
+
+
+#endif // CLIENT_H_

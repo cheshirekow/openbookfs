@@ -38,9 +38,10 @@
 #include <cpp-pthreads.h>
 #include <vector>
 
-#include "Pool.h"
-#include "MessageBuffer.h"
+#include "Client.h"
 #include "ExceptionStream.h"
+#include "MessageBuffer.h"
+#include "Pool.h"
 #include "Protocol.h"
 
 namespace   openbook {
@@ -74,6 +75,7 @@ class RequestHandler
         pthreads::Mutex     m_mutex;            ///< locks this data
         MessageBuffer       m_msg;              ///< message buffer
         Protocol            m_protocol;         ///< protocol handler
+        Client              m_client;           ///< client structure
         int                 m_sock;             ///< socket fd
 
         void cleanup();

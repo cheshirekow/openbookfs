@@ -158,11 +158,34 @@ int main(int argc, char** argv)
         return 1;
     }
 
+
+    std::string                 rsaPubStr;
     CryptoPP::RSA::PublicKey    rsaPubKey;
     CryptoPP::RSA::PrivateKey   rsaPrivKey;
     try
     {
-        CryptoPP::FileSource keyFile(pubKey.c_str(),true);
+        // open a stream to the public key file
+        std::ifstream in(pubKey.c_str(), std::ios::in | std::ios::binary);
+        if (!in)
+            ex()() << "Failed to open " << pubKey << " for reading ";
+
+        // seek to the end of the file to get it's size
+        in.seekg(0, std::ios::end);
+
+        // resize the storage space
+        rsaPubStr.resize((unsigned int)in.tellg(),'\0');
+
+        // seek back to the beginning
+        in.seekg(0, std::ios::beg);
+
+        // read in the entire file
+        in.read(&rsaPubStr[0], rsaPubStr.size());
+
+        // seek back to the beginning again
+        in.seekg(0, std::ios::beg);
+
+        // read into public key
+        CryptoPP::FileSource keyFile(in,true);
         CryptoPP::ByteQueue  queue;
         keyFile.TransferTo(queue);
         queue.MessageEnd();
@@ -280,7 +303,7 @@ int main(int argc, char** argv)
     // send an authentication request
     messages::AuthRequest authReq;
     authReq.set_req_id(1);
-    authReq.set_public_key("Dummy String");
+    authReq.set_public_key(rsaPubStr);
 
     MessageBuffer msg;
     std::cout << "Writing first message:\n" << authReq.DebugString()

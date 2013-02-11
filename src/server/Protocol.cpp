@@ -28,6 +28,7 @@
 #include "Protocol.h"
 #include "messages.h"
 #include <iostream>
+#include "messages.pb.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -57,6 +58,8 @@ void Protocol::dispatch( MessageBuffer* msg )
                        << " (" << (int) msg->type() << ") "
                        << "when expecting MSG_AUTH_REQ";
 
+            messages::AuthRequest req;
+            req.ParseFromArray(msg->buf(),msg->size());
             std::cout << "Handling authentication request" << std::endl;
             m_state = AUTH_CHALLENGE;
             break;

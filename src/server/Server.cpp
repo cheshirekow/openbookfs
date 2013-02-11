@@ -28,6 +28,11 @@
 #include "Server.h"
 #include "ExceptionStream.h"
 #include <iostream>
+#include <fstream>
+#include <string>
+
+#include <crypto++/files.h>
+#include <crypto++/cryptlib.h>
 
 
 namespace   openbook {
@@ -75,12 +80,36 @@ void Server::initKeys(const std::string& pubKey, const std::string& privKey)
 {
     try
     {
-        CryptoPP::FileSource keyFile(pubKey.c_str(),true);
+        // open a stream to the public key file
+        std::ifstream in(pubKey.c_str(), std::ios::in | std::ios::binary);
+        if (!in)
+            ex()() << "Failed to open " << pubKey << " for reading ";
+
+        // seek to the end of the file to get it's size
+        in.seekg(0, std::ios::end);
+
+        // resize the storage space
+        m_pubStr.resize((unsigned int)in.tellg(),'\0');
+
+        // seek back to the beginning
+        in.seekg(0, std::ios::beg);
+
+        // read in the entire file
+        in.read(&m_pubStr[0], m_pubStr.size());
+
+        // seek back to the beginning again
+        in.seekg(0, std::ios::beg);
+
+        // read into public key
+        CryptoPP::FileSource keyFile(in,true);
         CryptoPP::ByteQueue  queue;
         keyFile.TransferTo(queue);
         queue.MessageEnd();
 
         m_pubKey.Load(queue);
+
+        // close the file
+        in.close();
     }
     catch( CryptoPP::Exception& cex )
     {
@@ -109,6 +138,19 @@ void Server::initKeys(const std::string& pubKey, const std::string& privKey)
 
     if( !m_privKey.Validate(rng,3) )
         ex()() << "Failed to validate private key";
+}
+
+
+void Server::decrypt( const std::string& cipher,
+                      std::string& plain )
+{
+    using namespace CryptoPP;
+    RSAES_OAEP_SHA_Decryptor d(m_privKey);
+
+    StringSource ss2(cipher, true,
+            new PK_DecryptorFilter(m_rng, d, new StringSink(plain)
+   ) // PK_DecryptorFilter
+); // StringSource
 }
 
 
