@@ -198,6 +198,7 @@ void RequestHandler::start( int sockfd )
 void* RequestHandler::operator()()
 {
     namespace cryp = CryptoPP;
+    namespace msgs = messages;
     using namespace pthreads;
     ScopedLock lock(m_mutex);
 
@@ -224,8 +225,8 @@ void* RequestHandler::operator()()
     m_dh.GetGroupParameters().GetSubgroupOrder().Encode(
             (unsigned char*)&q[0], q.size(), cryp::Integer::UNSIGNED );
 
-    messages::DiffieHellmanParams* dhParams =
-            static_cast<messages::DiffieHellmanParams*>(m_msg[MSG_DH_PARAMS]);
+    msgs::DiffieHellmanParams* dhParams =
+            static_cast<msgs::DiffieHellmanParams*>(m_msg[MSG_DH_PARAMS]);
     dhParams->set_p(p);
     dhParams->set_q(q);
     dhParams->set_g(g);
@@ -238,8 +239,8 @@ void* RequestHandler::operator()()
                << " (" << (int)type << ") "
                << "when expecting MSG_KEY_EXCHANGE, terminating client";
 
-    messages::KeyExchange* keyEx =
-            static_cast<messages::KeyExchange*>(m_msg[MSG_KEY_EXCHANGE]);
+    msgs::KeyExchange* keyEx =
+            static_cast<msgs::KeyExchange*>(m_msg[MSG_KEY_EXCHANGE]);
 
     // read client keys
     cryp::SecByteBlock epubClient(
@@ -284,6 +285,7 @@ void* RequestHandler::operator()()
     ivOut .Decode(  iv.BytePtr(),  iv.SizeInBytes() );
     std::cout << "AES Key: " << std::hex << cekOut << std::endl;
     std::cout << "     iv: " << std::hex << ivOut  << std::endl;
+    std::cout << std::dec;
 
     // AES in ECB mode is fine - we're encrypting 1 block, so we don't need
     // padding
@@ -300,8 +302,8 @@ void* RequestHandler::operator()()
                                   msg_cipher.BytePtr(), 2*cryp::AES::BLOCKSIZE );
 
     // fill the content key message
-    messages::ContentKey* contentKey =
-            static_cast<messages::ContentKey*>( m_msg[MSG_CEK] );
+    msgs::ContentKey* contentKey =
+            static_cast<msgs::ContentKey*>( m_msg[MSG_CEK] );
 
     contentKey->set_key( msg_cipher.BytePtr(), cryp::AES::BLOCKSIZE );
     contentKey->set_iv(  &msg_cipher.BytePtr()[ cryp::AES::BLOCKSIZE],
@@ -319,34 +321,91 @@ void* RequestHandler::operator()()
     dec.SetKeyWithIV(cek.BytePtr(), cek.SizeInBytes(),
                     iv.BytePtr(), iv.SizeInBytes());
 
-
-
     // read the client's public key
-    messages::AuthRequest* authReq =
-            static_cast<messages::AuthRequest*>( m_msg[MSG_AUTH_REQ] );
+    type = m_msg.read(m_sock,dec);
+    dec.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
+
+    if( type != MSG_AUTH_REQ )
+        ex()() << "Protocol Error: expected AUTH_REQ from client, instead got"
+               << messageIdToString(type) << "(" << (int)type << ")";
+
+    msgs::AuthRequest* authReq =
+            static_cast<msgs::AuthRequest*>( m_msg[MSG_AUTH_REQ] );
     std::stringstream  inkey( authReq->public_key() );
-    CryptoPP::FileSource keyFile(inkey,true);
-    CryptoPP::ByteQueue  queue;
+    cryp::FileSource keyFile(inkey,true);
+    cryp::ByteQueue  queue;
     keyFile.TransferTo(queue);
     queue.MessageEnd();
-    CryptoPP::RSA::PublicKey clientKey;
+    cryp::RSA::PublicKey clientKey;
     clientKey.Load(queue);
+
+    // create an RSA Encryptor to verify ownership
+    cryp::RSAES_OAEP_SHA_Encryptor rsaEnc( clientKey );
+
+    // Now that there is a concrete object, we can validate
+    if( rsaEnc.FixedMaxPlaintextLength() == 0 )
+        ex()() << "Error generating RSA encryptor";
+
+    // now we authenticate the client by sending a challenge of his key
+    // ownership
+    // generate a random string
+    std::string plainChallenge;
+    std::string cipherChallenge;
+    plainChallenge.resize(rsaEnc.FixedMaxPlaintextLength());
+    cipherChallenge.resize( rsaEnc.CiphertextLength(plainChallenge.size()) );
+
+    m_rng.GenerateBlock(
+            (unsigned char*)&(plainChallenge[0]), plainChallenge.size());
+    rsaEnc.Encrypt( m_rng,
+                    (unsigned char*)&plainChallenge[0],
+                    plainChallenge.size(),
+                    (unsigned char*)&cipherChallenge[0] );
+
+    msgs::AuthChallenge* challenge =
+            static_cast<msgs::AuthChallenge*>( m_msg[MSG_AUTH_CHALLENGE] );
+    challenge->set_type( msgs::AuthChallenge::AUTHENTICATE );
+    challenge->set_challenge(cipherChallenge);
+
+    m_msg.write(m_sock,MSG_AUTH_CHALLENGE,enc);
+    enc.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
+
+    // read the challenge solution
+    type = m_msg.read(m_sock,dec);
+    dec.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
+    if( type != MSG_AUTH_SOLN )
+        ex()() << "Protocol error: Expected AUTH_SOLN, got "
+               << messageIdToString(type) << " (" << (int)type << ")";
+
+    msgs::AuthSolution* authSoln =
+            static_cast<msgs::AuthSolution*>( m_msg[MSG_AUTH_SOLN]);
+    msgs::AuthResult* authResult =
+            static_cast<msgs::AuthResult*>( m_msg[MSG_AUTH_RESULT] );
+    if( authSoln->solution().compare(plainChallenge) != 0 )
+    {
+        authResult->set_response(false);
+        m_msg.write(m_sock,MSG_AUTH_RESULT,enc);
+
+        ex()() << "Client does not own the key";
+    }
+
+    authResult->set_response(true);
+    m_msg.write(m_sock,MSG_AUTH_RESULT,enc);
+    enc.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
+    std::cout << "Client authenticated" << std::endl;
+
+    ex()() << "Exiting Early";
 
     int authRetry = 0;
     for(; authRetry < 3; authRetry++)
     {
-        // generate a random string
-        std::string randomStr;
-        randomStr.resize(30);
-        m_rng.GenerateBlock( (unsigned char*)&(randomStr[0]), 30 );
-
-        messages::AuthChallenge* challenge =
-            static_cast<messages::AuthChallenge*>( m_msg[MSG_AUTH_CHALLENGE] );
+        break;
+        msgs::AuthChallenge* challenge =
+            static_cast<msgs::AuthChallenge*>( m_msg[MSG_AUTH_CHALLENGE] );
 
         // for now, let's pretend that all clients are authorized and we'll
         // just verify that they are the key owner
-        challenge->set_challenge(randomStr);
-        challenge->set_type( messages::AuthChallenge::AUTHENTICATE );
+        challenge->set_challenge(cipherChallenge);
+        challenge->set_type( msgs::AuthChallenge::AUTHENTICATE );
 
         break;
     }
@@ -355,15 +414,13 @@ void* RequestHandler::operator()()
     if( authRetry >= 3 )
     {
         std::cout << "client failed too many times" << std::endl;
-        messages::AuthResult* result =
-                static_cast<messages::AuthResult*>( m_msg[MSG_AUTH_REQ] );
-        result->set_req_id(2);
+        msgs::AuthResult* result =
+                static_cast<msgs::AuthResult*>( m_msg[MSG_AUTH_REQ] );
         result->set_response(false);
 
         cleanup();
         return 0;
     }
-
 
     while(1)
     {

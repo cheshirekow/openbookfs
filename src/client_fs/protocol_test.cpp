@@ -70,6 +70,7 @@ int main(int argc, char** argv)
 {
     namespace fs   = boost::filesystem;
     namespace cryp = CryptoPP;
+    namespace msgs = messages;
 
     std::string pubKey;
     std::string privKey;
@@ -168,7 +169,7 @@ int main(int argc, char** argv)
 
 
 
-    std::string                 rsaPubStr;
+    std::string             rsaPubStr;
     cryp::RSA::PublicKey    rsaPubKey;
     cryp::RSA::PrivateKey   rsaPrivKey;
     cryp::AutoSeededRandomPool  rng;
@@ -316,8 +317,8 @@ int main(int argc, char** argv)
                << messageIdToString(type) << "(" << (int)type << "), "
                << "expecting DH_PARAMS";
 
-    messages::DiffieHellmanParams* dhParams =
-            static_cast<messages::DiffieHellmanParams*>( msg[MSG_DH_PARAMS] );
+    msgs::DiffieHellmanParams* dhParams =
+            static_cast<msgs::DiffieHellmanParams*>( msg[MSG_DH_PARAMS] );
 
     cryp::Integer p,q,g;
     p.Decode( (unsigned char*)&dhParams->p()[0],
@@ -360,8 +361,8 @@ int main(int argc, char** argv)
     }
 
     // the first message is a DH key exchange
-    messages::KeyExchange* keyEx =
-            static_cast<messages::KeyExchange*>( msg[MSG_KEY_EXCHANGE] );
+    msgs::KeyExchange* keyEx =
+            static_cast<msgs::KeyExchange*>( msg[MSG_KEY_EXCHANGE] );
     keyEx->set_skey(spub.BytePtr(),spub.SizeInBytes());
     keyEx->set_ekey(epub.BytePtr(),epub.SizeInBytes());
 
@@ -413,8 +414,8 @@ int main(int argc, char** argv)
                << messageIdToString(type) << "(" << (int)type << ") ";
 
     // verify message sizes
-    messages::ContentKey* contentKey =
-            static_cast<messages::ContentKey*>( msg[MSG_CEK] );
+    msgs::ContentKey* contentKey =
+            static_cast<msgs::ContentKey*>( msg[MSG_CEK] );
     if( contentKey->key().size() != cryp::AES::BLOCKSIZE )
         ex()() << "Message error: CEK key size "
                << contentKey->key().size() << " is incorrect, should be "
@@ -467,6 +468,7 @@ int main(int argc, char** argv)
     ivOut .Decode(  iv.BytePtr(),  iv.SizeInBytes() );
     std::cout << "AES Key: " << std::hex << cekOut << std::endl;
     std::cout << "     iv: " << std::hex <<  ivOut << std::endl;
+    std::cout << std::dec;
 
     // now we can make our encryptor and decryptor
     cryp::GCM<cryp::AES>::Encryption enc;
@@ -475,6 +477,58 @@ int main(int argc, char** argv)
                      iv.BytePtr(), iv.SizeInBytes());
     dec.SetKeyWithIV(cek.BytePtr(), cek.SizeInBytes(),
                     iv.BytePtr(), iv.SizeInBytes());
+
+    // the next message we send is the authentication message carrying our
+    // public key
+    msgs::AuthRequest* authReq =
+            static_cast<msgs::AuthRequest*>(msg[MSG_AUTH_REQ]);
+    authReq->set_public_key(rsaPubStr);
+
+    msg.write(sockfd,MSG_AUTH_REQ,enc);
+    enc.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
+
+    // we expect a challenge
+    type = msg.read(sockfd,dec);
+    dec.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
+    if( type != MSG_AUTH_CHALLENGE )
+        ex()() << "Protocol error: expected AUTH_CHALLENGE but received "
+               << messageIdToString(type) << " (" << (int)type << ")";
+
+    std::string solution;
+    msgs::AuthChallenge* challenge =
+            static_cast<msgs::AuthChallenge*>(msg[MSG_AUTH_CHALLENGE]);
+
+    if( challenge->type() != msgs::AuthChallenge::AUTHENTICATE )
+        ex()() << "Protocol error: expected an authentication challenge";
+
+    // create an RSA Decryptor to verify ownership
+    cryp::RSAES_OAEP_SHA_Decryptor rsaDec( rsaPrivKey );
+    solution.resize( rsaDec.FixedMaxPlaintextLength() );
+    rsaDec.Decrypt(rng,
+                    (unsigned char*)&challenge->challenge()[0],
+                    challenge->challenge().size(),
+                    (unsigned char*)&solution[0] );
+
+    msgs::AuthSolution* authSoln =
+            static_cast<msgs::AuthSolution*>(msg[MSG_AUTH_SOLN]);
+    authSoln->set_solution(solution);
+
+    msg.write(sockfd,MSG_AUTH_SOLN,enc);
+    enc.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
+
+    type = msg.read(sockfd,dec);
+    dec.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
+    if( type != MSG_AUTH_RESULT )
+        ex()() << "Protocol Error: expected AUTH_RESULT but got "
+               << messageIdToString(type) << " (" << (int)type << ")";
+
+    msgs::AuthResult* authResult =
+            static_cast<msgs::AuthResult*>( msg[MSG_AUTH_RESULT] );
+    if( !authResult->response() )
+        ex()() << "Failed the servers challenge";
+
+
+
     sleep(1);
 
     }

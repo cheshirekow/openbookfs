@@ -50,15 +50,13 @@ message AuthChallenge {
 
 // response to a challenge sent by the client
 message AuthSolution {
-    optional int32  req_id   = 1;   // client specific request id
-    optional bytes  solution = 2;   // authentication: crypt-cycled phrase
+    optional bytes  solution = 1;   // authentication: crypt-cycled phrase
                                     // authorization:  salted hashed crypted pw
 }
 
 // response of server to clients authentication request
 message AuthResult {
-    optional int32  req_id   = 1;   // request to which server is responding
-    optional bool   response = 2;   // whether the client is authenticated or
+    optional bool   response = 1;   // whether the client is authenticated or
                                     // not
 }
 

@@ -75,8 +75,8 @@ void MessageBuffer::checkForDisconnect( int value )
 // size bytes:      message
 char MessageBuffer::read( int sockfd )
 {
-    char header[2];     //< header bytes
-    int  received;      //< result of recv
+    unsigned char header[2];     //< header bytes
+    int           received;      //< result of recv
     received = recv(sockfd, header, 2, 0);
 
     checkForDisconnect(received);
@@ -87,8 +87,8 @@ char MessageBuffer::read( int sockfd )
     char         type;      //< message enum
     unsigned int size;      //< size of the message
 
-    size       = header[0] ; //< the rest are size
-    size      |= header[1] << 8;
+    size    = header[0] ; //< the rest are size
+    size   |= header[1] << 8;
 
     int     recv_bytes   = 0;
     char    byte;
@@ -118,7 +118,7 @@ char MessageBuffer::read( int sockfd )
         recv_bytes += received;
     }
 
-    std::cout << "Finished reading " << recv_bytes << "bytes" << std::endl;
+    std::cout << "Finished reading " << recv_bytes << " bytes" << std::endl;
 
     // the first decoded byte is the type
     type = m_plain[0];
@@ -138,10 +138,10 @@ void MessageBuffer::write( int sockfd, char type )
 {
     namespace io = google::protobuf::io;
 
-    unsigned int msgSize  = m_msgs[type]->ByteSize();
-    unsigned int typeSize = 1;
-    unsigned int size     = typeSize + msgSize;
-    char         header[2]= {0,0};
+    unsigned int  msgSize  = m_msgs[type]->ByteSize();
+    unsigned int  typeSize = 1;
+    unsigned int  size     = typeSize + msgSize;
+    unsigned char header[2]= {0,0};
 
     if( size > BUFSIZE )
         ex()() << "Attempt to send a message of size " << msgSize
@@ -154,10 +154,10 @@ void MessageBuffer::write( int sockfd, char type )
     // the serialized message
     m_msgs[type]->SerializeToArray(&m_plain[1],msgSize);
 
-    header[0] |= size & 0xFF;   //< first byte of size
+    header[0]  = size & 0xFF;   //< first byte of size
     header[1]  = size >> 8;     //< second byte of size
 
-    std::cout << "Sending message with " << size
+    std::cout << "Sending unencrypted message with " << size
               << " bytes" << std::endl;
 
     // send header
@@ -184,8 +184,8 @@ void MessageBuffer::write( int sockfd, char type )
 char MessageBuffer::read( int sockfd,
                             CryptoPP::GCM<CryptoPP::AES>::Decryption& dec)
 {
-    char header[2];     //< header bytes
-    int  received;      //< result of recv
+    unsigned char header[2];     //< header bytes
+    int           received;      //< result of recv
     received = recv(sockfd, header, 2, 0);
 
     checkForDisconnect(received);
@@ -200,8 +200,9 @@ char MessageBuffer::read( int sockfd,
 
     int     recv_bytes   = 0;
     if( size > BUFSIZE )
-        ex()() << "Received a message with size " << size <<
-                     " whereas my buffer is only size " << BUFSIZE;
+        ex()() << "Received a message with size " << size
+               << " (" << std::hex << (int)header[0] << " " << (int)header[1]
+               << std::dec << ") whereas my buffer is only size " << BUFSIZE;
 
     std::cout << "Receiving encrypted message of size " << size << " bytes "
               << std::endl;
@@ -222,15 +223,18 @@ char MessageBuffer::read( int sockfd,
         recv_bytes += received;
     }
 
-    std::cout << "Finished reading " << recv_bytes << "bytes" << std::endl;
+    std::cout << "Finished reading " << recv_bytes << " bytes" << std::endl;
 
     // decrypt the message
+    m_plain.clear();
     CryptoPP::StringSource( m_cipher, true,
         new CryptoPP::AuthenticatedDecryptionFilter(
             dec,
             new CryptoPP::StringSink( m_plain )
         )
     );
+
+    std::cout << "Finished ecryption and message authentication" << std::endl;
 
     // the first decoded byte is the type
     type = m_plain[0];
@@ -240,7 +244,8 @@ char MessageBuffer::read( int sockfd,
         ex()() << "Invalid message type: " << (int)type;
 
     if( !m_msgs[type]->ParseFromArray(&m_plain[1],m_plain.size()-1) )
-        ex()() << "Failed to parse message";
+        ex()() << "Failed to parse message " << messageIdToString(type)
+               << " of size " << m_plain.size()-1;
 
     std::cout << "   read done\n";
 
@@ -252,10 +257,10 @@ void MessageBuffer::write( int sockfd, char type,
 {
     namespace io = google::protobuf::io;
 
-    unsigned int msgSize  = m_msgs[type]->ByteSize();
-    unsigned int typeSize = 1;
-    unsigned int size     = typeSize + msgSize;
-    char         header[2]= {0,0};
+    unsigned int  msgSize  = m_msgs[type]->ByteSize();
+    unsigned int  typeSize = 1;
+    unsigned int  size     = typeSize + msgSize;
+    unsigned char header[2]= {0,0};
 
     if( size > BUFSIZE )
         ex()() << "Attempt to send a message of size " << msgSize
@@ -269,6 +274,7 @@ void MessageBuffer::write( int sockfd, char type,
     m_msgs[type]->SerializeToArray(&m_plain[1],msgSize);
 
     // encrypt the message
+    m_cipher.clear();
     CryptoPP::StringSource( m_plain, true,
         new CryptoPP::AuthenticatedEncryptionFilter(
             enc,
@@ -282,11 +288,15 @@ void MessageBuffer::write( int sockfd, char type,
         ex()() << "Attempt to send a message of size " << msgSize
                << " but my buffer is only " << BUFSIZE;
 
-    header[0] |= size & 0xFF;   //< first byte of size
-    header[1]  = size >> 8;     //< second byte of size
+    header[0] = size & 0xFF;   //< first byte of size
+    header[1] = size >> 8;     //< second byte of size
 
     std::cout << "Sending message with " << msgSize << ", ("
-              << size << " encrypted) bytes" << std::endl;
+              << size << " encrypted) bytes, header: "
+              << std::hex << (int)header[0] << " " << (int)header[1] << std::dec
+              << ", type: " << messageIdToString(type)
+              << " (" << (int)type << ")"
+              << std::endl;
 
     // send header
     int sent = 0;

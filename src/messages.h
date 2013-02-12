@@ -34,7 +34,7 @@ namespace filesystem {
 
 enum MessageId
 {
-    MSG_DH_PARAMS,
+    MSG_DH_PARAMS=0,
     MSG_KEY_EXCHANGE,
     MSG_CEK,
     MSG_AUTH_REQ,
