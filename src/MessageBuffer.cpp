@@ -69,6 +69,113 @@ void MessageBuffer::checkForDisconnect( int value )
 
 
 // message format
+// first 2 bytes:   size of message
+// size bytes:      message
+char MessageBuffer::read( int sockfd )
+{
+    char header[2];     //< header bytes
+    int  received;      //< result of recv
+    received = recv(sockfd, header, 2, 0);
+
+    checkForDisconnect(received);
+    if(received < 0)
+        ex()() <<  "failed to read message header from client";
+
+    // the first bytes of the message
+    char         type;      //< message enum
+    unsigned int size;      //< size of the message
+
+    size       = header[0] ; //< the rest are size
+    size      |= header[1] << 8;
+
+    int     recv_bytes   = 0;
+    char    byte;
+
+    if( size > BUFSIZE )
+        ex()() << "Received a message with size " << size <<
+                     " whereas my buffer is only size " << BUFSIZE;
+
+    std::cout << "Receiving "
+              << "unencrypted message of size " << size << " bytes "
+              << std::endl;
+
+    m_plain.resize(size);
+
+    // now we can read in the rest of the message
+    // since we know it's length
+    //receive remainder of message
+    recv_bytes = 0;
+    while(recv_bytes < size)
+    {
+        received = recv(sockfd, &m_plain[0] + recv_bytes,
+                        size-recv_bytes, 0);
+        checkForDisconnect(received);
+        if(received < 0)
+            ex()() <<  "failed to read byte " << recv_bytes
+                    << "of the message size";
+        recv_bytes += received;
+    }
+
+    std::cout << "Finished reading " << recv_bytes << "bytes" << std::endl;
+
+    // the first decoded byte is the type
+    type = m_plain[0];
+
+    // if it's a valid type attempt to parse the message
+    if( type < 0 || type >= NUM_MSG )
+        ex()() << "Invalid message type: " << (int)type;
+
+    if( !m_msgs[type]->ParseFromArray(&m_plain[1],m_plain.size()-1) )
+        ex()() << "Failed to parse message";
+
+    std::cout << "   read done\n";
+    return type;
+}
+
+void MessageBuffer::write( int sockfd, char type )
+{
+    namespace io = google::protobuf::io;
+
+    unsigned int msgSize  = m_msgs[type]->ByteSize();
+    unsigned int typeSize = 1;
+    unsigned int size     = typeSize + msgSize;
+    char         header[2]= {0,0};
+
+    if( size > BUFSIZE )
+        ex()() << "Attempt to send a message of size " << msgSize
+               << " but my buffer is only " << BUFSIZE;
+
+    // make sure we have storage
+    m_plain.resize(size,'\0');
+    m_plain[0] = type;              //< 8 bits of type
+
+    // the serialized message
+    m_msgs[type]->SerializeToArray(&m_plain[1],msgSize);
+
+    header[0] |= size & 0xFF;   //< first byte of size
+    header[1]  = size >> 8;     //< second byte of size
+
+    std::cout << "Sending message with " << size
+              << " bytes" << std::endl;
+
+    // send header
+    int sent = 0;
+
+    sent = send( sockfd, header, 2, 0 );
+    checkForDisconnect(sent);
+    if( sent != 2 )
+        ex()() << "failed to send header over socket";
+
+    // send data
+    sent = send( sockfd, &m_plain[0], size, 0 );
+    checkForDisconnect(sent);
+    if( sent != size )
+        ex()() << "failed to send message over socket";
+
+}
+
+
+// message format
 // first bit:       encrypted
 // next  15 bits:   unsigned size (max 2^15)
 // after first two bytes: message data

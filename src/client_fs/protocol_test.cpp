@@ -41,6 +41,8 @@
 #include <crypto++/files.h>
 #include <crypto++/rsa.h>
 #include <crypto++/osrng.h>
+#include <crypto++/dh.h>
+#include <crypto++/dh2.h>
 #include <re2/re2.h>
 
 #include <netdb.h>
@@ -228,11 +230,8 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    int                 sockfd;
-
-
     // Create the TCP socket
-    sockfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    int sockfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     if( sockfd < 0 )
     {
         std::cerr << "Failed to open tcp socket" << std::endl;
@@ -301,9 +300,41 @@ int main(int argc, char** argv)
     try
     {
 
-    // rpc middleman
-    MessageBuffer msg;
-    char          type;
+    MessageBuffer msg;  //< rpc middle man
+    char          type; //< type of reponse message
+
+    CryptoPP::DH                dh;         //< Diffie-Hellman structure
+    CryptoPP::DH2               dh2(dh);    //< Diffie-Hellman structure
+    CryptoPP::SecByteBlock      spriv;      //< static private key
+    CryptoPP::SecByteBlock      spub;       //< static public key
+    CryptoPP::SecByteBlock      epriv;      //< ephemeral private key
+    CryptoPP::SecByteBlock      epub;       //< ephemeral public key
+    CryptoPP::SecByteBlock      shared;     //< shared key
+
+    // initialize DH
+    {
+        std::cout << "Generating DH parameters, this may take a minute"
+                  << std::endl;
+        using namespace CryptoPP;
+        dh.AccessGroupParameters().GenerateRandomWithKeySize(rng,1024);
+        spriv = SecByteBlock( dh2.StaticPrivateKeyLength() );
+        spub  = SecByteBlock( dh2.StaticPublicKeyLength() );
+        epriv = SecByteBlock( dh2.EphemeralPrivateKeyLength() );
+        epub  = SecByteBlock( dh2.EphemeralPublicKeyLength() );
+
+        dh2.GenerateStaticKeyPair(rng,spriv,spub);
+        dh2.GenerateEphemeralKeyPair(rng,epriv, epub);
+        shared= SecByteBlock( dh2.AgreedValueLength() );
+
+        std::cout << "Finished generating DH parameters" << std::endl;
+    }
+
+    // the first message is a DH key exchange
+    messages::KeyExchange* keyEx =
+            static_cast<messages::KeyExchange*>( msg[MSG_KEY_EXCHANGE] );
+    keyEx->set_skey(spub.begin(),spub.SizeInBytes());
+    keyEx->set_ekey(epub.begin(),epub.SizeInBytes());
+
 
     // send an authentication request
     messages::AuthRequest* authReq =

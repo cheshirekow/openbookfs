@@ -94,6 +94,12 @@ class MessageBuffer
 
         google::protobuf::Message* operator[]( unsigned int );
 
+        /// read an unencrypted message
+        char read( int sockfd);
+
+        /// write an unencrypted message
+        void write( int sockfd, char type);
+
         /// read a message from a socket, will throw a MessageException
         /// on any problems
         char read( int sockfd,
