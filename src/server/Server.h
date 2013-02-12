@@ -39,11 +39,21 @@ namespace   openbook {
 namespace filesystem {
 
 
-/// encapsulates details about the server
+/// encapsulates details about the server and it's configuration
 struct Server
 {
-        pthreads::Mutex             m_mutex;    ///< locks this data
-        boost::filesystem::path     m_dataDir;  ///< data directory
+        pthreads::Mutex m_mutex;    ///< locks this data
+
+        boost::filesystem::path m_dataDir;      ///< server data location
+        boost::filesystem::path m_rootDir;      ///< file system root
+        boost::filesystem::path m_pubKeyFile;   ///< public key file
+        boost::filesystem::path m_privKeyFile;  ///< private key file
+
+        std::string  m_salt      ///< for authorizing clients
+        std::string  m_password; ///< for authorizing clients
+        std::string  m_iface;    ///< which interface to bind
+        int          m_port;     ///< which port to listen on
+        int          m_maxConn;  ///< number of connections to accept
 
 
     public:
@@ -51,7 +61,7 @@ struct Server
         ~Server();
 
         void initData( const std::string& dataDir );
-
+        void initConfig( const std::string& configFile );
 };
 
 

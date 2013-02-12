@@ -53,6 +53,7 @@ int main(int argc, char** argv)
 {
     namespace fs = boost::filesystem;
 
+    std::string configFile;
     std::string pubKey;
     std::string privKey;
     std::string dataDir;
@@ -71,6 +72,7 @@ int main(int argc, char** argv)
     strftime (currentYear,5,"%Y",timeinfo);
 
     fs::path homeDir     = getenv("HOME");
+    fs::path dfltConfig  = "./openbookfs_d.yaml";
     fs::path dfltDataDir = "./data";
     fs::path dfltPubKey  = "./rsa-openssl-pub.der";
     fs::path dfltPrivKey = "./rsa-openssl-priv.der";
@@ -93,6 +95,15 @@ int main(int argc, char** argv)
     // Define a value argument and add it to the command line.
     // A value arg defines a flag and a type of value that it expects,
     // such as "-n Bishop".
+    TCLAP::ValueArg<std::string> configArg(
+            "f",
+            "config",
+            "path to configuration file",
+            false,
+            dfltConfig.string(),
+            "path"
+            );
+
     TCLAP::ValueArg<std::string> pubKeyArg(
             "b",
             "pubkey",
@@ -140,10 +151,11 @@ int main(int argc, char** argv)
     cmd.parse( argc, argv );
 
     // Get the value parsed by each arg.
-    pubKey  = pubKeyArg.getValue();
-    privKey = privKeyArg.getValue();
-    dataDir = dataDirArg.getValue();
-    port    = portArg.getValue();
+    configFile = configArg.getValue();
+    pubKey     = pubKeyArg.getValue();
+    privKey    = privKeyArg.getValue();
+    dataDir    = dataDirArg.getValue();
+    port       = portArg.getValue();
 
     }
 
@@ -159,6 +171,7 @@ int main(int argc, char** argv)
     try
     {
         server.initData( dataDir );
+        server.initConfig( configFile );
     }
     catch( std::exception& ex )
     {

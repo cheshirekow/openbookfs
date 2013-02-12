@@ -31,9 +31,7 @@
 #include <fstream>
 #include <string>
 
-#include <crypto++/files.h>
-#include <crypto++/cryptlib.h>
-
+#include <yaml-cpp/yaml.h>
 
 namespace   openbook {
 namespace filesystem {
@@ -74,6 +72,23 @@ void Server::initData(const std::string& dataDir)
             ex()() << "failed to create data directory: "
                       << dataDir + "/client_keys";
     }
+}
+
+void Server::initConfig(const std::string& configFile)
+{
+    namespace fs = boost::filesystem;
+
+    // verify that the config file exists
+    if( !fs::exists( fs::path(configFile) ) )
+        ex()() << "Server configuration file not found: " << configFile;
+
+    std::ifstream in(configFile.c_str());
+    if(!in)
+        ex()() << "Failed to open " << configFile << " for reading";
+
+    YAML::Parser parser(in);
+    YAML::Node   config;
+    parser.GetNextDocument(config);
 }
 
 
