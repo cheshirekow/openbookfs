@@ -34,10 +34,11 @@ const char* messageIdToString( char id )
 {
     const char* str[] =
     {
-        "MSG_AUTH_REQ",
-        "MSG_AUTH_CHALLENGE",
-        "MSG_AUTH_SOLUTION",
-        "MSG_AUTH_RESULT",
+        "KEY_EXCHANGE",
+        "AUTH_REQ",
+        "AUTH_CHALLENGE",
+        "AUTH_SOLUTION",
+        "AUTH_RESULT",
         "INVALID_ID"
     };
 

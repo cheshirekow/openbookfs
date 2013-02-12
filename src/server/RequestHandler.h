@@ -83,6 +83,11 @@ class RequestHandler
         std::string                 m_serverPub;  ///< server's public key
         CryptoPP::DH                m_dh;         ///< Diffie-Hellman structure
         CryptoPP::DH2               m_dh2;        ///< Diffie-Hellman structure
+        CryptoPP::SecByteBlock      m_spriv;      ///< static private key
+        CryptoPP::SecByteBlock      m_spub;       ///< static public key
+        CryptoPP::SecByteBlock      m_epriv;      ///< ephemeral private key
+        CryptoPP::SecByteBlock      m_epub;       ///< ephemeral public key
+        CryptoPP::SecByteBlock      m_shared;     ///< shared key
         CryptoPP::RSA::PrivateKey   m_serverKey;  ///< server's private key
         CryptoPP::RSA::PublicKey    m_clientKey;  ///< client's public key
         CryptoPP::AutoSeededRandomPool  m_rng;    ///< random number gen

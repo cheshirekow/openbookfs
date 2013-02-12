@@ -75,6 +75,7 @@ class MessageBuffer
         std::string  m_plain;           ///< decrypted
 
         // inidiviual message structures
+        messages::KeyExchange   m_keyExchange;
         messages::AuthRequest   m_authReq;
         messages::AuthChallenge m_authChallenge;
         messages::AuthSolution  m_authSoln;
@@ -105,13 +106,6 @@ class MessageBuffer
                     CryptoPP::PublicKey& key,
                     CryptoPP::RandomNumberGenerator& rng );
 
-        /// typed by the ID
-        template <MessageId ID>
-        typename MessageType<ID>::type* msg()
-        {
-            typedef typename MessageType<ID>::type Msg;
-            return static_cast< Msg* >( m_msgs[ID] );
-        }
 
 };
 

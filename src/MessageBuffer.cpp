@@ -44,6 +44,7 @@ MessageBuffer::MessageBuffer()
     m_cipher.reserve(BUFSIZE);
     m_plain.reserve(BUFSIZE);
 
+    m_msgs[MSG_KEY_EXCHANGE]    = &m_keyExchange;
     m_msgs[MSG_AUTH_REQ]        = &m_authReq;
     m_msgs[MSG_AUTH_CHALLENGE]  = &m_authChallenge;
     m_msgs[MSG_AUTH_SOLN]       = &m_authSoln;

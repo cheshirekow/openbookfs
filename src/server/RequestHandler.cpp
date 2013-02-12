@@ -118,7 +118,17 @@ void RequestHandler::initDH()
     pthreads::ScopedLock lock(m_mutex);
     std::cout << "Handler " << (void*) this
               << " generating DH parameters\n";
-    m_dh.AccessCryptoParameters().GenerateRandomWithKeySize(m_rng,1024);
+
+    using namespace CryptoPP;
+    m_dh.AccessGroupParameters().GenerateRandomWithKeySize(m_rng,1024);
+    m_spriv = SecByteBlock( m_dh2.StaticPrivateKeyLength() );
+    m_spub  = SecByteBlock( m_dh2.StaticPublicKeyLength() );
+    m_epriv = SecByteBlock( m_dh2.EphemeralPrivateKeyLength() );
+    m_epub  = SecByteBlock( m_dh2.EphemeralPublicKeyLength() );
+
+    m_dh2.GenerateStaticKeyPair(m_rng,m_spriv,m_spub);
+    m_dh2.GenerateEphemeralKeyPair(m_rng,m_epriv, m_epub);
+    m_shared= SecByteBlock( m_dh2.AgreedValueLength() );
 
     std::cout << "Handler " << (void*) this
               << " finished generating DH and returning to pool\n";
@@ -197,7 +207,8 @@ void* RequestHandler::operator()()
                   " client";
 
     // read the client's public key
-    messages::AuthRequest* authReq = m_msg.msg<MSG_AUTH_REQ>();
+    messages::AuthRequest* authReq =
+            static_cast<messages::AuthRequest*>( m_msg[MSG_AUTH_REQ] );
     std::stringstream  inkey( authReq->public_key() );
     CryptoPP::FileSource keyFile(inkey,true);
     CryptoPP::ByteQueue  queue;
@@ -213,8 +224,8 @@ void* RequestHandler::operator()()
         randomStr.resize(30);
         m_rng.GenerateBlock( (unsigned char*)&(randomStr[0]), 30 );
 
-        messages::AuthChallenge* challenge
-            = m_msg.msg<MSG_AUTH_CHALLENGE>();
+        messages::AuthChallenge* challenge =
+            static_cast<messages::AuthChallenge*>( m_msg[MSG_AUTH_CHALLENGE] );
 
         // for now, let's pretend that all clients are authorized and we'll
         // just verify that they are the key owner
@@ -238,7 +249,8 @@ void* RequestHandler::operator()()
             continue;
         }
 
-        messages::AuthSolution* soln = m_msg.msg<MSG_AUTH_SOLN>();
+        messages::AuthSolution* soln =
+                static_cast<messages::AuthSolution*>( m_msg[MSG_AUTH_SOLN] );
         if( soln->solution().compare(randomStr) !=  0 )
         {
             std::cerr << "Client failed the challenge, sending a new "
@@ -247,7 +259,8 @@ void* RequestHandler::operator()()
         }
 
         std::cout << "client successfully authenticated" << std::endl;
-        messages::AuthResult* result = m_msg.msg<MSG_AUTH_RESULT>();
+        messages::AuthResult* result =
+                static_cast<messages::AuthResult*>( m_msg[MSG_AUTH_RESULT] );
         result->set_req_id(2);
         result->set_response(true);
 
@@ -259,7 +272,8 @@ void* RequestHandler::operator()()
     if( authRetry >= 3 )
     {
         std::cout << "client failed too many times" << std::endl;
-        messages::AuthResult* result = m_msg.msg<MSG_AUTH_RESULT>();
+        messages::AuthResult* result =
+                static_cast<messages::AuthResult*>( m_msg[MSG_AUTH_REQ] );
         result->set_req_id(2);
         result->set_response(false);
 

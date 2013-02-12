@@ -8,6 +8,13 @@ package openbook.filesystem.messages;
 //             Registered Client Authentication with Server
 // ----------------------------------------------------------------------------
 
+// Diffie-Hellman key exchange
+message KeyExchange {
+    optional bytes sKey = 1;   // static public key
+    optional bytes eKey = 2;   // ephemeral public key
+}
+
+
 // sent by the client to authenticate
 message AuthRequest {
     optional int32  req_id       = 1; // client specific request id

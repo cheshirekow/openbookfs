@@ -306,7 +306,8 @@ int main(int argc, char** argv)
     char          type;
 
     // send an authentication request
-    messages::AuthRequest* authReq = msg.msg<MSG_AUTH_REQ>();
+    messages::AuthRequest* authReq =
+            static_cast<messages::AuthRequest*>( msg[MSG_AUTH_REQ] );
     authReq->set_req_id(1);
     authReq->set_public_key(rsaPubStr);
 
@@ -320,7 +321,8 @@ int main(int argc, char** argv)
         ex()() << "Protocol Error: got message type " << (int) type
                << " when expecting MSG_AUTH_CHALLENGE";
 
-    messages::AuthSolution* authSoln = msg.msg<MSG_AUTH_SOLN>();
+    messages::AuthSolution* authSoln =
+            static_cast<messages::AuthSolution*>( msg[MSG_AUTH_SOLN] );
     authSoln->set_req_id(2);
     authSoln->set_solution("Dummy String");
 
