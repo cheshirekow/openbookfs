@@ -44,6 +44,10 @@
 #include <crypto++/osrng.h>
 #include <crypto++/dh.h>
 #include <crypto++/dh2.h>
+#include <crypto++/aes.h>
+#include <crypto++/modes.h>
+#include <crypto++/cmac.h>
+#include <crypto++/gcm.h>
 #include <re2/re2.h>
 
 #include <netdb.h>
@@ -64,7 +68,8 @@ using namespace openbook::filesystem;
 
 int main(int argc, char** argv)
 {
-    namespace fs = boost::filesystem;
+    namespace fs   = boost::filesystem;
+    namespace cryp = CryptoPP;
 
     std::string pubKey;
     std::string privKey;
@@ -164,9 +169,9 @@ int main(int argc, char** argv)
 
 
     std::string                 rsaPubStr;
-    CryptoPP::RSA::PublicKey    rsaPubKey;
-    CryptoPP::RSA::PrivateKey   rsaPrivKey;
-    CryptoPP::AutoSeededRandomPool  rng;
+    cryp::RSA::PublicKey    rsaPubKey;
+    cryp::RSA::PrivateKey   rsaPrivKey;
+    cryp::AutoSeededRandomPool  rng;
     try
     {
         // open a stream to the public key file
@@ -190,14 +195,14 @@ int main(int argc, char** argv)
         in.seekg(0, std::ios::beg);
 
         // read into public key
-        CryptoPP::FileSource keyFile(in,true);
-        CryptoPP::ByteQueue  queue;
+        cryp::FileSource keyFile(in,true);
+        cryp::ByteQueue  queue;
         keyFile.TransferTo(queue);
         queue.MessageEnd();
 
         rsaPubKey.Load(queue);
     }
-    catch( CryptoPP::Exception& ex )
+    catch( cryp::Exception& ex )
     {
         std::cerr << "Failed to load public key from " << pubKey
                   <<  " : " << ex.what() << std::endl;
@@ -206,14 +211,14 @@ int main(int argc, char** argv)
 
     try
     {
-        CryptoPP::FileSource keyFile(privKey.c_str(),true);
-        CryptoPP::ByteQueue  queue;
+        cryp::FileSource keyFile(privKey.c_str(),true);
+        cryp::ByteQueue  queue;
         keyFile.TransferTo(queue);
         queue.MessageEnd();
 
         rsaPrivKey.Load(queue);
     }
-    catch( CryptoPP::Exception& ex )
+    catch( cryp::Exception& ex )
     {
         std::cerr << "Failed to load private key from " << privKey
                   <<  " : " << ex.what() << std::endl;
@@ -314,24 +319,24 @@ int main(int argc, char** argv)
     messages::DiffieHellmanParams* dhParams =
             static_cast<messages::DiffieHellmanParams*>( msg[MSG_DH_PARAMS] );
 
-    CryptoPP::Integer p,q,g;
+    cryp::Integer p,q,g;
     p.Decode( (unsigned char*)&dhParams->p()[0],
                 dhParams->p().size(),
-                CryptoPP::Integer::UNSIGNED );
+                cryp::Integer::UNSIGNED );
     q.Decode( (unsigned char*)&dhParams->q()[0],
                 dhParams->q().size(),
-                CryptoPP::Integer::UNSIGNED );
+                cryp::Integer::UNSIGNED );
     g.Decode( (unsigned char*)&dhParams->g()[0],
                 dhParams->g().size(),
-                CryptoPP::Integer::UNSIGNED );
+                cryp::Integer::UNSIGNED );
 
-    CryptoPP::DH                dh;         //< Diffie-Hellman structure
-    CryptoPP::DH2               dh2(dh);    //< Diffie-Hellman structure
-    CryptoPP::SecByteBlock      spriv;      //< static private key
-    CryptoPP::SecByteBlock      spub;       //< static public key
-    CryptoPP::SecByteBlock      epriv;      //< ephemeral private key
-    CryptoPP::SecByteBlock      epub;       //< ephemeral public key
-    CryptoPP::SecByteBlock      shared;     //< shared key
+    cryp::DH                dh;         //< Diffie-Hellman structure
+    cryp::DH2               dh2(dh);    //< Diffie-Hellman structure
+    cryp::SecByteBlock      spriv;      //< static private key
+    cryp::SecByteBlock      spub;       //< static public key
+    cryp::SecByteBlock      epriv;      //< ephemeral private key
+    cryp::SecByteBlock      epub;       //< ephemeral public key
+    cryp::SecByteBlock      shared;     //< shared key
 
     dh.AccessGroupParameters().Initialize(p,q,g);
     if( !dh.AccessGroupParameters().Validate(rng,3) )
@@ -372,9 +377,9 @@ int main(int argc, char** argv)
     }
 
     // read the servers keys
-    CryptoPP::SecByteBlock epubServer(
+    cryp::SecByteBlock epubServer(
                     (unsigned char*)&keyEx->ekey()[0], keyEx->ekey().size() );
-    CryptoPP::SecByteBlock spubServer(
+    cryp::SecByteBlock spubServer(
                     (unsigned char*)&keyEx->skey()[0], keyEx->skey().size() );
 
     // generate shared key
@@ -384,17 +389,99 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    CryptoPP::Integer sharedOut;
-    sharedOut.Decode(shared.BytePtr(),shared.SizeInBytes() );
-    std::cout << "Shared secret (client): "
-              << "\n   shared: " << std::hex << sharedOut << std::endl;
+    // use shared secret to generate real keys
+    // Take the leftmost 'n' bits for the KEK
+    cryp::SecByteBlock kek(
+            shared.BytePtr(), cryp::AES::DEFAULT_KEYLENGTH);
 
+    // CMAC key follows the 'n' bits used for KEK
+    cryp::SecByteBlock mack(
+            &shared.BytePtr()[cryp::AES::DEFAULT_KEYLENGTH],
+                                cryp::AES::BLOCKSIZE);
+    cryp::CMAC<cryp::AES> cmac(mack.BytePtr(), mack.SizeInBytes());
+
+    // extract and decode the content key
+    // AES in ECB mode is fine - we're encrypting 1 block, so we don't need
+    // padding
+    cryp::ECB_Mode<cryp::AES>::Decryption aes;
+    aes.SetKey(kek.BytePtr(), kek.SizeInBytes());
+
+    // receive the content encryption key from the server
+    type = msg.read(sockfd);
+    if( type != MSG_CEK )
+        ex()() << "Protocol error: expected CEK message, instead got "
+               << messageIdToString(type) << "(" << (int)type << ") ";
+
+    // verify message sizes
+    messages::ContentKey* contentKey =
+            static_cast<messages::ContentKey*>( msg[MSG_CEK] );
+    if( contentKey->key().size() != cryp::AES::BLOCKSIZE )
+        ex()() << "Message error: CEK key size "
+               << contentKey->key().size() << " is incorrect, should be "
+               << cryp::AES::BLOCKSIZE;
+
+    if( contentKey->iv().size() != cryp::AES::BLOCKSIZE )
+        ex()() << "Message error: CEK iv size "
+               << contentKey->iv().size() << " is incorrect, should be "
+               << cryp::AES::BLOCKSIZE;
+
+    if( contentKey->cmac().size() != cryp::AES::BLOCKSIZE )
+        ex()() << "Message error: CEK cmac size "
+               << contentKey->cmac().size() << " is incorrect, should be "
+               << cryp::AES::BLOCKSIZE;
+
+    // Enc(CEK)|Enc(iv)
+    cryp::SecByteBlock msg_cipher( 2*cryp::AES::BLOCKSIZE );
+    memcpy( msg_cipher.BytePtr(), &contentKey->key()[0], cryp::AES::BLOCKSIZE );
+    memcpy( &msg_cipher.BytePtr()[cryp::AES::BLOCKSIZE],
+                                  &contentKey->iv()[0], cryp::AES::BLOCKSIZE );
+
+    // Enc(CEK)
+    cryp::SecByteBlock key_cipher(
+                (unsigned char* )&contentKey->key()[0], cryp::AES::BLOCKSIZE );
+
+    // ENC(IV)
+    cryp::SecByteBlock iv_cipher (
+                (unsigned char*)&contentKey->iv()[0], cryp::AES::BLOCKSIZE);
+
+    // CMAC(Enc(CEK))
+    cryp::SecByteBlock msg_cmac(
+                (unsigned char* )&contentKey->cmac()[0], cryp::AES::BLOCKSIZE );
+
+    // recompute cmac for verification
+    cryp::SecByteBlock chk_cmac( cryp::AES::BLOCKSIZE );
+    cmac.CalculateTruncatedDigest( chk_cmac.BytePtr(), cryp::AES::BLOCKSIZE,
+                                   msg_cipher.BytePtr(), 2*cryp::AES::BLOCKSIZE );
+    if( chk_cmac != msg_cmac )
+        ex()() << "WOAH!!! CEK message digest doesn't match, possible "
+                  "tampering of data";
+
+    // decrypt the CEK
+    cryp::SecByteBlock cek( cryp::AES::DEFAULT_KEYLENGTH );
+    cryp::SecByteBlock  iv( cryp::AES::BLOCKSIZE );
+    aes.ProcessData( cek.BytePtr(), key_cipher.BytePtr(), cryp::AES::DEFAULT_KEYLENGTH );
+    aes.ProcessData(  iv.BytePtr(),  iv_cipher.BytePtr(), cryp::AES::BLOCKSIZE );
+
+    cryp::Integer cekOut, ivOut;
+    cekOut.Decode( cek.BytePtr(), cek.SizeInBytes() );
+    ivOut .Decode(  iv.BytePtr(),  iv.SizeInBytes() );
+    std::cout << "AES Key: " << std::hex << cekOut << std::endl;
+    std::cout << "     iv: " << std::hex <<  ivOut << std::endl;
+
+    // now we can make our encryptor and decriptor
+    cryp::GCM<cryp::AES>::Encryption enc;
+    cryp::GCM<cryp::AES>::Decryption dec;
+    enc.SetKeyWithIV(cek.BytePtr(), cek.SizeInBytes(),
+                     iv.BytePtr(), iv.SizeInBytes());
+    dec.SetKeyWithIV(cek.BytePtr(), cek.SizeInBytes(),
+                    iv.BytePtr(), iv.SizeInBytes());
     sleep(1);
 
     }
     catch( std::exception& ex )
     {
         std::cerr << ex.what() << std::endl;
+        sleep(1);
     }
 
     // close the socket

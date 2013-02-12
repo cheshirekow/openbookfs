@@ -46,6 +46,7 @@ MessageBuffer::MessageBuffer()
 
     m_msgs[MSG_DH_PARAMS]       = &m_dhParams;
     m_msgs[MSG_KEY_EXCHANGE]    = &m_keyExchange;
+    m_msgs[MSG_CEK]             = &m_cek;
     m_msgs[MSG_AUTH_REQ]        = &m_authReq;
     m_msgs[MSG_AUTH_CHALLENGE]  = &m_authChallenge;
     m_msgs[MSG_AUTH_SOLN]       = &m_authSoln;

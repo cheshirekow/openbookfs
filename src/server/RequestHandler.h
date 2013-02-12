@@ -80,7 +80,8 @@ class RequestHandler
         MessageBuffer       m_msg;              ///< message buffer
         int                 m_sock;             ///< socket fd
 
-        std::string                 m_serverPub;  ///< server's public key
+        CryptoPP::AutoSeededRandomPool  m_rng;    ///< random number gen
+
         CryptoPP::DH                m_dh;         ///< Diffie-Hellman structure
         CryptoPP::DH2               m_dh2;        ///< Diffie-Hellman structure
         CryptoPP::SecByteBlock      m_spriv;      ///< static private key
@@ -88,9 +89,7 @@ class RequestHandler
         CryptoPP::SecByteBlock      m_epriv;      ///< ephemeral private key
         CryptoPP::SecByteBlock      m_epub;       ///< ephemeral public key
         CryptoPP::SecByteBlock      m_shared;     ///< shared key
-        CryptoPP::RSA::PrivateKey   m_serverKey;  ///< server's private key
-        CryptoPP::RSA::PublicKey    m_clientKey;  ///< client's public key
-        CryptoPP::AutoSeededRandomPool  m_rng;    ///< random number gen
+
 
         void cleanup();
 
@@ -104,10 +103,6 @@ class RequestHandler
 
         /// initialize Diffie Hellman paramters (takes a while and blocks)
         void initDH();
-
-        /// set the server key
-        void setKeys( const std::string& pub,
-                        const CryptoPP::RSA::PrivateKey& priv );
 
         /// start the handler interfacing with the client on the socket
         void start( int sockfd );

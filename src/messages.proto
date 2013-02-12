@@ -21,11 +21,18 @@ message KeyExchange {
     optional bytes eKey = 2;   // ephemeral public key
 }
 
+// Content Encryption Key
+message ContentKey
+{
+    optional bytes key  = 1;     // the content encryption key
+    optional bytes iv   = 2;     // initial vector
+    optional bytes cmac = 3;     // message authentication digest
+}
+
 
 // sent by the client to authenticate
 message AuthRequest {
-    optional int32  req_id       = 1; // client specific request id
-    optional bytes  public_key   = 2; // client's public key
+    optional bytes  public_key   = 1; // client's public key
 }
 
 // challenge sent by the server 
@@ -36,10 +43,8 @@ message AuthChallenge {
         AUTHORIZE    = 2;  // sent if public key is not yet trusted
     }
 
-    optional int32  req_id      = 1;    // request to which server is responding
-    optional Type   type        = 3;    // challenge type
-    optional bytes  public_key  = 4;    // servers public key
-    optional bytes  challenge   = 5;    // authentication: challenge phrase
+    optional Type   type        = 1;    // challenge type
+    optional bytes  challenge   = 2;    // authentication: challenge phrase
                                         // authorization:  password salt
 }
 

@@ -77,6 +77,7 @@ class MessageBuffer
         // inidiviual message structures
         messages::DiffieHellmanParams   m_dhParams;
         messages::KeyExchange   m_keyExchange;
+        messages::ContentKey    m_cek;
         messages::AuthRequest   m_authReq;
         messages::AuthChallenge m_authChallenge;
         messages::AuthSolution  m_authSoln;

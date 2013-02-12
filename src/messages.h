@@ -36,6 +36,7 @@ enum MessageId
 {
     MSG_DH_PARAMS,
     MSG_KEY_EXCHANGE,
+    MSG_CEK,
     MSG_AUTH_REQ,
     MSG_AUTH_CHALLENGE,
     MSG_AUTH_SOLN,

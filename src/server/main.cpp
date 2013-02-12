@@ -159,7 +159,6 @@ int main(int argc, char** argv)
     try
     {
         server.initData( dataDir );
-        server.initKeys( pubKey, privKey );
     }
     catch( std::exception& ex )
     {
@@ -239,7 +238,6 @@ int main(int argc, char** argv)
 
         // get a request handler
         RequestHandler* handler = handlerPool.getAvailable();
-        handler->setKeys(server.m_pubStr,server.m_privKey);
 
         if(handler)
             handler->start(clientsock);

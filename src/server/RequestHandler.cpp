@@ -29,7 +29,12 @@
 
 #include <protobuf/message.h>
 #include <protobuf/io/zero_copy_stream_impl.h>
+
 #include <crypto++/files.h>
+#include <crypto++/cmac.h>
+#include <crypto++/aes.h>
+#include <crypto++/modes.h>
+#include <crypto++/gcm.h>
 
 #include "RequestHandler.h"
 #include "messages.h"
@@ -148,12 +153,6 @@ void RequestHandler::initDH()
 
 
 
-void RequestHandler::setKeys( const std::string& pub,
-                        const CryptoPP::RSA::PrivateKey& priv )
-{
-    m_serverPub = pub;
-    m_serverKey = priv;
-}
 
 void RequestHandler::start( int sockfd )
 {
@@ -198,6 +197,7 @@ void RequestHandler::start( int sockfd )
 
 void* RequestHandler::operator()()
 {
+    namespace cryp = CryptoPP;
     using namespace pthreads;
     ScopedLock lock(m_mutex);
 
@@ -218,11 +218,11 @@ void* RequestHandler::operator()()
     q.resize( m_dh.GetGroupParameters().GetSubgroupOrder().ByteCount());
 
     m_dh.GetGroupParameters().GetModulus().Encode(
-            (unsigned char*)&p[0], p.size(), CryptoPP::Integer::UNSIGNED );
+            (unsigned char*)&p[0], p.size(), cryp::Integer::UNSIGNED );
     m_dh.GetGroupParameters().GetGenerator().Encode(
-            (unsigned char*)&g[0], g.size(), CryptoPP::Integer::UNSIGNED );
+            (unsigned char*)&g[0], g.size(), cryp::Integer::UNSIGNED );
     m_dh.GetGroupParameters().GetSubgroupOrder().Encode(
-            (unsigned char*)&q[0], q.size(), CryptoPP::Integer::UNSIGNED );
+            (unsigned char*)&q[0], q.size(), cryp::Integer::UNSIGNED );
 
     messages::DiffieHellmanParams* dhParams =
             static_cast<messages::DiffieHellmanParams*>(m_msg[MSG_DH_PARAMS]);
@@ -242,28 +242,84 @@ void* RequestHandler::operator()()
             static_cast<messages::KeyExchange*>(m_msg[MSG_KEY_EXCHANGE]);
 
     // read client keys
-    CryptoPP::SecByteBlock epubClient(
+    cryp::SecByteBlock epubClient(
                     (unsigned char*)&keyEx->ekey()[0], keyEx->ekey().size() );
-    CryptoPP::SecByteBlock spubClient(
+    cryp::SecByteBlock spubClient(
                     (unsigned char*)&keyEx->skey()[0], keyEx->skey().size() );
 
-    // write out keys
+    // write out our keys
     keyEx->set_ekey( m_epub.BytePtr(), m_epub.SizeInBytes() );
     keyEx->set_skey( m_spub.BytePtr(), m_spub.SizeInBytes() );
     m_msg.write( m_sock, MSG_KEY_EXCHANGE );
-
-
 
     // generate shared key
     if( !m_dh2.Agree(m_shared,m_spriv,m_epriv,spubClient,epubClient) )
         ex()() << "Failed to agree on a shared key";
 
-
-
-    CryptoPP::Integer sharedOut;
+    cryp::Integer sharedOut;
     sharedOut.Decode(m_shared.BytePtr(),m_shared.SizeInBytes() );
     std::cout << "Shared secret (client): "
               << "\n   shared: " << std::hex << sharedOut << std::endl;
+
+    // use shared secret to generate real keys
+    // Take the leftmost 'n' bits for the KEK
+    cryp::SecByteBlock kek(
+            m_shared.BytePtr(), cryp::AES::DEFAULT_KEYLENGTH);
+
+    // CMAC key follows the 'n' bits used for KEK
+    cryp::SecByteBlock mack(
+            &m_shared.BytePtr()[cryp::AES::DEFAULT_KEYLENGTH],
+                                cryp::AES::BLOCKSIZE);
+    cryp::CMAC<cryp::AES> cmac(mack.BytePtr(), mack.SizeInBytes());
+
+    // Generate a random CEK and IV
+    cryp::SecByteBlock cek(cryp::AES::DEFAULT_KEYLENGTH);
+    cryp::SecByteBlock iv (cryp::AES::BLOCKSIZE);
+    m_rng.GenerateBlock(cek.BytePtr(), cek.SizeInBytes());
+    m_rng.GenerateBlock(iv.BytePtr(), iv.SizeInBytes());
+
+    // print it for checkin
+    cryp::Integer cekOut, ivOut;
+    cekOut.Decode( cek.BytePtr(), cek.SizeInBytes() );
+    ivOut .Decode(  iv.BytePtr(),  iv.SizeInBytes() );
+    std::cout << "AES Key: " << std::hex << cekOut << std::endl;
+    std::cout << "     iv: " << std::hex << ivOut  << std::endl;
+
+    // AES in ECB mode is fine - we're encrypting 1 block, so we don't need
+    // padding
+    cryp::ECB_Mode<cryp::AES>::Encryption aes;
+    aes.SetKey(kek.BytePtr(), kek.SizeInBytes());
+
+    cryp::SecByteBlock msg_cipher( 2*cryp::AES::BLOCKSIZE );  //< Enc(CEK) | Enc(iv)
+    cryp::SecByteBlock   msg_cmac(   cryp::AES::BLOCKSIZE );  //< CMAC(Enc(CEK||iv))
+
+    aes.ProcessData(msg_cipher.BytePtr(), cek.BytePtr(), cryp::AES::BLOCKSIZE );
+    aes.ProcessData(&msg_cipher.BytePtr()[cryp::AES::BLOCKSIZE],
+                                          iv.BytePtr(), cryp::AES::BLOCKSIZE );
+    cmac.CalculateTruncatedDigest(msg_cmac.BytePtr(), cryp::AES::BLOCKSIZE,
+                                  msg_cipher.BytePtr(), 2*cryp::AES::BLOCKSIZE );
+
+    // fill the content key message
+    messages::ContentKey* contentKey =
+            static_cast<messages::ContentKey*>( m_msg[MSG_CEK] );
+
+    contentKey->set_key( msg_cipher.BytePtr(), cryp::AES::BLOCKSIZE );
+    contentKey->set_iv(  &msg_cipher.BytePtr()[ cryp::AES::BLOCKSIZE],
+                                               cryp::AES::BLOCKSIZE );
+    contentKey->set_cmac( msg_cmac.BytePtr(), cryp::AES::BLOCKSIZE );
+
+    // send the content key message
+    m_msg.write(m_sock,MSG_CEK);
+
+    // now we can make our encryptor and decriptor
+    cryp::GCM<cryp::AES>::Encryption enc;
+    cryp::GCM<cryp::AES>::Decryption dec;
+    enc.SetKeyWithIV(cek.BytePtr(), cek.SizeInBytes(),
+                     iv.BytePtr(), iv.SizeInBytes());
+    dec.SetKeyWithIV(cek.BytePtr(), cek.SizeInBytes(),
+                    iv.BytePtr(), iv.SizeInBytes());
+
+
 
     // read the client's public key
     messages::AuthRequest* authReq =
@@ -273,7 +329,8 @@ void* RequestHandler::operator()()
     CryptoPP::ByteQueue  queue;
     keyFile.TransferTo(queue);
     queue.MessageEnd();
-    m_clientKey.Load(queue);
+    CryptoPP::RSA::PublicKey clientKey;
+    clientKey.Load(queue);
 
     int authRetry = 0;
     for(; authRetry < 3; authRetry++)
@@ -288,42 +345,9 @@ void* RequestHandler::operator()()
 
         // for now, let's pretend that all clients are authorized and we'll
         // just verify that they are the key owner
-        challenge->set_public_key(m_serverPub);
         challenge->set_challenge(randomStr);
-        challenge->set_req_id(1);
         challenge->set_type( messages::AuthChallenge::AUTHENTICATE );
 
-        // now send the message
-        m_msg.write(m_sock,MSG_AUTH_CHALLENGE,m_clientKey,m_rng);
-
-        // and get the reply
-        type = m_msg.read(m_sock,m_serverKey,m_rng);
-
-        // the type must be a challenge reply
-        if( type != MSG_AUTH_SOLN )
-        {
-            std::cerr << "Client responded to authentication challenge with "
-                         "the wrong message (id: " << (int) type  << "), "
-                         "resending challenge";
-            continue;
-        }
-
-        messages::AuthSolution* soln =
-                static_cast<messages::AuthSolution*>( m_msg[MSG_AUTH_SOLN] );
-        if( soln->solution().compare(randomStr) !=  0 )
-        {
-            std::cerr << "Client failed the challenge, sending a new "
-                         "challenge";
-            continue;
-        }
-
-        std::cout << "client successfully authenticated" << std::endl;
-        messages::AuthResult* result =
-                static_cast<messages::AuthResult*>( m_msg[MSG_AUTH_RESULT] );
-        result->set_req_id(2);
-        result->set_response(true);
-
-        m_msg.write(m_sock,MSG_AUTH_RESULT,m_clientKey,m_rng);
         break;
     }
 
@@ -336,7 +360,6 @@ void* RequestHandler::operator()()
         result->set_req_id(2);
         result->set_response(false);
 
-        m_msg.write(m_sock,MSG_AUTH_RESULT,m_clientKey,m_rng);
         cleanup();
         return 0;
     }
@@ -344,8 +367,7 @@ void* RequestHandler::operator()()
 
     while(1)
     {
-        type = m_msg.read(m_sock,m_serverKey,m_rng);
-        std::cout << "Received message of type " << (int) type << std::endl;
+        ex()() << "Exiting loop";
     }
 
     }

@@ -44,11 +44,6 @@ struct Server
 {
         pthreads::Mutex             m_mutex;    ///< locks this data
         boost::filesystem::path     m_dataDir;  ///< data directory
-        std::string                 m_pubStr;   ///< public key file as string
-        CryptoPP::RSA::PublicKey    m_pubKey;   ///< public key
-        CryptoPP::RSA::PrivateKey   m_privKey;  ///< private key
-
-        CryptoPP::AutoSeededRandomPool  m_rng;  ///< random number generator
 
 
     public:
@@ -56,11 +51,6 @@ struct Server
         ~Server();
 
         void initData( const std::string& dataDir );
-        void initKeys( const std::string& pubKey,
-                       const std::string& privKey );
-        void decrypt( const std::string& cipher,
-                      std::string& plain );
-
 
 };
 
