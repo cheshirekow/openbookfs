@@ -56,11 +56,10 @@ class Pool
             m_available.reserve(size);
             for(int i=0; i < size; i++)
             {
-                // initialize objects with reference to this pool
+                // initialize objects with reference to this pool, they will
+                // re-assign themselves to the pool when initialization is
+                // complete
                 m_objs[i].init(this);
-
-                // but it in the free store
-                m_available.push_back(m_objs + i);
             }
         }
 

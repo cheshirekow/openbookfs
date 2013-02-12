@@ -40,6 +40,7 @@
 #include <crypto++/rsa.h>
 #include <crypto++/cryptlib.h>
 #include <crypto++/rng.h>
+#include <crypto++/dh2.h>
 
 
 
@@ -90,6 +91,7 @@ class MessageBuffer
         /// fills message array
         MessageBuffer();
 
+        google::protobuf::Message* operator[]( unsigned int );
 
         /// read a message from a socket, will throw a MessageException
         /// on any problems

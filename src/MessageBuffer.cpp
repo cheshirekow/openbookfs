@@ -50,6 +50,16 @@ MessageBuffer::MessageBuffer()
     m_msgs[MSG_AUTH_RESULT]     = &m_authResult;
 }
 
+
+google::protobuf::Message* MessageBuffer::operator[]( unsigned int i )
+{
+    if( i >= NUM_MSG )
+        return 0;
+    else
+        return m_msgs[i];
+}
+
+
 void MessageBuffer::checkForDisconnect( int value )
 {
     if( value == 0 )

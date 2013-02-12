@@ -199,6 +199,7 @@ int main(int argc, char** argv)
     }
 
     // Pool of request handlers, 20 handlers
+    std::cout << "Initializing handler pool" << std::endl;
     Pool<RequestHandler> handlerPool(20);
 
     //  Run until cancelled

@@ -40,10 +40,13 @@
 
 #include <crypto++/rsa.h>
 #include <crypto++/osrng.h>
+#include <crypto++/dh.h>
+#include <crypto++/dh2.h>
 
 #include "ExceptionStream.h"
 #include "MessageBuffer.h"
 #include "Pool.h"
+
 
 namespace   openbook {
 namespace filesystem {
@@ -78,6 +81,8 @@ class RequestHandler
         int                 m_sock;             ///< socket fd
 
         std::string                 m_serverPub;  ///< server's public key
+        CryptoPP::DH                m_dh;         ///< Diffie-Hellman structure
+        CryptoPP::DH2               m_dh2;        ///< Diffie-Hellman structure
         CryptoPP::RSA::PrivateKey   m_serverKey;  ///< server's private key
         CryptoPP::RSA::PublicKey    m_clientKey;  ///< client's public key
         CryptoPP::AutoSeededRandomPool  m_rng;    ///< random number gen
@@ -88,8 +93,12 @@ class RequestHandler
         RequestHandler();
         ~RequestHandler();
 
-        /// set the parent pointer
+        /// set the parent pointer and start DH parameter generation in
+        /// detached thread
         void init( Pool_t* );
+
+        /// initialize Diffie Hellman paramters (takes a while and blocks)
+        void initDH();
 
         /// set the server key
         void setKeys( const std::string& pub,

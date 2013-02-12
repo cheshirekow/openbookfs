@@ -39,6 +39,19 @@ namespace   openbook {
 namespace filesystem {
 
 
+extern "C"
+{
+    // calls RequestHandler::init
+    void* request_handler_initDH( void* vp_handler )
+    {
+        RequestHandler* h = static_cast<RequestHandler*>(vp_handler);
+        h->initDH();
+        return 0;
+    }
+}
+
+
+
 void RequestHandler::cleanup()
 {
     close(m_sock);
@@ -49,19 +62,69 @@ void RequestHandler::cleanup()
 }
 
 RequestHandler::RequestHandler():
-    m_pool(0)
+    m_pool(0),
+    m_dh2(m_dh)
 {
-
+    m_mutex.init();
 }
 
 RequestHandler::~RequestHandler()
 {
-
+    m_mutex.destroy();
 }
 
 void RequestHandler::init(Pool_t* pool)
 {
+    using namespace pthreads;
     m_pool = pool;
+
+    std::cout << "Initializing handler " << (void*)this << std::endl;
+    ScopedLock lock(m_mutex);
+
+    Attr<Thread> attr;
+    attr.init();
+    attr << DETACHED;
+    int result = m_thread.launch(attr,request_handler_initDH,this);
+    attr.destroy();
+
+    if( result )
+    {
+        std::cerr << "Failed to start handler init thread: ";
+        switch(result)
+        {
+            case EAGAIN:
+                std::cerr << "EAGAIN";
+                break;
+
+            case EINVAL:
+                std::cerr << "EINVAL";
+                break;
+
+            case EPERM:
+                std::cerr << "EPERM";
+                break;
+
+            default:
+                std::cerr << "unexpected errno";
+                break;
+        }
+        std::cerr << std::endl;
+        m_pool->reassign(this);
+    }
+}
+
+void RequestHandler::initDH()
+{
+    pthreads::ScopedLock lock(m_mutex);
+    std::cout << "Handler " << (void*) this
+              << " generating DH parameters\n";
+    m_dh.AccessCryptoParameters().GenerateRandomWithKeySize(m_rng,1024);
+
+    std::cout << "Handler " << (void*) this
+              << " finished generating DH and returning to pool\n";
+    m_pool->reassign(this);
+
+    std::cout.flush();
 }
 
 void RequestHandler::setKeys( const std::string& pub,
