@@ -55,10 +55,19 @@ extern "C"
 void RequestHandler::cleanup()
 {
     close(m_sock);
-    // when finished we put ourselves back in the thread pool
-    std::cout << "Handler " << (void*) this << " is returning to the pool"
-              << std::endl;
+
+    std::cout << "Handler " << (void*) this
+              << " re-generating DH parameters\n";
+
+    using namespace CryptoPP;
+    m_dh.AccessGroupParameters().GenerateRandomWithKeySize(m_rng,1024);
+    m_dh2.GenerateStaticKeyPair(m_rng,m_spriv,m_spub);
+    m_dh2.GenerateEphemeralKeyPair(m_rng,m_epriv, m_epub);
+
+    std::cout << "Handler " << (void*) this
+              << " finished re-generating DH and returning to pool\n";
     m_pool->reassign(this);
+    std::cout.flush();
 }
 
 RequestHandler::RequestHandler():
@@ -137,6 +146,8 @@ void RequestHandler::initDH()
     std::cout.flush();
 }
 
+
+
 void RequestHandler::setKeys( const std::string& pub,
                         const CryptoPP::RSA::PrivateKey& priv )
 {
@@ -199,12 +210,33 @@ void* RequestHandler::operator()()
     try
     {
 
-    // first message must be an auth request
-    char type = m_msg.read(m_sock,m_serverKey,m_rng);
-    if( type != MSG_AUTH_REQ )
-        ex()() << "Received message type : " << (int)type
-               << " when expecting MSG_AUTH_REQ, terminating"
-                  " client";
+    // first message must be a key exchange
+    char type = m_msg.read(m_sock);
+    if( type != MSG_KEY_EXCHANGE )
+        ex()() << "Received message : " << messageIdToString(type)
+               << " (" << (int)type << ") "
+               << "when expecting MSG_KEY_EXCHANGE, terminating client";
+
+    messages::KeyExchange* keyEx =
+            static_cast<messages::KeyExchange*>(m_msg[MSG_KEY_EXCHANGE]);
+
+    // read client keys
+    CryptoPP::SecByteBlock epubClient(
+                    (unsigned char*)&keyEx->ekey()[0], keyEx->ekey().size() );
+    CryptoPP::SecByteBlock spubClient(
+                    (unsigned char*)&keyEx->skey()[0], keyEx->skey().size() );
+
+    // write out keys
+    keyEx->set_ekey( m_epub.BytePtr(), m_epub.SizeInBytes() );
+    keyEx->set_skey( m_spub.BytePtr(), m_spub.SizeInBytes() );
+    m_msg.write( m_sock, MSG_KEY_EXCHANGE );
+
+    // generate shared key
+    m_dh2.Agree(m_shared,m_spriv,m_epriv,spubClient,epubClient);
+    CryptoPP::Integer sharedOut;
+    sharedOut.Decode(m_shared.BytePtr(),m_shared.SizeInBytes() );
+    std::cout << "Shared secret (client): "
+              << std::hex << sharedOut << std::endl;
 
     // read the client's public key
     messages::AuthRequest* authReq =

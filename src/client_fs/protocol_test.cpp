@@ -29,6 +29,7 @@
 #include <cstdio>
 #include <ctime>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <string>
 
@@ -332,34 +333,32 @@ int main(int argc, char** argv)
     // the first message is a DH key exchange
     messages::KeyExchange* keyEx =
             static_cast<messages::KeyExchange*>( msg[MSG_KEY_EXCHANGE] );
-    keyEx->set_skey(spub.begin(),spub.SizeInBytes());
-    keyEx->set_ekey(epub.begin(),epub.SizeInBytes());
+    keyEx->set_skey(spub.BytePtr(),spub.SizeInBytes());
+    keyEx->set_ekey(epub.BytePtr(),epub.SizeInBytes());
 
+    // send unencrypted key exchange
+    msg.write(sockfd,MSG_KEY_EXCHANGE);
+    type = msg.read(sockfd);
 
-    // send an authentication request
-    messages::AuthRequest* authReq =
-            static_cast<messages::AuthRequest*>( msg[MSG_AUTH_REQ] );
-    authReq->set_req_id(1);
-    authReq->set_public_key(rsaPubStr);
+    if( type != MSG_KEY_EXCHANGE )
+    {
+        std::cerr << "Protocol error: expected KEY_EXCHANGE message, got "
+                  << messageIdToString(type) << std::endl;
+        return 1;
+    }
 
-    std::cout << "Writing first message:" << std::endl;
-    msg.write(sockfd,MSG_AUTH_REQ,rsaPubKey,rng);
+    // read the servers keys
+    CryptoPP::SecByteBlock epubServer(
+                    (unsigned char*)&keyEx->ekey()[0], keyEx->ekey().size() );
+    CryptoPP::SecByteBlock spubServer(
+                    (unsigned char*)&keyEx->skey()[0], keyEx->skey().size() );
 
-    sleep(1);
-    type = msg.read(sockfd,rsaPrivKey,rng);
-
-    if(type != MSG_AUTH_CHALLENGE )
-        ex()() << "Protocol Error: got message type " << (int) type
-               << " when expecting MSG_AUTH_CHALLENGE";
-
-    messages::AuthSolution* authSoln =
-            static_cast<messages::AuthSolution*>( msg[MSG_AUTH_SOLN] );
-    authSoln->set_req_id(2);
-    authSoln->set_solution("Dummy String");
-
-    std::cout << "Writing second message:" << authSoln->DebugString()
-              << std::endl;
-    msg.write(sockfd,MSG_AUTH_SOLN,rsaPubKey,rng);
+    // generate shared key
+    dh2.Agree(shared,spriv,epriv,spubServer,epubServer);
+    CryptoPP::Integer sharedOut;
+    sharedOut.Decode(shared.BytePtr(),shared.SizeInBytes() );
+    std::cout << "Shared secret (client): "
+              << std::hex << sharedOut << std::endl;
 
     sleep(1);
 
