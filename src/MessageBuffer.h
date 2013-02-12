@@ -41,6 +41,8 @@
 #include <crypto++/cryptlib.h>
 #include <crypto++/rng.h>
 #include <crypto++/dh2.h>
+#include <crypto++/gcm.h>
+#include <crypto++/aes.h>
 
 
 
@@ -102,17 +104,15 @@ class MessageBuffer
         /// write an unencrypted message
         void write( int sockfd, char type);
 
-        /// read a message from a socket, will throw a MessageException
-        /// on any problems
+        /// read an encrypted message from a socket, will throw a
+        /// MessageException on any problems
         char read( int sockfd,
-                    CryptoPP::PrivateKey& key,
-                    CryptoPP::RandomNumberGenerator& rng);
+                    CryptoPP::GCM<CryptoPP::AES>::Decryption& dec );
 
-        /// write a message to a socket, will throw a MessageException on
-        /// any problems
+        /// write an encryupted message to a socket, will throw a
+        /// MessageException on any problems
         void write( int sockfd, char type,
-                    CryptoPP::PublicKey& key,
-                    CryptoPP::RandomNumberGenerator& rng );
+                    CryptoPP::GCM<CryptoPP::AES>::Encryption& enc );
 
 
 };

@@ -182,8 +182,7 @@ void MessageBuffer::write( int sockfd, char type )
 // next  15 bits:   unsigned size (max 2^15)
 // after first two bytes: message data
 char MessageBuffer::read( int sockfd,
-                         CryptoPP::PrivateKey& key,
-                         CryptoPP::RandomNumberGenerator& rng)
+                            CryptoPP::GCM<CryptoPP::AES>::Decryption& dec)
 {
     char header[2];     //< header bytes
     int  received;      //< result of recv
@@ -194,28 +193,19 @@ char MessageBuffer::read( int sockfd,
         ex()() <<  "failed to read message header from client";
 
     // the first bytes of the message
-    bool         encrypt;   //< message is encrypted
-    char         type;      //< message enum
     unsigned int size;      //< size of the message
-
-    encrypt    = header[0] & 0x80; //< first bit
-    size       = header[0] & 0x7f; //< the rest are size
-    size      |= header[1] << 7;
+    char         type;
+    size       = header[0];         //< first byte of size
+    size      |= header[1] << 8;    //< second byte of size
 
     int     recv_bytes   = 0;
-    char    byte;
-
     if( size > BUFSIZE )
         ex()() << "Received a message with size " << size <<
                      " whereas my buffer is only size " << BUFSIZE;
 
-    std::cout << "Receiving "
-              << (encrypt ? "" : "un" )
-              << "encrypted message of size " << size << " bytes "
+    std::cout << "Receiving encrypted message of size " << size << " bytes "
               << std::endl;
-
-    std::string* target = encrypt ? &m_cipher : &m_plain;
-    target->resize(size);
+    m_cipher.resize(size);
 
     // now we can read in the rest of the message
     // since we know it's length
@@ -223,28 +213,24 @@ char MessageBuffer::read( int sockfd,
     recv_bytes = 0;
     while(recv_bytes < size)
     {
-        received = recv(sockfd, &(*target)[0] + recv_bytes,
+        received = recv(sockfd, &m_cipher[0] + recv_bytes,
                         size-recv_bytes, 0);
         checkForDisconnect(received);
         if(received < 0)
-            ex()() <<  "failed to read byte " << recv_bytes
-                    << "of the message size";
+            ex()() <<  "failed to read bytes after " << recv_bytes
+                    << " of the message";
         recv_bytes += received;
     }
 
     std::cout << "Finished reading " << recv_bytes << "bytes" << std::endl;
 
-    // if it's encrypted, then decrypt it
-    if(encrypt)
-    {
-        using namespace CryptoPP;
-        RSAES_OAEP_SHA_Decryptor d(key);
-
-        StringSource ss2(m_cipher,true,
-                new PK_DecryptorFilter(rng, d, new StringSink(m_plain)
-            ) // PK_DecryptorFilter
-        ); // StringSource
-    }
+    // decrypt the message
+    CryptoPP::StringSource( m_cipher, true,
+        new CryptoPP::AuthenticatedDecryptionFilter(
+            dec,
+            new CryptoPP::StringSink( m_plain )
+        )
+    );
 
     // the first decoded byte is the type
     type = m_plain[0];
@@ -262,8 +248,7 @@ char MessageBuffer::read( int sockfd,
 }
 
 void MessageBuffer::write( int sockfd, char type,
-                    CryptoPP::PublicKey& key,
-                    CryptoPP::RandomNumberGenerator& rng )
+                            CryptoPP::GCM<CryptoPP::AES>::Encryption& enc )
 {
     namespace io = google::protobuf::io;
 
@@ -283,37 +268,25 @@ void MessageBuffer::write( int sockfd, char type,
     // the serialized message
     m_msgs[type]->SerializeToArray(&m_plain[1],msgSize);
 
-    std::string* target = &m_plain;
-
-    // if encrypted
-    if( type != MSG_AUTH_REQ )
-    {
-        // mark as encrypted
-        header[0] |= 0x80;
-
-        // encrypt message
-        using namespace CryptoPP;
-        RSAES_OAEP_SHA_Encryptor e(key);
-
-        StringSource ss1(m_plain, true,
-            new PK_EncryptorFilter(rng, e, new StringSink(m_cipher)
-           ) // PK_EncryptorFilter
-        ); // StringSource
-
-        target = &m_cipher;
-    }
+    // encrypt the message
+    CryptoPP::StringSource( m_plain, true,
+        new CryptoPP::AuthenticatedEncryptionFilter(
+            enc,
+            new CryptoPP::StringSink( m_cipher )
+        )
+    );
 
     // get the size of the target string
-    size = target->size();
+    size = m_cipher.size();
     if( size > BUFSIZE )
         ex()() << "Attempt to send a message of size " << msgSize
                << " but my buffer is only " << BUFSIZE;
 
-    header[0] |= ( size & 0x7F );   //< first 7 bits of size
-    header[1]  = size >> 7;         //< remaining 7 bits of size
+    header[0] |= size & 0xFF;   //< first byte of size
+    header[1]  = size >> 8;     //< second byte of size
 
-    std::cout << "Sending message with " << size << ", "
-              << target->size() << " bytes" << std::endl;
+    std::cout << "Sending message with " << msgSize << ", ("
+              << size << " encrypted) bytes" << std::endl;
 
     // send header
     int sent = 0;
@@ -324,7 +297,7 @@ void MessageBuffer::write( int sockfd, char type,
         ex()() << "failed to send header over socket";
 
     // send data
-    sent = send( sockfd, &(*target)[0], size, 0 );
+    sent = send( sockfd, &m_cipher[0], size, 0 );
     checkForDisconnect(sent);
     if( sent != size )
         ex()() << "failed to send message over socket";

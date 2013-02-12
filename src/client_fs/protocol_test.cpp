@@ -468,7 +468,7 @@ int main(int argc, char** argv)
     std::cout << "AES Key: " << std::hex << cekOut << std::endl;
     std::cout << "     iv: " << std::hex <<  ivOut << std::endl;
 
-    // now we can make our encryptor and decriptor
+    // now we can make our encryptor and decryptor
     cryp::GCM<cryp::AES>::Encryption enc;
     cryp::GCM<cryp::AES>::Decryption dec;
     enc.SetKeyWithIV(cek.BytePtr(), cek.SizeInBytes(),
