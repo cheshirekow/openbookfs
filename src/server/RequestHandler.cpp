@@ -231,12 +231,22 @@ void* RequestHandler::operator()()
     keyEx->set_skey( m_spub.BytePtr(), m_spub.SizeInBytes() );
     m_msg.write( m_sock, MSG_KEY_EXCHANGE );
 
+
+
     // generate shared key
-    m_dh2.Agree(m_shared,m_spriv,m_epriv,spubClient,epubClient);
-    CryptoPP::Integer sharedOut;
+    if( !m_dh2.Agree(m_shared,m_spriv,m_epriv,spubClient,epubClient) )
+        ex()() << "Failed to agree on a shared key";
+
+
+
+    CryptoPP::Integer epubOut, spubOut, sharedOut;
+    epubOut.Decode(epubClient.BytePtr(), epubClient.SizeInBytes() );
+    spubOut.Decode(spubClient.BytePtr(), spubClient.SizeInBytes() );
     sharedOut.Decode(m_shared.BytePtr(),m_shared.SizeInBytes() );
     std::cout << "Shared secret (client): "
-              << std::hex << sharedOut << std::endl;
+              << "\n     epub: " << std::hex << epubOut
+              << "\n     spub: " << std::hex << spubOut
+              << "\n   shared: " << std::hex << sharedOut << std::endl;
 
     // read the client's public key
     messages::AuthRequest* authReq =

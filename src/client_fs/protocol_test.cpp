@@ -231,6 +231,32 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    CryptoPP::DH                dh;         //< Diffie-Hellman structure
+    CryptoPP::DH2               dh2(dh);    //< Diffie-Hellman structure
+    CryptoPP::SecByteBlock      spriv;      //< static private key
+    CryptoPP::SecByteBlock      spub;       //< static public key
+    CryptoPP::SecByteBlock      epriv;      //< ephemeral private key
+    CryptoPP::SecByteBlock      epub;       //< ephemeral public key
+    CryptoPP::SecByteBlock      shared;     //< shared key
+
+    // initialize DH
+    {
+        std::cout << "Generating DH parameters, this may take a minute"
+                  << std::endl;
+        using namespace CryptoPP;
+        dh.AccessGroupParameters().GenerateRandomWithKeySize(rng,1024);
+        spriv = SecByteBlock( dh2.StaticPrivateKeyLength() );
+        spub  = SecByteBlock( dh2.StaticPublicKeyLength() );
+        epriv = SecByteBlock( dh2.EphemeralPrivateKeyLength() );
+        epub  = SecByteBlock( dh2.EphemeralPublicKeyLength() );
+
+        dh2.GenerateStaticKeyPair(rng,spriv,spub);
+        dh2.GenerateEphemeralKeyPair(rng,epriv, epub);
+        shared= SecByteBlock( dh2.AgreedValueLength() );
+
+        std::cout << "Finished generating DH parameters" << std::endl;
+    }
+
     // Create the TCP socket
     int sockfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     if( sockfd < 0 )
@@ -304,32 +330,6 @@ int main(int argc, char** argv)
     MessageBuffer msg;  //< rpc middle man
     char          type; //< type of reponse message
 
-    CryptoPP::DH                dh;         //< Diffie-Hellman structure
-    CryptoPP::DH2               dh2(dh);    //< Diffie-Hellman structure
-    CryptoPP::SecByteBlock      spriv;      //< static private key
-    CryptoPP::SecByteBlock      spub;       //< static public key
-    CryptoPP::SecByteBlock      epriv;      //< ephemeral private key
-    CryptoPP::SecByteBlock      epub;       //< ephemeral public key
-    CryptoPP::SecByteBlock      shared;     //< shared key
-
-    // initialize DH
-    {
-        std::cout << "Generating DH parameters, this may take a minute"
-                  << std::endl;
-        using namespace CryptoPP;
-        dh.AccessGroupParameters().GenerateRandomWithKeySize(rng,1024);
-        spriv = SecByteBlock( dh2.StaticPrivateKeyLength() );
-        spub  = SecByteBlock( dh2.StaticPublicKeyLength() );
-        epriv = SecByteBlock( dh2.EphemeralPrivateKeyLength() );
-        epub  = SecByteBlock( dh2.EphemeralPublicKeyLength() );
-
-        dh2.GenerateStaticKeyPair(rng,spriv,spub);
-        dh2.GenerateEphemeralKeyPair(rng,epriv, epub);
-        shared= SecByteBlock( dh2.AgreedValueLength() );
-
-        std::cout << "Finished generating DH parameters" << std::endl;
-    }
-
     // the first message is a DH key exchange
     messages::KeyExchange* keyEx =
             static_cast<messages::KeyExchange*>( msg[MSG_KEY_EXCHANGE] );
@@ -354,11 +354,20 @@ int main(int argc, char** argv)
                     (unsigned char*)&keyEx->skey()[0], keyEx->skey().size() );
 
     // generate shared key
-    dh2.Agree(shared,spriv,epriv,spubServer,epubServer);
-    CryptoPP::Integer sharedOut;
+    if (!dh2.Agree(shared,spriv,epriv,spubServer,epubServer))
+    {
+        std::cerr << "Failed to agree on a shared key" << std::endl;
+        return 1;
+    }
+
+    CryptoPP::Integer epubOut, spubOut, sharedOut;
+    epubOut.Decode(epubServer.BytePtr(), epubServer.SizeInBytes() );
+    spubOut.Decode(spubServer.BytePtr(), spubServer.SizeInBytes() );
     sharedOut.Decode(shared.BytePtr(),shared.SizeInBytes() );
     std::cout << "Shared secret (client): "
-              << std::hex << sharedOut << std::endl;
+              << "\n     epub: " << std::hex << epubOut
+              << "\n     spub: " << std::hex << spubOut
+              << "\n   shared: " << std::hex << sharedOut << std::endl;
 
     sleep(1);
 
