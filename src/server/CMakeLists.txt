@@ -4,6 +4,7 @@ find_package(CPPThreads)
 find_package(Protobuf)
 find_package(Tclap)
 find_package(Crypto++)
+find_package(YamlCpp)
                              
                              
 if( (Boost_FOUND)
@@ -12,6 +13,7 @@ if( (Boost_FOUND)
     AND (Protobuf_FOUND)
     AND (Crypto++_FOUND)
     AND (Tclap_FOUND) 
+    AND (YAMLCPP_FOUND)
     )
                                                                     
     include_directories( 
@@ -21,6 +23,7 @@ if( (Boost_FOUND)
         ${Protobuf_INCLUDE_DIR}
         ${Tclap_INCLUDE_DIR}
         ${Crypto++_INCLUDE_DIR}
+        ${YAMLCPP_INCLUDE_DIR}
         )
     
     
@@ -30,6 +33,7 @@ if( (Boost_FOUND)
         ${CPPThreads_LIBRARY}
         ${THREADS_LIBRARIES}
         ${Crypto++_LIBRARY}
+        ${YAMLCPP_LIBRARY}
         )
         
     set_source_files_properties( ${MESSAGES_PB_CC} GENERATED )      
@@ -72,6 +76,10 @@ else()
     
     if( NOT (Crypto++_FOUND) )
         set(MISSING "${MISSING} crypto++,")
+    endif()
+    
+    if( NOT (YAMLCPP_FOUND) )
+        set(MISSING "${MISSING} yaml-cpp,")
     endif()
     
     message( WARNING "Can't build openbookfs server, missing: ${MISSING}")
