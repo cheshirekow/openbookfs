@@ -8,6 +8,13 @@ package openbook.filesystem.messages;
 //             Registered Client Authentication with Server
 // ----------------------------------------------------------------------------
 
+// Diffie-Hellman parametrs
+message DiffieHellmanParams {
+    optional bytes p = 1;
+    optional bytes g = 2;
+    optional bytes q = 3; 
+}
+
 // Diffie-Hellman key exchange
 message KeyExchange {
     optional bytes sKey = 1;   // static public key

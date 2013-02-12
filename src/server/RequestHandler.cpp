@@ -210,7 +210,28 @@ void* RequestHandler::operator()()
     try
     {
 
-    // first message must be a key exchange
+    // first the server sends the diffie hellman parameters so we can do a
+    // key exchange
+    std::string p,q,g;
+    p.resize( m_dh.GetGroupParameters().GetModulus().ByteCount());
+    g.resize( m_dh.GetGroupParameters().GetGenerator().ByteCount());
+    q.resize( m_dh.GetGroupParameters().GetSubgroupOrder().ByteCount());
+
+    m_dh.GetGroupParameters().GetModulus().Encode(
+            (unsigned char*)&p[0], p.size(), CryptoPP::Integer::UNSIGNED );
+    m_dh.GetGroupParameters().GetGenerator().Encode(
+            (unsigned char*)&g[0], g.size(), CryptoPP::Integer::UNSIGNED );
+    m_dh.GetGroupParameters().GetSubgroupOrder().Encode(
+            (unsigned char*)&q[0], q.size(), CryptoPP::Integer::UNSIGNED );
+
+    messages::DiffieHellmanParams* dhParams =
+            static_cast<messages::DiffieHellmanParams*>(m_msg[MSG_DH_PARAMS]);
+    dhParams->set_p(p);
+    dhParams->set_q(q);
+    dhParams->set_g(g);
+    m_msg.write(m_sock, MSG_DH_PARAMS);
+
+    // the client must respond with a key exchange
     char type = m_msg.read(m_sock);
     if( type != MSG_KEY_EXCHANGE )
         ex()() << "Received message : " << messageIdToString(type)
@@ -239,13 +260,9 @@ void* RequestHandler::operator()()
 
 
 
-    CryptoPP::Integer epubOut, spubOut, sharedOut;
-    epubOut.Decode(epubClient.BytePtr(), epubClient.SizeInBytes() );
-    spubOut.Decode(spubClient.BytePtr(), spubClient.SizeInBytes() );
+    CryptoPP::Integer sharedOut;
     sharedOut.Decode(m_shared.BytePtr(),m_shared.SizeInBytes() );
     std::cout << "Shared secret (client): "
-              << "\n     epub: " << std::hex << epubOut
-              << "\n     spub: " << std::hex << spubOut
               << "\n   shared: " << std::hex << sharedOut << std::endl;
 
     // read the client's public key

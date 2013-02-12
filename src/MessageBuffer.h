@@ -75,6 +75,7 @@ class MessageBuffer
         std::string  m_plain;           ///< decrypted
 
         // inidiviual message structures
+        messages::DiffieHellmanParams   m_dhParams;
         messages::KeyExchange   m_keyExchange;
         messages::AuthRequest   m_authReq;
         messages::AuthChallenge m_authChallenge;
