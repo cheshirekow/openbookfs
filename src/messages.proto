@@ -11,7 +11,7 @@ package openbook.filesystem.messages;
 // sent by the client to authenticate
 message AuthRequest {
     optional int32  req_id       = 1; // client specific request id
-    optional string public_key   = 2; // client's public key
+    optional bytes  public_key   = 2; // client's public key
 }
 
 // challenge sent by the server 
@@ -24,15 +24,15 @@ message AuthChallenge {
 
     optional int32  req_id      = 1;    // request to which server is responding
     optional Type   type        = 3;    // challenge type
-    optional string public_key  = 4;    // servers public key
-    optional string challenge   = 5;    // authentication: challenge phrase
+    optional bytes  public_key  = 4;    // servers public key
+    optional bytes  challenge   = 5;    // authentication: challenge phrase
                                         // authorization:  password salt
 }
 
 // response to a challenge sent by the client
 message AuthSolution {
     optional int32  req_id   = 1;   // client specific request id
-    optional string solution = 2;   // authentication: crypt-cycled phrase
+    optional bytes  solution = 2;   // authentication: crypt-cycled phrase
                                     // authorization:  salted hashed crypted pw
 }
 

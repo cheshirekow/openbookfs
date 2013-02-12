@@ -89,6 +89,11 @@ char MessageBuffer::read( int sockfd,
         ex()() << "Received a message with size " << size <<
                      " whereas my buffer is only size " << BUFSIZE;
 
+    std::cout << "Receiving "
+              << (encrypt ? "" : "un" )
+              << "encrypted message of size " << size << " bytes "
+              << std::endl;
+
     std::string* target = encrypt ? &m_cipher : &m_plain;
     target->resize(size);
 
@@ -106,6 +111,8 @@ char MessageBuffer::read( int sockfd,
                     << "of the message size";
         recv_bytes += received;
     }
+
+    std::cout << "Finished reading " << recv_bytes << "bytes" << std::endl;
 
     // if it's encrypted, then decrypt it
     if(encrypt)
@@ -126,7 +133,7 @@ char MessageBuffer::read( int sockfd,
     if( type < 0 || type >= NUM_MSG )
         ex()() << "Invalid message type: " << (int)type;
 
-    if( !m_msgs[type]->ParseFromArray(&m_plain[0],m_plain.size()-1) )
+    if( !m_msgs[type]->ParseFromArray(&m_plain[1],m_plain.size()-1) )
         ex()() << "Failed to parse message";
 
     std::cout << "   read done\n";
@@ -185,13 +192,16 @@ void MessageBuffer::write( int sockfd, char type,
     header[0] |= ( size & 0x7F );   //< first 7 bits of size
     header[1]  = size >> 7;         //< remaining 7 bits of size
 
+    std::cout << "Sending message with " << size << ", "
+              << target->size() << " bytes" << std::endl;
+
     // send header
     int sent = 0;
 
     sent = send( sockfd, header, 2, 0 );
     checkForDisconnect(sent);
-    if( sent != 1 )
-        ex()() << "failed to send message over socket";
+    if( sent != 2 )
+        ex()() << "failed to send header over socket";
 
     // send data
     sent = send( sockfd, &(*target)[0], size, 0 );

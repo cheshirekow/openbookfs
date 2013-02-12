@@ -310,8 +310,7 @@ int main(int argc, char** argv)
     authReq->set_req_id(1);
     authReq->set_public_key(rsaPubStr);
 
-    std::cout << "Writing first message:\n" << authReq->DebugString()
-              << std::endl;
+    std::cout << "Writing first message:" << std::endl;
     msg.write(sockfd,MSG_AUTH_REQ,rsaPubKey,rng);
 
     sleep(1);
@@ -325,7 +324,7 @@ int main(int argc, char** argv)
     authSoln->set_req_id(2);
     authSoln->set_solution("Dummy String");
 
-    std::cout << "Writing second message:\n" << authSoln->DebugString()
+    std::cout << "Writing second message:" << authSoln->DebugString()
               << std::endl;
     msg.write(sockfd,MSG_AUTH_SOLN,rsaPubKey,rng);
 
