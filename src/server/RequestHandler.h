@@ -38,11 +38,12 @@
 #include <cpp-pthreads.h>
 #include <vector>
 
-#include "Client.h"
+#include <crypto++/rsa.h>
+#include <crypto++/osrng.h>
+
 #include "ExceptionStream.h"
 #include "MessageBuffer.h"
 #include "Pool.h"
-#include "Protocol.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -74,9 +75,12 @@ class RequestHandler
         pthreads::Thread    m_thread;           ///< the thread we're running in
         pthreads::Mutex     m_mutex;            ///< locks this data
         MessageBuffer       m_msg;              ///< message buffer
-        Protocol            m_protocol;         ///< protocol handler
-        Client              m_client;           ///< client structure
         int                 m_sock;             ///< socket fd
+
+        std::string                 m_serverPub;  ///< server's public key
+        CryptoPP::RSA::PrivateKey   m_serverKey;  ///< server's private key
+        CryptoPP::RSA::PublicKey    m_clientKey;  ///< client's public key
+        CryptoPP::AutoSeededRandomPool  m_rng;    ///< random number gen
 
         void cleanup();
 
@@ -86,6 +90,10 @@ class RequestHandler
 
         /// set the parent pointer
         void init( Pool_t* );
+
+        /// set the server key
+        void setKeys( const std::string& pub,
+                        const CryptoPP::RSA::PrivateKey& priv );
 
         /// start the handler interfacing with the client on the socket
         void start( int sockfd );

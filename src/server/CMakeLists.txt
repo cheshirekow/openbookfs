@@ -36,8 +36,6 @@ if( (Boost_FOUND)
         
     add_executable( openbookfs_d
                     main.cpp
-                    Client.cpp
-                    Protocol.cpp
                     RequestHandler.cpp
                     Server.cpp
                     ../messages.cpp

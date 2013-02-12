@@ -24,17 +24,31 @@
  *  @brief  
  */
 
-#include <sys/socket.h>
 #include <unistd.h>
-#include "MessageBuffer.h"
-#include <protobuf/io/zero_copy_stream_impl.h>
 #include <iostream>
+#include <sys/socket.h>
 
+#include <protobuf/io/zero_copy_stream_impl.h>
+#include <crypto++/filters.h>
+
+#include "MessageBuffer.h"
 
 
 
 namespace   openbook {
 namespace filesystem {
+
+
+MessageBuffer::MessageBuffer()
+{
+    m_cipher.reserve(BUFSIZE);
+    m_plain.reserve(BUFSIZE);
+
+    m_msgs[MSG_AUTH_REQ]        = &m_authReq;
+    m_msgs[MSG_AUTH_CHALLENGE]  = &m_authChallenge;
+    m_msgs[MSG_AUTH_SOLN]       = &m_authSoln;
+    m_msgs[MSG_AUTH_RESULT]     = &m_authResult;
+}
 
 void MessageBuffer::checkForDisconnect( int value )
 {
@@ -42,83 +56,50 @@ void MessageBuffer::checkForDisconnect( int value )
         ex()() <<  "client disconnected";
 }
 
-const char  MessageBuffer::type() const
-{
-    return m_type;
-}
 
-const unsigned int MessageBuffer::size() const
+// message format
+// first bit:       encrypted
+// next  15 bits:   unsigned size (max 2^15)
+// after first two bytes: message data
+char MessageBuffer::read( int sockfd,
+                         CryptoPP::PrivateKey& key,
+                         CryptoPP::RandomNumberGenerator& rng)
 {
-    return m_size;
-}
-
-const char* MessageBuffer::buf() const
-{
-    return m_buf;
-}
-
-int MessageBuffer::read( int sockfd )
-{
-    int received;
-    received = recv(sockfd, &m_type, 1, 0);
+    char header[2];     //< header bytes
+    int  received;      //< result of recv
+    received = recv(sockfd, header, 2, 0);
 
     checkForDisconnect(received);
     if(received < 0)
-        ex()() <<  "failed to read message type from client";
+        ex()() <<  "failed to read message header from client";
 
-    std::cout << "Reading in message of type: " << (int)m_type << std::endl;
+    // the first bytes of the message
+    bool         encrypt;   //< message is encrypted
+    char         type;      //< message enum
+    unsigned int size;      //< size of the message
 
+    encrypt    = header[0] & 0x80; //< first bit
+    size       = header[0] & 0x7f; //< the rest are size
+    size      |= header[1] << 7;
 
-    // the first bytes of the message are the varint length of the message
-            m_size       = 0;
     int     recv_bytes   = 0;
     char    byte;
 
-    // read the first byte
-    received=recv(sockfd, &byte, 1, 0);
-    checkForDisconnect(received);
-    if(received < 0)
-        ex()() <<  "failed to first byte of message size";
-
-    // only the last 7 bits of the byte are significant
-    recv_bytes += received;
-    m_size      = (byte & 0x7f);
-
-    // if the first bit is set it means the next byte is also part of the
-    // varint
-    while(byte & 0x80)
-    {
-        // clear out the bite
-        byte = 0;
-
-        // read in another byte
-        received    = recv(sockfd, &byte, 1, 0);
-
-        checkForDisconnect(received);
-        if(received < 0)
-            ex()() <<  "failed to read byte " << recv_bytes
-                    << "of the message size";
-
-        recv_bytes += received;
-
-        // the remaining 7bits are actual data so OR it into our
-        // length binary buffer shifted by 7 bits
-        m_size |= (byte & 0x7F) << (7*(recv_bytes-1));
-    }
-
-    if( m_size > BUFSIZE )
-        ex()() << "Received a message with size " << m_size <<
+    if( size > BUFSIZE )
+        ex()() << "Received a message with size " << size <<
                      " whereas my buffer is only size " << BUFSIZE;
 
-    std::cout << "   size: " << m_size<< std::endl;
+    std::string* target = encrypt ? &m_cipher : &m_plain;
+    target->resize(size);
 
     // now we can read in the rest of the message
     // since we know it's length
     //receive remainder of message
     recv_bytes = 0;
-    while(recv_bytes < m_size)
+    while(recv_bytes < size)
     {
-        received = recv(sockfd, m_buf + recv_bytes, m_size-recv_bytes, 0);
+        received = recv(sockfd, &(*target)[0] + recv_bytes,
+                        size-recv_bytes, 0);
         checkForDisconnect(received);
         if(received < 0)
             ex()() <<  "failed to read byte " << recv_bytes
@@ -126,39 +107,98 @@ int MessageBuffer::read( int sockfd )
         recv_bytes += received;
     }
 
+    // if it's encrypted, then decrypt it
+    if(encrypt)
+    {
+        using namespace CryptoPP;
+        RSAES_OAEP_SHA_Decryptor d(key);
+
+        StringSource ss2(m_cipher,true,
+                new PK_DecryptorFilter(rng, d, new StringSink(m_plain)
+            ) // PK_DecryptorFilter
+        ); // StringSource
+    }
+
+    // the first decoded byte is the type
+    type = m_plain[0];
+
+    // if it's a valid type attempt to parse the message
+    if( type < 0 || type >= NUM_MSG )
+        ex()() << "Invalid message type: " << (int)type;
+
+    if( !m_msgs[type]->ParseFromArray(&m_plain[0],m_plain.size()-1) )
+        ex()() << "Failed to parse message";
+
     std::cout << "   read done\n";
 
-    return recv_bytes;
+    return type;
 }
 
-int MessageBuffer::write( int sockfd, char type, google::protobuf::Message& msg )
+void MessageBuffer::write( int sockfd, char type,
+                    CryptoPP::PublicKey& key,
+                    CryptoPP::RandomNumberGenerator& rng )
 {
     namespace io = google::protobuf::io;
 
-    unsigned int msgSize  = msg.ByteSize();
-    unsigned int sizeSize = io::CodedOutputStream::VarintSize32(msg.ByteSize());
+    unsigned int msgSize  = m_msgs[type]->ByteSize();
     unsigned int typeSize = 1;
-    unsigned int totSize  = typeSize + sizeSize + msgSize;
+    unsigned int size     = typeSize + msgSize;
+    char         header[2]= {0,0};
 
-    if( totSize > BUFSIZE )
+    if( size > BUFSIZE )
         ex()() << "Attempt to send a message of size " << msgSize
-               << " but my buffer is only " << m_size;
+               << " but my buffer is only " << BUFSIZE;
 
-    google::protobuf::io::ArrayOutputStream array_out(m_buf+1,BUFSIZE);
-    google::protobuf::io::CodedOutputStream out(&array_out);
-    m_buf[0] = type;
-    out.WriteVarint32(msgSize);
+    // make sure we have storage
+    m_plain.resize(size,'\0');
+    m_plain[0] = type;              //< 8 bits of type
 
-    if( !msg.SerializeToCodedStream(&out) )
-        ex()() << "Failed to serialize message";
+    // the serialized message
+    m_msgs[type]->SerializeToArray(&m_plain[1],msgSize);
 
-    int sent = send( sockfd, m_buf, totSize, 0 );
+    std::string* target = &m_plain;
 
+    // if encrypted
+    if( type != MSG_AUTH_REQ )
+    {
+        // mark as encrypted
+        header[0] |= 0x80;
+
+        // encrypt message
+        using namespace CryptoPP;
+        RSAES_OAEP_SHA_Encryptor e(key);
+
+        StringSource ss1(m_plain, true,
+            new PK_EncryptorFilter(rng, e, new StringSink(m_cipher)
+           ) // PK_EncryptorFilter
+        ); // StringSource
+
+        target = &m_cipher;
+    }
+
+    // get the size of the target string
+    size = target->size();
+    if( size > BUFSIZE )
+        ex()() << "Attempt to send a message of size " << msgSize
+               << " but my buffer is only " << BUFSIZE;
+
+    header[0] |= ( size & 0x7F );   //< first 7 bits of size
+    header[1]  = size >> 7;         //< remaining 7 bits of size
+
+    // send header
+    int sent = 0;
+
+    sent = send( sockfd, header, 2, 0 );
     checkForDisconnect(sent);
-    if( sent != totSize )
+    if( sent != 1 )
         ex()() << "failed to send message over socket";
 
-    return sent;
+    // send data
+    sent = send( sockfd, &(*target)[0], size, 0 );
+    checkForDisconnect(sent);
+    if( sent != size )
+        ex()() << "failed to send message over socket";
+
 }
 
 

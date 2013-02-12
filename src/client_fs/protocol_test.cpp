@@ -40,7 +40,7 @@
 #include <fstream>
 #include <crypto++/files.h>
 #include <crypto++/rsa.h>
-#include <crypto++/rng.h>
+#include <crypto++/osrng.h>
 #include <re2/re2.h>
 
 #include <netdb.h>
@@ -159,9 +159,11 @@ int main(int argc, char** argv)
     }
 
 
+
     std::string                 rsaPubStr;
     CryptoPP::RSA::PublicKey    rsaPubKey;
     CryptoPP::RSA::PrivateKey   rsaPrivKey;
+    CryptoPP::AutoSeededRandomPool  rng;
     try
     {
         // open a stream to the public key file
@@ -215,7 +217,6 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    CryptoPP::LC_RNG rng(0x01);
     if( !rsaPubKey.Validate(rng,3) )
     {
         std::cerr << "Failed to validate public key" << std::endl;
@@ -300,29 +301,33 @@ int main(int argc, char** argv)
     try
     {
 
-    // send an authentication request
-    messages::AuthRequest authReq;
-    authReq.set_req_id(1);
-    authReq.set_public_key(rsaPubStr);
-
+    // rpc middleman
     MessageBuffer msg;
-    std::cout << "Writing first message:\n" << authReq.DebugString()
+    char          type;
+
+    // send an authentication request
+    messages::AuthRequest* authReq = msg.msg<MSG_AUTH_REQ>();
+    authReq->set_req_id(1);
+    authReq->set_public_key(rsaPubStr);
+
+    std::cout << "Writing first message:\n" << authReq->DebugString()
               << std::endl;
-    std::cout << "sent " << msg.write(sockfd,MSG_AUTH_REQ,authReq)
-                         << " bytes\n";
+    msg.write(sockfd,MSG_AUTH_REQ,rsaPubKey,rng);
 
     sleep(1);
+    type = msg.read(sockfd,rsaPrivKey,rng);
 
-    //msg.read(sockfd);
+    if(type != MSG_AUTH_CHALLENGE )
+        ex()() << "Protocol Error: got message type " << (int) type
+               << " when expecting MSG_AUTH_CHALLENGE";
 
-    messages::AuthSolution authSoln;
-    authSoln.set_req_id(2);
-    authSoln.set_solution("Dummy String");
+    messages::AuthSolution* authSoln = msg.msg<MSG_AUTH_SOLN>();
+    authSoln->set_req_id(2);
+    authSoln->set_solution("Dummy String");
 
-    std::cout << "Writing second message:\n" << authSoln.DebugString()
+    std::cout << "Writing second message:\n" << authSoln->DebugString()
               << std::endl;
-    std::cout << "sent " << msg.write(sockfd,MSG_AUTH_SOLN,authSoln)
-              << " bytes\n";
+    msg.write(sockfd,MSG_AUTH_SOLN,rsaPubKey,rng);
 
     sleep(1);
 

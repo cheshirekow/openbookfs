@@ -40,9 +40,8 @@ namespace filesystem {
 
 
 /// encapsulates details about the server
-class Server
+struct Server
 {
-    private:
         pthreads::Mutex             m_mutex;    ///< locks this data
         boost::filesystem::path     m_dataDir;  ///< data directory
         std::string                 m_pubStr;   ///< public key file as string

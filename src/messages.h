@@ -27,6 +27,8 @@
 #ifndef OPENBOOK_MESSAGES_H_
 #define OPENBOOK_MESSAGES_H_
 
+#include "messages.pb.h"
+
 namespace   openbook {
 namespace filesystem {
 
@@ -38,6 +40,20 @@ enum MessageId
     MSG_AUTH_RESULT,
     NUM_MSG
 };
+
+template <MessageId ID> struct MessageType{ typedef void* type; };
+
+template <> struct MessageType<MSG_AUTH_REQ>
+    { typedef messages::AuthRequest type; };
+
+template <> struct MessageType<MSG_AUTH_CHALLENGE>
+    { typedef messages::AuthChallenge type; };
+
+template <> struct MessageType<MSG_AUTH_SOLN>
+    { typedef messages::AuthSolution type; };
+
+template <> struct MessageType<MSG_AUTH_RESULT>
+    { typedef messages::AuthResult type; };
 
 const char* messageIdToString( char id );
 

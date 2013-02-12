@@ -32,7 +32,14 @@
 #include <stdexcept>
 #include <string>
 #include <protobuf/message.h>
+
 #include "ExceptionStream.h"
+#include "messages.h"
+#include "messages.pb.h"
+
+#include <crypto++/rsa.h>
+#include <crypto++/cryptlib.h>
+#include <crypto++/rng.h>
 
 
 
@@ -63,30 +70,46 @@ class MessageBuffer
         /// size of the static buffer used to cache data
         static const unsigned int BUFSIZE = 1024;
 
-        char         m_type;   ///< enum with the message type
-        unsigned int m_size;   ///< length (in bytes) of the message
-        char         m_buf[BUFSIZE];    ///< buffer where data is stored
+        std::string  m_cipher;          ///< encrypted data
+        std::string  m_plain;           ///< decrypted
+
+        // inidiviual message structures
+        messages::AuthRequest   m_authReq;
+        messages::AuthChallenge m_authChallenge;
+        messages::AuthSolution  m_authSoln;
+        messages::AuthResult    m_authResult;
+
+        /// array of generic message pointers
+        google::protobuf::Message* m_msgs[NUM_MSG];
+
 
         /// throws a MessageException if value is 0
         void checkForDisconnect( int value );
 
     public:
-        /// return the type of the message
-        const char type() const;
+        /// fills message array
+        MessageBuffer();
 
-        /// return the length of the message
-        const unsigned int size() const;
-
-        /// return a pointer to the message buffer
-        const char* buf() const;
 
         /// read a message from a socket, will throw a MessageException
         /// on any problems
-        int read( int sockfd );
+        char read( int sockfd,
+                    CryptoPP::PrivateKey& key,
+                    CryptoPP::RandomNumberGenerator& rng);
 
         /// write a message to a socket, will throw a MessageException on
         /// any problems
-        int write( int sockfd, char type, google::protobuf::Message& msg );
+        void write( int sockfd, char type,
+                    CryptoPP::PublicKey& key,
+                    CryptoPP::RandomNumberGenerator& rng );
+
+        /// typed by the ID
+        template <MessageId ID>
+        typename MessageType<ID>::type* msg()
+        {
+            typedef typename MessageType<ID>::type Msg;
+            return static_cast< Msg* >( m_msgs[ID] );
+        }
 
 };
 
