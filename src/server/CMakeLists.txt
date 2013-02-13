@@ -38,6 +38,9 @@ if( (Boost_FOUND)
         
     set_source_files_properties( ${MESSAGES_PB_CC} GENERATED )      
         
+    configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/openbookfs_d.yaml
+                    ${CMAKE_CURRENT_BINARY_DIR}/openbookfs_d.yaml )
+        
     add_executable( openbookfs_d
                     main.cpp
                     RequestHandler.cpp

@@ -32,6 +32,7 @@
 #include <string>
 
 #include <yaml-cpp/yaml.h>
+#include <boost/filesystem.hpp>
 
 namespace   openbook {
 namespace filesystem {
@@ -89,6 +90,21 @@ void Server::initConfig(const std::string& configFile)
     YAML::Parser parser(in);
     YAML::Node   config;
     parser.GetNextDocument(config);
+
+    // any errors will throw an exception
+    const YAML::Node& auth = config["auth"];
+
+    bool authOpt;
+    auth["password"]      >> authOpt; m_auth[AUTH_PASSWORD]  = authOpt;
+    auth["vouch"]         >> authOpt; m_auth[AUTH_VOUCH_FOR] = authOpt;
+    config["dataDir"]     >> m_dataDir;
+    config["rootDir"]     >> m_rootDir;
+    config["pubKeyFile"]  >> m_pubKeyFile;
+    config["privKeyFile"] >> m_privKeyFile;
+    config["iface"]       >> m_iface;
+    config["port"]        >> m_port;
+    config["maxConn"]     >> m_maxConn;
+
 }
 
 

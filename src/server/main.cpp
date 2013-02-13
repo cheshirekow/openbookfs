@@ -29,7 +29,9 @@
 #include <arpa/inet.h>
 #include <cstdlib>
 #include <cstring>
+#include <csignal>
 #include <unistd.h>
+#include <fcntl.h>
 #include <netinet/in.h>
 #include <iostream>
 #include <cpp-pthreads.h>
@@ -49,8 +51,39 @@
 using namespace openbook::filesystem;
 
 
+int  g_pipefd[2]; ///< pipe for waking up listener when signaled
+
+void signal_callback( int signum )
+{
+    switch(signum)
+    {
+        case SIGINT:
+        {
+            std::cout << "Received signal, going to terminate" << std::endl;
+            write(g_pipefd[1],"x",1);
+            break;
+        }
+
+        default:
+            std::cout << "Unexpected signal, ignoring" << std::endl;
+            break;
+    }
+}
+
+
 int main(int argc, char** argv)
 {
+    // register signal handler
+    signal(SIGINT, signal_callback);
+
+    // create a pipe we can signal
+    if( pipe(g_pipefd) )
+    {
+        std::cerr << "Can't create pipe" << std::endl;
+        return 1;
+    }
+
+
     namespace fs = boost::filesystem;
 
     std::string configFile;
@@ -184,11 +217,17 @@ int main(int argc, char** argv)
     struct sockaddr_in server_in, client_in;
 
     //  Create the TCP socket
-    if ((serversock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0)
+    serversock = socket(PF_INET, SOCK_STREAM | O_NONBLOCK, IPPROTO_TCP);
+    if (serversock < 0)
     {
         std::cerr << "Failed to create socket\n";
         return 1;
     }
+
+    // So that we can re-bind to it without TIME_WAIT problems
+    int reuse_addr = 1;
+    setsockopt(serversock, SOL_SOCKET, SO_REUSEADDR,
+                    &reuse_addr, sizeof(reuse_addr));
 
     //  Construct the server sockaddr_in structure
     memset(&server_in, 0, sizeof(server_in));       //  Clear struct
@@ -210,23 +249,57 @@ int main(int argc, char** argv)
         return 1;
     }
 
+
     // Pool of request handlers, 20 handlers
     std::cout << "Initializing handler pool" << std::endl;
     Pool<RequestHandler> handlerPool(5);
 
+    // for selecting
+    fd_set selectMe;
+
+
     //  Run until cancelled
     while (1)
     {
+        FD_ZERO( &selectMe );   //< zero out the select struct
+        FD_SET(g_pipefd[0], &selectMe ); //< add pipe to our fdset
+        FD_SET(serversock,  &selectMe ); //< add server socket to our fd set
+
+
+        // wait for something to happen
+        timeval tv_timeout = {5,0};
+        int maxfd     = std::max(g_pipefd[0], serversock) + 1;
+        int numChange = select(maxfd,&selectMe, 0, 0, &tv_timeout );
+        std::cout << "Waking up" << std::endl;
+
+        if( FD_ISSET(g_pipefd[0], &selectMe ) )
+        {
+            std::cout << "Terminating!!" << std::endl;
+            break;
+        }
+//        else if( !FD_ISSET(serversock, &selectMe) )
+//        {
+//            std::cout << "Woke up but don't know why, must be timeout" << std::endl;
+//            continue;
+//        }
+
         unsigned int clientlen = sizeof(client_in);
-        //  Wait for client connection
+
+        //  Wait for client connection (should not block)
         clientsock = accept(
                 serversock,
                 (struct sockaddr *) &client_in,
                 &clientlen );
 
-        if (clientsock < 0)
+        if( clientsock < 0 && errno == EWOULDBLOCK )
         {
-            std::cerr << "Failed to accept client connection\n";
+            std::cerr << "No pending connections" << std::endl;
+            continue;
+        }
+        else if (clientsock < 0)
+        {
+            std::cerr << "Failed to accept client connection: "
+                      << clientsock << "\n";
             return 1;
         }
 

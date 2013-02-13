@@ -32,8 +32,7 @@
 #include <crypto++/rsa.h>
 #include <cryptopp/osrng.h>
 
-#include <boost/filesystem.hpp>
-
+#include <bitset>
 
 namespace   openbook {
 namespace filesystem {
@@ -42,18 +41,32 @@ namespace filesystem {
 /// encapsulates details about the server and it's configuration
 struct Server
 {
+    public:
+        enum AuthOpts
+        {
+            AUTH_PASSWORD=0,
+            AUTH_VOUCH_FOR,
+            NUM_AUTH
+        };
+
+        typedef std::bitset<NUM_AUTH> AuthOpt;
+
+    private:
         pthreads::Mutex m_mutex;    ///< locks this data
 
-        boost::filesystem::path m_dataDir;      ///< server data location
-        boost::filesystem::path m_rootDir;      ///< file system root
-        boost::filesystem::path m_pubKeyFile;   ///< public key file
-        boost::filesystem::path m_privKeyFile;  ///< private key file
+        std::string  m_dataDir;      ///< server data location
+        std::string  m_rootDir;      ///< file system root
+        std::string  m_pubKeyFile;   ///< public key file
+        std::string  m_privKeyFile;  ///< private key file
 
-        std::string  m_salt      ///< for authorizing clients
+        AuthOpt      m_auth;     ///< set of authorization methods we'll allow
         std::string  m_password; ///< for authorizing clients
         std::string  m_iface;    ///< which interface to bind
         int          m_port;     ///< which port to listen on
         int          m_maxConn;  ///< number of connections to accept
+        int          m_maxClient;           ///< maximum number of clients
+        int          m_maxConnPerClient;    ///< maximum number of connections
+                                            ///  per client
 
 
     public:
