@@ -71,6 +71,7 @@ void Server::initConfig(const std::string& configFile)
     bool authOpt;
     auth["password"]        >> authOpt; m_auth[AUTH_PASSWORD]  = authOpt;
     auth["vouch"]           >> authOpt; m_auth[AUTH_VOUCH_FOR] = authOpt;
+    config["password"]      >> m_password;
     config["dataDir"]       >> m_dataDir;
     config["rootDir"]       >> m_rootDir;
     config["pubKeyFile"]    >> m_pubKeyFile;

@@ -403,6 +403,14 @@ void* RequestHandler::handshake()
     SecByteBlock digest( SHA512::DIGESTSIZE );
     hash.Final( digest.BytePtr() );
 
+    std::cout << "Sending password challenge" << std::endl;
+    Integer saltOut, hashOut;
+    saltOut.Decode(salt.BytePtr(),salt.SizeInBytes() );
+    hashOut.Decode(digest.BytePtr(),digest.SizeInBytes() );
+    std::cout << "\n   pass: " << m_server->password()
+              << "\n   salt: " << std::hex << saltOut
+              << "\n   hash: " << hashOut << std::dec << std::endl;
+
     challenge->set_type( msgs::AuthChallenge::AUTHORIZE );
     challenge->set_challenge( salt.BytePtr(), salt.SizeInBytes() );
 

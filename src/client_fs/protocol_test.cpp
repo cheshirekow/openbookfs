@@ -553,6 +553,13 @@ int main(int argc, char** argv)
     hash.Final( digest.BytePtr() );
     authSoln->set_solution( digest.BytePtr(), digest.SizeInBytes() );
 
+    std::cout << "Sending password challenge";
+    cryp::Integer saltOut, hashOut;
+    saltOut.Decode(salt.BytePtr(),salt.SizeInBytes() );
+    hashOut.Decode(digest.BytePtr(),digest.SizeInBytes() );
+    std::cout << "\n   salt: " << std::hex << saltOut
+              << "\n   hash: " << hashOut << std::dec << std::endl;
+
     msg.write(sockfd,MSG_AUTH_SOLN,enc);
     enc.Resynchronize(iv.BytePtr(), iv.SizeInBytes() );
 
