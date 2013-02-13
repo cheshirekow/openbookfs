@@ -46,12 +46,13 @@
 #include "Pool.h"
 #include "Bytes.h"
 #include "RequestHandler.h"
+#include "NotifyPipe.h"
+#include "SelectSet.h"
 #include "Server.h"
 
 using namespace openbook::filesystem;
 
-
-int  g_pipefd[2]; ///< pipe for waking up listener when signaled
+NotifyPipe* g_termNote;  ///< ditto
 
 void signal_callback( int signum )
 {
@@ -60,7 +61,7 @@ void signal_callback( int signum )
         case SIGINT:
         {
             std::cout << "Received signal, going to terminate" << std::endl;
-            write(g_pipefd[1],"x",1);
+            g_termNote->notify();
             break;
         }
 
@@ -76,13 +77,9 @@ int main(int argc, char** argv)
     // register signal handler
     signal(SIGINT, signal_callback);
 
-    // create a pipe we can signal
-    if( pipe(g_pipefd) )
-    {
-        std::cerr << "Can't create pipe" << std::endl;
-        return 1;
-    }
-
+    // initialize pipe to notify of termination
+    NotifyPipe termNote;
+    g_termNote = &termNote;
 
     namespace fs = boost::filesystem;
 
@@ -96,105 +93,105 @@ int main(int argc, char** argv)
     // because exceptions will be thrown for problems.
     try {
 
-    time_t      rawtime;
-    tm*         timeinfo;
-    char        currentYear[5];
+        time_t      rawtime;
+        tm*         timeinfo;
+        char        currentYear[5];
 
-    ::time( &rawtime );
-    timeinfo = ::localtime( &rawtime );
-    strftime (currentYear,5,"%Y",timeinfo);
+        ::time( &rawtime );
+        timeinfo = ::localtime( &rawtime );
+        strftime (currentYear,5,"%Y",timeinfo);
 
-    fs::path homeDir     = getenv("HOME");
-    fs::path dfltConfig  = "./openbookfs_d.yaml";
-    fs::path dfltDataDir = "./data";
-    fs::path dfltPubKey  = "./rsa-openssl-pub.der";
-    fs::path dfltPrivKey = "./rsa-openssl-priv.der";
-    int      dfltPort    = 3031;
+        fs::path homeDir     = getenv("HOME");
+        fs::path dfltConfig  = "./openbookfs_d.yaml";
+        fs::path dfltDataDir = "./data";
+        fs::path dfltPubKey  = "./rsa-openssl-pub.der";
+        fs::path dfltPrivKey = "./rsa-openssl-priv.der";
+        int      dfltPort    = 3031;
 
 
-    std::stringstream sstream;
-    sstream << "Openbook Filesystem Server\n"
-            << "Copyright (c) 2012-" << currentYear
-            << " Josh Bialkowski <jbialk@mit.edu>";
+        std::stringstream sstream;
+        sstream << "Openbook Filesystem Server\n"
+                << "Copyright (c) 2012-" << currentYear
+                << " Josh Bialkowski <jbialk@mit.edu>";
 
-    // Define the command line object, and insert a message
-    // that describes the program. The "Command description message"
-    // is printed last in the help text. The second argument is the
-    // delimiter (usually space) and the last one is the version number.
-    // The CmdLine object parses the argv array based on the Arg objects
-    // that it contains.
-    TCLAP::CmdLine cmd(sstream.str().c_str(), ' ', "0.1.0");
+        // Define the command line object, and insert a message
+        // that describes the program. The "Command description message"
+        // is printed last in the help text. The second argument is the
+        // delimiter (usually space) and the last one is the version number.
+        // The CmdLine object parses the argv array based on the Arg objects
+        // that it contains.
+        TCLAP::CmdLine cmd(sstream.str().c_str(), ' ', "0.1.0");
 
-    // Define a value argument and add it to the command line.
-    // A value arg defines a flag and a type of value that it expects,
-    // such as "-n Bishop".
-    TCLAP::ValueArg<std::string> configArg(
-            "f",
-            "config",
-            "path to configuration file",
-            false,
-            dfltConfig.string(),
-            "path"
-            );
+        // Define a value argument and add it to the command line.
+        // A value arg defines a flag and a type of value that it expects,
+        // such as "-n Bishop".
+        TCLAP::ValueArg<std::string> configArg(
+                "f",
+                "config",
+                "path to configuration file",
+                false,
+                dfltConfig.string(),
+                "path"
+                );
 
-    TCLAP::ValueArg<std::string> pubKeyArg(
-            "b",
-            "pubkey",
-            "path to the ssh public key",
-            false,
-            dfltPubKey.string(),
-            "path"
-            );
+        TCLAP::ValueArg<std::string> pubKeyArg(
+                "b",
+                "pubkey",
+                "path to the ssh public key",
+                false,
+                dfltPubKey.string(),
+                "path"
+                );
 
-    TCLAP::ValueArg<std::string> privKeyArg(
-            "v",
-            "privkey",
-            "path to the ssh private key",
-            false,
-            dfltPrivKey.string(),
-            "path"
-            );
+        TCLAP::ValueArg<std::string> privKeyArg(
+                "v",
+                "privkey",
+                "path to the ssh private key",
+                false,
+                dfltPrivKey.string(),
+                "path"
+                );
 
-    TCLAP::ValueArg<std::string> dataDirArg(
-            "d",
-            "data",
-            "path to root of file system",
-            false,
-            dfltDataDir.string(),
-            "path"
-            );
+        TCLAP::ValueArg<std::string> dataDirArg(
+                "d",
+                "data",
+                "path to root of file system",
+                false,
+                dfltDataDir.string(),
+                "path"
+                );
 
-    TCLAP::ValueArg<int> portArg(
-            "p",
-            "port",
-            "port to listen on",
-            false,
-            dfltPort,
-            "integer"
-            );
+        TCLAP::ValueArg<int> portArg(
+                "p",
+                "port",
+                "port to listen on",
+                false,
+                dfltPort,
+                "integer"
+                );
 
-    // Add the argument nameArg to the CmdLine object. The CmdLine object
-    // uses this Arg to parse the command line.
-    cmd.add( pubKeyArg );
-    cmd.add( privKeyArg );
-    cmd.add( dataDirArg );
-    cmd.add( portArg );
+        // Add the argument nameArg to the CmdLine object. The CmdLine object
+        // uses this Arg to parse the command line.
+        cmd.add( pubKeyArg );
+        cmd.add( privKeyArg );
+        cmd.add( dataDirArg );
+        cmd.add( portArg );
 
-    // Parse the argv array.
-    cmd.parse( argc, argv );
+        // Parse the argv array.
+        cmd.parse( argc, argv );
 
-    // Get the value parsed by each arg.
-    configFile = configArg.getValue();
-    pubKey     = pubKeyArg.getValue();
-    privKey    = privKeyArg.getValue();
-    dataDir    = dataDirArg.getValue();
-    port       = portArg.getValue();
+        // Get the value parsed by each arg.
+        configFile = configArg.getValue();
+        pubKey     = pubKeyArg.getValue();
+        privKey    = privKeyArg.getValue();
+        dataDir    = dataDirArg.getValue();
+        port       = portArg.getValue();
 
     }
 
     catch (TCLAP::ArgException &e)  // catch any exceptions
     {
-        std::cerr   << "error: " << e.error() << " for arg "
+        std::cerr   << "Argument error: " << e.error() << " for arg "
                     << e.argId() << std::endl;
         return 1;
     }
@@ -216,36 +213,38 @@ int main(int argc, char** argv)
     int serversock, clientsock;
     struct sockaddr_in server_in, client_in;
 
-    //  Create the TCP socket
-    serversock = socket(PF_INET, SOCK_STREAM | O_NONBLOCK, IPPROTO_TCP);
-    if (serversock < 0)
+    try
     {
-        std::cerr << "Failed to create socket\n";
-        return 1;
+        //  Create the TCP socket
+        serversock = socket(PF_INET, SOCK_STREAM | O_NONBLOCK, IPPROTO_TCP);
+        if (serversock < 0)
+            ex()() << "Failed to create socket";
+
+        // So that we can re-bind to it without TIME_WAIT problems
+        int reuse_addr = 1;
+        if( setsockopt(serversock, SOL_SOCKET, SO_REUSEADDR,
+                            &reuse_addr, sizeof(reuse_addr)) )
+            ex()() << "Failed to set SO_REUSEADDR on socket";
+
+        //  Construct the server sockaddr_in structure
+        memset(&server_in, 0, sizeof(server_in));       //  Clear struct
+        server_in.sin_family       = AF_INET;            //  Internet/IP
+        server_in.sin_addr.s_addr  = htonl(INADDR_ANY);  //  Incoming addr
+        server_in.sin_port         = htons(port);        //  server port
+
+        //  Bind the server socket
+        if ( bind(serversock, (sockaddr *) &server_in, sizeof(server_in)) < 0)
+            ex()() << "Failed to bind the server socket\n";
+
+        //  Listen on the server socket, 10 max pending connections
+        if (listen(serversock, 10) < 0)
+            ex()() << "Failed to listen on server socket\n";
     }
-
-    // So that we can re-bind to it without TIME_WAIT problems
-    int reuse_addr = 1;
-    setsockopt(serversock, SOL_SOCKET, SO_REUSEADDR,
-                    &reuse_addr, sizeof(reuse_addr));
-
-    //  Construct the server sockaddr_in structure
-    memset(&server_in, 0, sizeof(server_in));       //  Clear struct
-    server_in.sin_family       = AF_INET;            //  Internet/IP
-    server_in.sin_addr.s_addr  = htonl(INADDR_ANY);  //  Incoming addr
-    server_in.sin_port         = htons(port);        //  server port
-
-    //  Bind the server socket
-    if (bind(serversock, (struct sockaddr *) &server_in, sizeof(server_in)) < 0)
+    catch( std::exception& ex )
     {
-        std::cerr << "Failed to bind the server socket\n";
-        return 1;
-    }
-
-    //  Listen on the server socket, 10 max pending connections
-    if (listen(serversock, 10) < 0)
-    {
-        std::cerr << "Failed to listen on server socket\n";
+        std::cerr << "Error while setting up the socket" << std::endl;
+        if( serversock > 0 )
+            close(serversock);
         return 1;
     }
 
@@ -254,35 +253,29 @@ int main(int argc, char** argv)
     std::cout << "Initializing handler pool" << std::endl;
     Pool<RequestHandler> handlerPool(5);
 
-    // for selecting
-    fd_set selectMe;
-
+    // for waiting until things happen
+    SelectSet selectMe(2);
+    selectMe[0] = termNote.readFd();
+    selectMe[1] = serversock;
+    selectMe.setTimeout( 5, 0 );
+    selectMe.init();
 
     //  Run until cancelled
     while (1)
     {
-        FD_ZERO( &selectMe );   //< zero out the select struct
-        FD_SET(g_pipefd[0], &selectMe ); //< add pipe to our fdset
-        FD_SET(serversock,  &selectMe ); //< add server socket to our fd set
-
-
         // wait for something to happen
-        timeval tv_timeout = {5,0};
-        int maxfd     = std::max(g_pipefd[0], serversock) + 1;
-        int numChange = select(maxfd,&selectMe, 0, 0, &tv_timeout );
-        std::cout << "Waking up" << std::endl;
-
-        if( FD_ISSET(g_pipefd[0], &selectMe ) )
+        if( !selectMe.wait() )
+        {
+            std::cout << "Who dares disturb my slumber. zzz..." << std::endl;
+            continue;
+        }
+        else if( selectMe(0) )
         {
             std::cout << "Terminating!!" << std::endl;
             break;
         }
-//        else if( !FD_ISSET(serversock, &selectMe) )
-//        {
-//            std::cout << "Woke up but don't know why, must be timeout" << std::endl;
-//            continue;
-//        }
 
+        std::cout << "Woke up to accept a connection" << std::endl;
         unsigned int clientlen = sizeof(client_in);
 
         //  Wait for client connection (should not block)
@@ -333,9 +326,9 @@ int main(int argc, char** argv)
                       << std::endl;
             close(clientsock);
         }
-
-
     }
+
+    close(serversock);
 }
 
 
