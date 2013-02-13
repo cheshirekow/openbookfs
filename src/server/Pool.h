@@ -57,11 +57,11 @@ class Pool
             // lock scope
             {
                 pthreads::ScopedLock lock(m_mutex);
-                if( m_available.size() == 0 )
-                    return 0;
-
-                obj = m_available.back();
-                m_available.pop_back();
+                if( m_available.size() > 0 )
+                {
+                    obj = m_available.back();
+                    m_available.pop_back();
+                }
             }
 
             return obj;

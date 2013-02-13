@@ -99,6 +99,8 @@ if( (Boost_FOUND)
                     ../base64.cpp
                     ../messages.cpp
                     ../MessageBuffer.cpp
+                    ../SelectSet.cpp
+                    ../NotifyPipe.cpp
                     protocol_test.cpp
                     ${MESSAGES_PB_CC}
                              )

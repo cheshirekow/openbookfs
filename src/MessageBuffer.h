@@ -33,16 +33,17 @@
 #include <string>
 #include <protobuf/message.h>
 
-#include "ExceptionStream.h"
-#include "messages.h"
-#include "messages.pb.h"
-
 #include <crypto++/rsa.h>
 #include <crypto++/cryptlib.h>
 #include <crypto++/rng.h>
 #include <crypto++/dh2.h>
 #include <crypto++/gcm.h>
 #include <crypto++/aes.h>
+
+#include "ExceptionStream.h"
+#include "SelectSet.h"
+#include "messages.h"
+#include "messages.pb.h"
 
 
 
@@ -107,12 +108,28 @@ class MessageBuffer
         /// read an encrypted message from a socket, will throw a
         /// MessageException on any problems
         char read( int sockfd,
-                    CryptoPP::GCM<CryptoPP::AES>::Decryption& dec );
+                    CryptoPP::GCM<CryptoPP::AES>::Decryption& );
 
         /// write an encryupted message to a socket, will throw a
         /// MessageException on any problems
         void write( int sockfd, char type,
-                    CryptoPP::GCM<CryptoPP::AES>::Encryption& enc );
+                    CryptoPP::GCM<CryptoPP::AES>::Encryption& );
+
+        /// read an unencrypted message
+        char read( SelectSet& );
+
+        /// write an unencrypted message
+        void write( SelectSet& , char type);
+
+        /// read an encrypted message from a socket, will throw a
+        /// MessageException on any problems
+        char read( SelectSet& ,
+                    CryptoPP::GCM<CryptoPP::AES>::Decryption& );
+
+        /// write an encryupted message to a socket, will throw a
+        /// MessageException on any problems
+        void write( SelectSet& , char type,
+                    CryptoPP::GCM<CryptoPP::AES>::Encryption& );
 
 
 };
