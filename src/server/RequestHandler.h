@@ -46,6 +46,7 @@
 #include "ExceptionStream.h"
 #include "MessageBuffer.h"
 #include "Pool.h"
+#include "SelectSet.h"
 
 
 namespace   openbook {
@@ -89,7 +90,6 @@ class RequestHandler
         CryptoPP::SecByteBlock      m_epriv;      ///< ephemeral private key
         CryptoPP::SecByteBlock      m_epub;       ///< ephemeral public key
         CryptoPP::SecByteBlock      m_shared;     ///< shared key
-
 
         void cleanup();
 

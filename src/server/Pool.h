@@ -37,30 +37,16 @@ template <class Obj>
 class Pool
 {
     private:
-        unsigned int        m_size;         ///< number of items
         pthreads::Mutex     m_mutex;        ///< locks the pool
-        Obj*                m_objs;         ///< pool of objects
         std::vector<Obj*>   m_available;    ///< available objects
 
     public:
         /// initializes the free store
-        Pool(unsigned int size):
-            m_size(size)
+        Pool(unsigned int size)
         {
             m_mutex.init();
             pthreads::ScopedLock lock(m_mutex);
-
-            // allocate storage
-            m_objs = new Obj[size];
-
             m_available.reserve(size);
-            for(int i=0; i < size; i++)
-            {
-                // initialize objects with reference to this pool, they will
-                // re-assign themselves to the pool when initialization is
-                // complete
-                m_objs[i].init(this);
-            }
         }
 
         /// retrieve an available handler

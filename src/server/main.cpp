@@ -249,9 +249,19 @@ int main(int argc, char** argv)
     }
 
 
-    // Pool of request handlers, 20 handlers
+    // Pool of request handlers
     std::cout << "Initializing handler pool" << std::endl;
-    Pool<RequestHandler> handlerPool(5);
+    const int nH = 5;
+    Pool<RequestHandler> availablePool(nH);  ///< threads that are ready
+    Pool<RequestHandler> retiredPool(nH);    ///< threads that have terminated
+
+    /// handler objects
+    RequestHandler handlers[nH];
+
+    for(int i=0; i < nH; i++)
+        handlers[i].init(&availablePool);
+
+
 
     // for waiting until things happen
     SelectSet selectMe(2);
@@ -285,7 +295,7 @@ int main(int argc, char** argv)
                     serversock,
                     (struct sockaddr *) &client_in,
                     &clientlen,
-                    SOCK_NONBLOCK);
+                     0 /*SOCK_NONBLOCK*/);
 
             if( clientsock < 0 && errno == EWOULDBLOCK )
             {
@@ -305,7 +315,7 @@ int main(int argc, char** argv)
             std::cout << "Client connected: " << clientStr << "\n";
 
             // get a request handler
-            RequestHandler* handler = handlerPool.getAvailable();
+            RequestHandler* handler = availablePool.getAvailable();
 
             if(handler)
                 handler->start(clientsock);
