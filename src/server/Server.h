@@ -61,8 +61,9 @@ struct Server
 
         AuthOpt      m_auth;     ///< set of authorization methods we'll allow
         std::string  m_password; ///< for authorizing clients
-        std::string  m_iface;    ///< which interface to bind
-        int          m_port;     ///< which port to listen on
+        std::string  m_addressFamily;   ///< address family of iface
+        std::string  m_iface;           ///< which interface to bind
+        std::string  m_port;     ///< which port to listen on
         int          m_maxConn;  ///< number of connections to accept
         int          m_maxClient;           ///< maximum number of clients
         int          m_maxConnPerClient;    ///< maximum number of connections
@@ -73,8 +74,20 @@ struct Server
         Server();
         ~Server();
 
-        void initData( const std::string& dataDir );
+        /// load a configuration from a file (will throw an exception on
+        /// errors)
         void initConfig( const std::string& configFile );
+
+        const std::string& dataDir()        const{ return m_dataDir; }
+        const std::string& rootDir()        const{ return m_rootDir; }
+        const std::string& pubKeyFile()     const{ return m_pubKeyFile;    }
+        const std::string& privKeyFile()    const{ return m_privKeyFile;   }
+        const std::string& password()       const{ return m_password;      }
+        const std::string& addressFamily()  const{ return m_addressFamily; }
+        const std::string& iface()          const{ return m_iface;         }
+        const std::string& port()           const{ return m_port;          }
+        int maxConn() const{ return m_maxConn; }
+
 };
 
 

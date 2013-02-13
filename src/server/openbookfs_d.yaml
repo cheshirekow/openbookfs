@@ -41,6 +41,11 @@ privKeyFile : "${CMAKE_CURRENT_BINARY_DIR}/rsa-openssl-priv.der"
 #   $ openssl rsa -in id_rsa -pubout -outform DER -out id_rsa_pub.der
 pubKeyFile  : "${CMAKE_CURRENT_BINARY_DIR}/rsa-openssl-pub.der"
 
+# Address family of interface to listen on. Options are AF_INET (IPv4) or 
+# AF_INET6 (IPv6), or AF_UNSPEC to pick any one which matches the following
+# criteria
+addressFamily : AF_INET
+
 # Interface to bind when listening. This is the IP address that clients may
 # reach the server at. You may enter a IPv4 (xxx.xxx.xxx.xxx) or IPv6 
 # (xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx) address, a hostname 

@@ -26,6 +26,8 @@
 
 
 #include <sys/socket.h>
+#include <sys/types.h>
+#include <netdb.h>
 #include <arpa/inet.h>
 #include <cstdlib>
 #include <cstring>
@@ -84,10 +86,6 @@ int main(int argc, char** argv)
     namespace fs = boost::filesystem;
 
     std::string configFile;
-    std::string pubKey;
-    std::string privKey;
-    std::string dataDir;
-    int         port;
 
     // Wrap everything in a try block.  Do this every time,
     // because exceptions will be thrown for problems.
@@ -103,11 +101,6 @@ int main(int argc, char** argv)
 
         fs::path homeDir     = getenv("HOME");
         fs::path dfltConfig  = "./openbookfs_d.yaml";
-        fs::path dfltDataDir = "./data";
-        fs::path dfltPubKey  = "./rsa-openssl-pub.der";
-        fs::path dfltPrivKey = "./rsa-openssl-priv.der";
-        int      dfltPort    = 3031;
-
 
         std::stringstream sstream;
         sstream << "Openbook Filesystem Server\n"
@@ -134,59 +127,15 @@ int main(int argc, char** argv)
                 "path"
                 );
 
-        TCLAP::ValueArg<std::string> pubKeyArg(
-                "b",
-                "pubkey",
-                "path to the ssh public key",
-                false,
-                dfltPubKey.string(),
-                "path"
-                );
-
-        TCLAP::ValueArg<std::string> privKeyArg(
-                "v",
-                "privkey",
-                "path to the ssh private key",
-                false,
-                dfltPrivKey.string(),
-                "path"
-                );
-
-        TCLAP::ValueArg<std::string> dataDirArg(
-                "d",
-                "data",
-                "path to root of file system",
-                false,
-                dfltDataDir.string(),
-                "path"
-                );
-
-        TCLAP::ValueArg<int> portArg(
-                "p",
-                "port",
-                "port to listen on",
-                false,
-                dfltPort,
-                "integer"
-                );
-
         // Add the argument nameArg to the CmdLine object. The CmdLine object
         // uses this Arg to parse the command line.
-        cmd.add( pubKeyArg );
-        cmd.add( privKeyArg );
-        cmd.add( dataDirArg );
-        cmd.add( portArg );
+        cmd.add( configArg );
 
         // Parse the argv array.
         cmd.parse( argc, argv );
 
         // Get the value parsed by each arg.
         configFile = configArg.getValue();
-        pubKey     = pubKeyArg.getValue();
-        privKey    = privKeyArg.getValue();
-        dataDir    = dataDirArg.getValue();
-        port       = portArg.getValue();
-
     }
 
     catch (TCLAP::ArgException &e)  // catch any exceptions
@@ -200,7 +149,6 @@ int main(int argc, char** argv)
 
     try
     {
-        server.initData( dataDir );
         server.initConfig( configFile );
     }
     catch( std::exception& ex )
@@ -211,14 +159,65 @@ int main(int argc, char** argv)
     }
 
     int serversock, clientsock;
-    struct sockaddr_in server_in, client_in;
 
     try
     {
-        //  Create the TCP socket
-        serversock = socket(PF_INET, SOCK_STREAM | O_NONBLOCK, IPPROTO_TCP);
-        if (serversock < 0)
-            ex()() << "Failed to create socket";
+        // defaults
+        addrinfo  hints;
+        addrinfo* found;
+        memset(&hints,0,sizeof(addrinfo));
+        hints.ai_family   = AF_UNSPEC;
+        hints.ai_socktype = SOCK_STREAM;
+
+        if( server.addressFamily() == "AF_INET" )
+            hints.ai_family = AF_INET;
+        else if( server.addressFamily() == "AF_INET6" )
+            hints.ai_family = AF_INET6;
+        else if( server.addressFamily() != "AF_UNSPEC" )
+        {
+            std::cerr << "I dont understand the address family "
+                      << server.addressFamily() << ", check the config file. "
+                      << "I will use AF_UNSPEC to seach for an interface";
+        }
+
+        const char* node = 0;
+        if( server.iface() == "any" )
+            hints.ai_flags |= AI_PASSIVE;
+        else
+            node = server.iface().c_str();
+
+        const char* service = server.port().c_str();
+
+        int result = getaddrinfo(node,service,&hints,&found);
+        if( result < 0 )
+        {
+            ex()() << "Failed to find an interface which matches family: "
+                   << server.addressFamily() << ", node: "
+                   << server.iface() << ", service: " << server.port()
+                   << "\nErrno is " << errno << " : " << strerror(errno);
+        }
+
+        addrinfo* addr = found;
+
+        for( ; addr; addr = addr->ai_next )
+        {
+            std::cout << "Attempting to create socket:"
+                      << "\n   family: " << addr->ai_family
+                      << "\n     type: " << addr->ai_socktype
+                      << "\n protocol: " << addr->ai_protocol
+                      << std::endl;
+
+            serversock = socket(addr->ai_family,
+                                addr->ai_socktype | O_NONBLOCK,
+                                addr->ai_protocol);
+            if (serversock < 0)
+                continue;
+            else
+                break;
+        }
+
+        if( !addr )
+            ex()() << "None of the returned addresses work";
 
         // So that we can re-bind to it without TIME_WAIT problems
         int reuse_addr = 1;
@@ -226,23 +225,31 @@ int main(int argc, char** argv)
                             &reuse_addr, sizeof(reuse_addr)) )
             ex()() << "Failed to set SO_REUSEADDR on socket";
 
-        //  Construct the server sockaddr_in structure
-        memset(&server_in, 0, sizeof(server_in));       //  Clear struct
-        server_in.sin_family       = AF_INET;            //  Internet/IP
-        server_in.sin_addr.s_addr  = htonl(INADDR_ANY);  //  Incoming addr
-        server_in.sin_port         = htons(port);        //  server port
-
         //  Bind the server socket
-        if ( bind(serversock, (sockaddr *) &server_in, sizeof(server_in)) < 0)
+        if ( bind(serversock, addr->ai_addr, addr->ai_addrlen) < 0)
             ex()() << "Failed to bind the server socket\n";
+
+        char host[NI_MAXHOST];
+        char port[NI_MAXSERV];
+        memset(host, 0, sizeof(host));
+        memset(port, 0, sizeof(port));
+        getnameinfo( (sockaddr*)addr->ai_addr, addr->ai_addrlen,
+                     host, sizeof(host),
+                     port, sizeof(port),
+                     NI_NUMERICHOST | NI_NUMERICSERV );
+
+        std::cout << "Bound server to " << host << ":" << port << std::endl;
 
         //  Listen on the server socket, 10 max pending connections
         if (listen(serversock, 10) < 0)
-            ex()() << "Failed to listen on server socket\n";
+        ex()() << "Failed to listen on server socket\n";
+
+        freeaddrinfo(found);
     }
     catch( std::exception& ex )
     {
-        std::cerr << "Error while setting up the socket" << std::endl;
+        std::cerr << "Error while setting up the socket: "
+                  << ex.what() << std::endl;
         if( serversock > 0 )
             close(serversock);
         return 1;
@@ -287,13 +294,16 @@ int main(int argc, char** argv)
             }
 
             std::cout << "Woke up to accept a connection" << std::endl;
-            unsigned int clientlen = sizeof(client_in);
+            sockaddr_storage clientaddr;
+            unsigned int     addrlen  = sizeof(sockaddr_storage);
+            char clienthost[NI_MAXHOST];
+            char clientport[NI_MAXSERV];
 
             //  Wait for client connection (should not block)
             clientsock = accept4(
                     serversock,
-                    (struct sockaddr *) &client_in,
-                    &clientlen,
+                    (sockaddr*)&clientaddr,
+                    &addrlen,
                     SOCK_NONBLOCK);
 
             if( clientsock < 0 && errno == EWOULDBLOCK )
@@ -305,13 +315,15 @@ int main(int argc, char** argv)
                 ex()() << "Failed to accept client connection: errno "
                        << errno << " : " << strerror(errno) ;
 
-            char clientStr[100];
-            if( inet_ntop(AF_INET,&(client_in.sin_addr),clientStr,100)
-                    != clientStr )
-                ex()() << "Error converting client address to string, errno"
-                       << errno << " : " << strerror(errno);
+            memset(clienthost, 0, sizeof(clienthost));
+            memset(clientport, 0, sizeof(clientport));
+            getnameinfo( (sockaddr*)&clientaddr, addrlen,
+                         clienthost, sizeof(clienthost),
+                         clientport, sizeof(clientport),
+                         NI_NUMERICHOST | NI_NUMERICSERV );
 
-            std::cout << "Client connected: " << clientStr << "\n";
+            std::cout << "Client connected host=[" << clienthost
+                      << "] port=[" << clientport << "]" << std::endl;
 
             // get a request handler
             RequestHandler* handler = availablePool.getAvailable();

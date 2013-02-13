@@ -48,32 +48,6 @@ Server::~Server()
     m_mutex.destroy();
 }
 
-void Server::initData(const std::string& dataDir)
-{
-    namespace fs = boost::filesystem;
-
-    // check that the data directory and subdirectories exist
-    if( !fs::exists( fs::path(dataDir) ) )
-    {
-        std::cout << "creating data directory: "
-                  << fs::absolute( fs::path(dataDir) )
-                  << std::endl;
-        bool result = fs::create_directories( fs::path(dataDir ) );
-        if( !result )
-            ex()() << "failed to create data directory: " << dataDir;
-    }
-
-    if( !fs::exists( fs::path(dataDir) / "client_keys" ) )
-    {
-        std::cout << "creating directory : "
-                  << fs::absolute( fs::path(dataDir) / "client_keys" )
-                  << std::endl;
-        bool result = fs::create_directories( fs::path(dataDir) / "client_keys" );
-        if( !result )
-            ex()() << "failed to create data directory: "
-                      << dataDir + "/client_keys";
-    }
-}
 
 void Server::initConfig(const std::string& configFile)
 {
@@ -95,16 +69,29 @@ void Server::initConfig(const std::string& configFile)
     const YAML::Node& auth = config["auth"];
 
     bool authOpt;
-    auth["password"]      >> authOpt; m_auth[AUTH_PASSWORD]  = authOpt;
-    auth["vouch"]         >> authOpt; m_auth[AUTH_VOUCH_FOR] = authOpt;
-    config["dataDir"]     >> m_dataDir;
-    config["rootDir"]     >> m_rootDir;
-    config["pubKeyFile"]  >> m_pubKeyFile;
-    config["privKeyFile"] >> m_privKeyFile;
-    config["iface"]       >> m_iface;
-    config["port"]        >> m_port;
-    config["maxConn"]     >> m_maxConn;
+    auth["password"]        >> authOpt; m_auth[AUTH_PASSWORD]  = authOpt;
+    auth["vouch"]           >> authOpt; m_auth[AUTH_VOUCH_FOR] = authOpt;
+    config["dataDir"]       >> m_dataDir;
+    config["rootDir"]       >> m_rootDir;
+    config["pubKeyFile"]    >> m_pubKeyFile;
+    config["privKeyFile"]   >> m_privKeyFile;
+    config["addressFamily"] >> m_addressFamily;
+    config["iface"]         >> m_iface;
+    config["port"]          >> m_port;
+    config["maxConn"]       >> m_maxConn;
 
+    namespace fs = boost::filesystem;
+
+    // check that the data directory and subdirectories exist
+    if( !fs::exists( fs::path(m_dataDir) ) )
+    {
+        std::cout << "creating data directory: "
+                  << fs::absolute( fs::path(m_dataDir) )
+                  << std::endl;
+        bool result = fs::create_directories( fs::path(m_dataDir ) );
+        if( !result )
+            ex()() << "failed to create data directory: " << m_dataDir;
+    }
 }
 
 
