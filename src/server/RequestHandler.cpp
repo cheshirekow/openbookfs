@@ -64,13 +64,12 @@ void RequestHandler::cleanup()
     std::cout << "Handler " << (void*) this
               << " re-generating DH parameters\n";
 
-    using namespace CryptoPP;
-    CryptoPP::DH m_dh;         ///< Diffie-Hellman structure
-    m_dh.AccessGroupParameters().GenerateRandomWithKeySize(m_rng,1024);
+    CryptoPP::DH dh;
+    dh.AccessGroupParameters().GenerateRandomWithKeySize(m_rng,1024);
 
-    p = m_dh.GetGroupParameters().GetModulus();
-    q = m_dh.GetGroupParameters().GetSubgroupOrder();
-    g = m_dh.GetGroupParameters().GetGenerator();
+    p = dh.GetGroupParameters().GetModulus();
+    q = dh.GetGroupParameters().GetSubgroupOrder();
+    g = dh.GetGroupParameters().GetGenerator();
 
     std::cout << "Handler " << (void*) this
               << " finished re-generating DH and returning to pool\n";
@@ -136,13 +135,12 @@ void RequestHandler::initDH()
     std::cout << "Handler " << (void*) this
               << " generating DH parameters\n";
 
-    using namespace CryptoPP;
-    CryptoPP::DH m_dh;         ///< Diffie-Hellman structure
-    m_dh.AccessGroupParameters().GenerateRandomWithKeySize(m_rng,1024);
+    CryptoPP::DH dh;
+    dh.AccessGroupParameters().GenerateRandomWithKeySize(m_rng,1024);
 
-    p = m_dh.GetGroupParameters().GetModulus();
-    q = m_dh.GetGroupParameters().GetSubgroupOrder();
-    g = m_dh.GetGroupParameters().GetGenerator();
+    p = dh.GetGroupParameters().GetModulus();
+    q = dh.GetGroupParameters().GetSubgroupOrder();
+    g = dh.GetGroupParameters().GetGenerator();
 
     std::cout << "Handler " << (void*) this
               << " finished generating DH and returning to pool\n";
@@ -200,7 +198,6 @@ void RequestHandler::start( int sockfd, int termfd )
 
 void* RequestHandler::operator()()
 {
-    namespace cryp = CryptoPP;
     namespace msgs = messages;
     using namespace pthreads;
     ScopedLock lock(m_mutex);
@@ -216,37 +213,32 @@ void* RequestHandler::operator()()
 
     using namespace CryptoPP;
 
-    DH                m_dh;         ///< Diffie-Hellman structure
-    DH2               m_dh2(m_dh);  ///< Diffie-Hellman structure
-    SecByteBlock      m_spriv;      ///< static private key
-    SecByteBlock      m_spub;       ///< static public key
-    SecByteBlock      m_epriv;      ///< ephemeral private key
-    SecByteBlock      m_epub;       ///< ephemeral public key
-    SecByteBlock      m_shared;     ///< shared key
+    DH                dh;       //< Diffie-Hellman structure
+    DH2               dh2(dh);  //< Diffie-Hellman structure
 
-    m_dh.AccessGroupParameters().Initialize(p,q,g);
-    m_spriv = SecByteBlock( m_dh2.StaticPrivateKeyLength() );
-    m_spub  = SecByteBlock( m_dh2.StaticPublicKeyLength() );
-    m_epriv = SecByteBlock( m_dh2.EphemeralPrivateKeyLength() );
-    m_epub  = SecByteBlock( m_dh2.EphemeralPublicKeyLength() );
+    dh.AccessGroupParameters().Initialize(p,q,g);
+    SecByteBlock spriv( dh2.StaticPrivateKeyLength() );
+    SecByteBlock spub ( dh2.StaticPublicKeyLength() );
+    SecByteBlock epriv( dh2.EphemeralPrivateKeyLength() );
+    SecByteBlock epub ( dh2.EphemeralPublicKeyLength() );
 
-    m_dh2.GenerateStaticKeyPair(m_rng,m_spriv,m_spub);
-    m_dh2.GenerateEphemeralKeyPair(m_rng,m_epriv, m_epub);
-    m_shared= SecByteBlock( m_dh2.AgreedValueLength() );
+    dh2.GenerateStaticKeyPair(m_rng,spriv,spub);
+    dh2.GenerateEphemeralKeyPair(m_rng,epriv, epub);
+    SecByteBlock shared( dh2.AgreedValueLength() );
 
     // first the server sends the diffie hellman parameters so we can do a
     // key exchange
     std::string p,q,g;
-    p.resize( m_dh.GetGroupParameters().GetModulus().ByteCount());
-    g.resize( m_dh.GetGroupParameters().GetGenerator().ByteCount());
-    q.resize( m_dh.GetGroupParameters().GetSubgroupOrder().ByteCount());
+    p.resize( dh.GetGroupParameters().GetModulus().ByteCount());
+    g.resize( dh.GetGroupParameters().GetGenerator().ByteCount());
+    q.resize( dh.GetGroupParameters().GetSubgroupOrder().ByteCount());
 
-    m_dh.GetGroupParameters().GetModulus().Encode(
-            (unsigned char*)&p[0], p.size(), cryp::Integer::UNSIGNED );
-    m_dh.GetGroupParameters().GetGenerator().Encode(
-            (unsigned char*)&g[0], g.size(), cryp::Integer::UNSIGNED );
-    m_dh.GetGroupParameters().GetSubgroupOrder().Encode(
-            (unsigned char*)&q[0], q.size(), cryp::Integer::UNSIGNED );
+    dh.GetGroupParameters().GetModulus().Encode(
+            (unsigned char*)&p[0], p.size(), Integer::UNSIGNED );
+    dh.GetGroupParameters().GetGenerator().Encode(
+            (unsigned char*)&g[0], g.size(), Integer::UNSIGNED );
+    dh.GetGroupParameters().GetSubgroupOrder().Encode(
+            (unsigned char*)&q[0], q.size(), Integer::UNSIGNED );
 
     msgs::DiffieHellmanParams* dhParams =
             static_cast<msgs::DiffieHellmanParams*>(m_msg[MSG_DH_PARAMS]);
@@ -269,45 +261,45 @@ void* RequestHandler::operator()()
             static_cast<msgs::KeyExchange*>(m_msg[MSG_KEY_EXCHANGE]);
 
     // read client keys
-    cryp::SecByteBlock epubClient(
+    SecByteBlock epubClient(
                     (unsigned char*)&keyEx->ekey()[0], keyEx->ekey().size() );
-    cryp::SecByteBlock spubClient(
+    SecByteBlock spubClient(
                     (unsigned char*)&keyEx->skey()[0], keyEx->skey().size() );
 
     // write out our keys
-    keyEx->set_ekey( m_epub.BytePtr(), m_epub.SizeInBytes() );
-    keyEx->set_skey( m_spub.BytePtr(), m_spub.SizeInBytes() );
+    keyEx->set_ekey( epub.BytePtr(), epub.SizeInBytes() );
+    keyEx->set_skey( spub.BytePtr(), spub.SizeInBytes() );
     std::cout << "Sending KEY_EXCHANGE message " << std::endl;
     m_msg.write( m_fd, MSG_KEY_EXCHANGE );
 
     // generate shared key
-    if( !m_dh2.Agree(m_shared,m_spriv,m_epriv,spubClient,epubClient) )
+    if( !dh2.Agree(shared,spriv,epriv,spubClient,epubClient) )
         ex()() << "Failed to agree on a shared key";
 
-    cryp::Integer sharedOut;
-    sharedOut.Decode(m_shared.BytePtr(),m_shared.SizeInBytes() );
+    Integer sharedOut;
+    sharedOut.Decode(shared.BytePtr(),shared.SizeInBytes() );
     std::cout << "Shared secret (client): "
               << "\n   shared: " << std::hex << sharedOut << std::endl;
 
     // use shared secret to generate real keys
     // Take the leftmost 'n' bits for the KEK
-    cryp::SecByteBlock kek(
-            m_shared.BytePtr(), cryp::AES::DEFAULT_KEYLENGTH);
+    SecByteBlock kek(
+            shared.BytePtr(), AES::DEFAULT_KEYLENGTH);
 
     // CMAC key follows the 'n' bits used for KEK
-    cryp::SecByteBlock mack(
-            &m_shared.BytePtr()[cryp::AES::DEFAULT_KEYLENGTH],
-                                cryp::AES::BLOCKSIZE);
-    cryp::CMAC<cryp::AES> cmac(mack.BytePtr(), mack.SizeInBytes());
+    SecByteBlock mack(
+            &shared.BytePtr()[AES::DEFAULT_KEYLENGTH],
+                                AES::BLOCKSIZE);
+    CMAC<AES> cmac(mack.BytePtr(), mack.SizeInBytes());
 
     // Generate a random CEK and IV
-    m_cek = cryp::SecByteBlock(cryp::AES::DEFAULT_KEYLENGTH);
-    m_iv  = cryp::SecByteBlock(cryp::AES::BLOCKSIZE);
+    m_cek = SecByteBlock(AES::DEFAULT_KEYLENGTH);
+    m_iv  = SecByteBlock(AES::BLOCKSIZE);
     m_rng.GenerateBlock(m_cek.BytePtr(), m_cek.SizeInBytes());
     m_rng.GenerateBlock( m_iv.BytePtr(), m_iv.SizeInBytes());
 
     // print it for checkin
-    cryp::Integer cekOut, ivOut;
+    Integer cekOut, ivOut;
     cekOut.Decode( m_cek.BytePtr(), m_cek.SizeInBytes() );
     ivOut .Decode(  m_iv.BytePtr(),  m_iv.SizeInBytes() );
     std::cout << "AES Key: " << std::hex << cekOut << std::endl;
@@ -316,34 +308,34 @@ void* RequestHandler::operator()()
 
     // AES in ECB mode is fine - we're encrypting 1 block, so we don't need
     // padding
-    cryp::ECB_Mode<cryp::AES>::Encryption aes;
+    ECB_Mode<AES>::Encryption aes;
     aes.SetKey(kek.BytePtr(), kek.SizeInBytes());
 
-    cryp::SecByteBlock msg_cipher( 2*cryp::AES::BLOCKSIZE );  //< Enc(CEK) | Enc(iv)
-    cryp::SecByteBlock   msg_cmac(   cryp::AES::BLOCKSIZE );  //< CMAC(Enc(CEK||iv))
+    SecByteBlock msg_cipher( 2*AES::BLOCKSIZE );  //< Enc(CEK) | Enc(iv)
+    SecByteBlock   msg_cmac(   AES::BLOCKSIZE );  //< CMAC(Enc(CEK||iv))
 
-    aes.ProcessData(msg_cipher.BytePtr(), m_cek.BytePtr(), cryp::AES::BLOCKSIZE );
-    aes.ProcessData(&msg_cipher.BytePtr()[cryp::AES::BLOCKSIZE],
-                                          m_iv.BytePtr(), cryp::AES::BLOCKSIZE );
-    cmac.CalculateTruncatedDigest(msg_cmac.BytePtr(), cryp::AES::BLOCKSIZE,
-                                  msg_cipher.BytePtr(), 2*cryp::AES::BLOCKSIZE );
+    aes.ProcessData(msg_cipher.BytePtr(), m_cek.BytePtr(), AES::BLOCKSIZE );
+    aes.ProcessData(&msg_cipher.BytePtr()[AES::BLOCKSIZE],
+                                          m_iv.BytePtr(), AES::BLOCKSIZE );
+    cmac.CalculateTruncatedDigest(msg_cmac.BytePtr(), AES::BLOCKSIZE,
+                                  msg_cipher.BytePtr(), 2*AES::BLOCKSIZE );
 
     // fill the content key message
     msgs::ContentKey* contentKey =
             static_cast<msgs::ContentKey*>( m_msg[MSG_CEK] );
 
-    contentKey->set_key( msg_cipher.BytePtr(), cryp::AES::BLOCKSIZE );
-    contentKey->set_iv(  &msg_cipher.BytePtr()[ cryp::AES::BLOCKSIZE],
-                                               cryp::AES::BLOCKSIZE );
-    contentKey->set_cmac( msg_cmac.BytePtr(), cryp::AES::BLOCKSIZE );
+    contentKey->set_key( msg_cipher.BytePtr(), AES::BLOCKSIZE );
+    contentKey->set_iv(  &msg_cipher.BytePtr()[ AES::BLOCKSIZE],
+                                               AES::BLOCKSIZE );
+    contentKey->set_cmac( msg_cmac.BytePtr(), AES::BLOCKSIZE );
 
     // send the content key message
     std::cout << "Sending CEK message " << std::endl;
     m_msg.write(m_fd,MSG_CEK);
 
     // now we can make our encryptor and decriptor
-    cryp::GCM<cryp::AES>::Encryption enc;
-    cryp::GCM<cryp::AES>::Decryption dec;
+    GCM<AES>::Encryption enc;
+    GCM<AES>::Decryption dec;
     enc.SetKeyWithIV(m_cek.BytePtr(), m_cek.SizeInBytes(),
                       m_iv.BytePtr(),  m_iv.SizeInBytes());
     dec.SetKeyWithIV(m_cek.BytePtr(), m_cek.SizeInBytes(),
@@ -361,15 +353,15 @@ void* RequestHandler::operator()()
     msgs::AuthRequest* authReq =
             static_cast<msgs::AuthRequest*>( m_msg[MSG_AUTH_REQ] );
     std::stringstream  inkey( authReq->public_key() );
-    cryp::FileSource keyFile(inkey,true);
-    cryp::ByteQueue  queue;
+    FileSource keyFile(inkey,true);
+    ByteQueue  queue;
     keyFile.TransferTo(queue);
     queue.MessageEnd();
-    cryp::RSA::PublicKey clientKey;
+    RSA::PublicKey clientKey;
     clientKey.Load(queue);
 
     // create an RSA Encryptor to verify ownership
-    cryp::RSAES_OAEP_SHA_Encryptor rsaEnc( clientKey );
+    RSAES_OAEP_SHA_Encryptor rsaEnc( clientKey );
 
     // Now that there is a concrete object, we can validate
     if( rsaEnc.FixedMaxPlaintextLength() == 0 )
