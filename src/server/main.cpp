@@ -261,71 +261,65 @@ int main(int argc, char** argv)
     selectMe.init();
 
     //  Run until cancelled
-    while (1)
+    try
     {
-        // wait for something to happen
-        if( !selectMe.wait() )
+        while (1)
         {
-            std::cout << "Who dares disturb my slumber. zzz..." << std::endl;
-            continue;
+            // wait for something to happen
+            if( !selectMe.wait() )
+            {
+                std::cout << "Who dares disturb my slumber. zzz..." << std::endl;
+                continue;
+            }
+            else if( selectMe(0) )
+            {
+                std::cout << "Terminating!!" << std::endl;
+                break;
+            }
+
+            std::cout << "Woke up to accept a connection" << std::endl;
+            unsigned int clientlen = sizeof(client_in);
+
+            //  Wait for client connection (should not block)
+            clientsock = accept4(
+                    serversock,
+                    (struct sockaddr *) &client_in,
+                    &clientlen,
+                    SOCK_NONBLOCK);
+
+            if( clientsock < 0 && errno == EWOULDBLOCK )
+            {
+                std::cout << "No pending connections" << std::endl;
+                continue;
+            }
+            else if (clientsock < 0)
+                ex()() << "Failed to accept client connection: errno "
+                       << errno << " : " << strerror(errno) ;
+
+            Bytes<in_addr_t> ip( &client_in.sin_addr.s_addr );
+
+            std::cout << "Client connected: "
+                      << ip[0] << "."
+                      << ip[1] << "."
+                      << ip[2] << "."
+                      << ip[3] << "\n";
+
+            // get a request handler
+            RequestHandler* handler = handlerPool.getAvailable();
+
+            if(handler)
+                handler->start(clientsock);
+            else
+            {
+                std::cout << "no available handlers, terminating connection"
+                          << std::endl;
+                close(clientsock);
+            }
         }
-        else if( selectMe(0) )
-        {
-            std::cout << "Terminating!!" << std::endl;
-            break;
-        }
-
-        std::cout << "Woke up to accept a connection" << std::endl;
-        unsigned int clientlen = sizeof(client_in);
-
-        //  Wait for client connection (should not block)
-        clientsock = accept(
-                serversock,
-                (struct sockaddr *) &client_in,
-                &clientlen );
-
-        if( clientsock < 0 && errno == EWOULDBLOCK )
-        {
-            std::cerr << "No pending connections" << std::endl;
-            continue;
-        }
-        else if (clientsock < 0)
-        {
-            std::cerr << "Failed to accept client connection: "
-                      << clientsock << "\n";
-            return 1;
-        }
-
-        Bytes<in_addr_t> ip( &client_in.sin_addr.s_addr );
-
-        std::cout << "Client connected: "
-                  << ip[0] << "."
-                  << ip[1] << "."
-                  << ip[2] << "."
-                  << ip[3] << "\n";
-
-        // set a timeout on the socket
-        timeval tv = {2,0};
-        int optResult = setsockopt(clientsock, SOL_SOCKET,
-                            SO_RCVTIMEO, (char *)&tv,  sizeof tv);
-        if( optResult < 0 )
-        {
-            std::cerr << "Failed to set timeout on client sock"
-                      << std::endl;
-            return 1;
-        }
-
-        // get a request handler
-        RequestHandler* handler = handlerPool.getAvailable();
-
-        if(handler)
-            handler->start(clientsock);
-        else
-        {
-            std::cerr << "no available handlers, terminating connection"
-                      << std::endl;
-            close(clientsock);
-        }
+    }
+    catch( std::exception& ex )
+    {
+        std::cerr << "Exception in main loop: " << ex.what();
     }
 
     close(serversock);
