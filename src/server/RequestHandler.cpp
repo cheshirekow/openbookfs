@@ -59,7 +59,7 @@ extern "C"
 
 void RequestHandler::cleanup()
 {
-    close(m_sock);
+    close(m_fd[0]);
 
     std::cout << "Handler " << (void*) this
               << " re-generating DH parameters\n";
@@ -77,6 +77,7 @@ void RequestHandler::cleanup()
 
 RequestHandler::RequestHandler():
     m_pool(0),
+    m_fd(2),
     m_dh2(m_dh)
 {
     m_mutex.init();
@@ -154,13 +155,16 @@ void RequestHandler::initDH()
 
 
 
-void RequestHandler::start( int sockfd )
+void RequestHandler::start( int sockfd, int termfd )
 {
     // lock scope
     {
         using namespace pthreads;
         ScopedLock lock(m_mutex);
-        m_sock = sockfd;
+        m_fd[0] = sockfd;
+        m_fd[1] = termfd;
+        m_fd.setTimeout(5,0);
+        m_fd.init();
 
         Attr<Thread> attr;
         attr.init();
@@ -230,10 +234,13 @@ void* RequestHandler::operator()()
     dhParams->set_p(p);
     dhParams->set_q(q);
     dhParams->set_g(g);
-    m_msg.write(m_sock, MSG_DH_PARAMS);
+
+    std::cout << "Sending DH_PARAMS message " << std::endl;
+    m_msg.write(m_fd, MSG_DH_PARAMS);
 
     // the client must respond with a key exchange
-    char type = m_msg.read(m_sock);
+    std::cout << "Waiting for KEY_EXCHANGE message " << std::endl;
+    char type = m_msg.read(m_fd);
     if( type != MSG_KEY_EXCHANGE )
         ex()() << "Received message : " << messageIdToString(type)
                << " (" << (int)type << ") "
@@ -251,7 +258,8 @@ void* RequestHandler::operator()()
     // write out our keys
     keyEx->set_ekey( m_epub.BytePtr(), m_epub.SizeInBytes() );
     keyEx->set_skey( m_spub.BytePtr(), m_spub.SizeInBytes() );
-    m_msg.write( m_sock, MSG_KEY_EXCHANGE );
+    std::cout << "Sending KEY_EXCHANGE message " << std::endl;
+    m_msg.write( m_fd, MSG_KEY_EXCHANGE );
 
     // generate shared key
     if( !m_dh2.Agree(m_shared,m_spriv,m_epriv,spubClient,epubClient) )
@@ -311,7 +319,8 @@ void* RequestHandler::operator()()
     contentKey->set_cmac( msg_cmac.BytePtr(), cryp::AES::BLOCKSIZE );
 
     // send the content key message
-    m_msg.write(m_sock,MSG_CEK);
+    std::cout << "Sending CEK message " << std::endl;
+    m_msg.write(m_fd,MSG_CEK);
 
     // now we can make our encryptor and decriptor
     cryp::GCM<cryp::AES>::Encryption enc;
@@ -322,7 +331,7 @@ void* RequestHandler::operator()()
                     iv.BytePtr(), iv.SizeInBytes());
 
     // read the client's public key
-    type = m_msg.read(m_sock,dec);
+    type = m_msg.read(m_fd,dec);
     dec.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
 
     if( type != MSG_AUTH_REQ )
@@ -366,11 +375,11 @@ void* RequestHandler::operator()()
     challenge->set_type( msgs::AuthChallenge::AUTHENTICATE );
     challenge->set_challenge(cipherChallenge);
 
-    m_msg.write(m_sock,MSG_AUTH_CHALLENGE,enc);
+    m_msg.write(m_fd,MSG_AUTH_CHALLENGE,enc);
     enc.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
 
     // read the challenge solution
-    type = m_msg.read(m_sock,dec);
+    type = m_msg.read(m_fd,dec);
     dec.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
     if( type != MSG_AUTH_SOLN )
         ex()() << "Protocol error: Expected AUTH_SOLN, got "
@@ -383,13 +392,13 @@ void* RequestHandler::operator()()
     if( authSoln->solution().compare(plainChallenge) != 0 )
     {
         authResult->set_response(false);
-        m_msg.write(m_sock,MSG_AUTH_RESULT,enc);
+        m_msg.write(m_fd,MSG_AUTH_RESULT,enc);
 
         ex()() << "Client does not own the key";
     }
 
     authResult->set_response(true);
-    m_msg.write(m_sock,MSG_AUTH_RESULT,enc);
+    m_msg.write(m_fd,MSG_AUTH_RESULT,enc);
     enc.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
     std::cout << "Client authenticated" << std::endl;
 

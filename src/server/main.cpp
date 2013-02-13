@@ -257,7 +257,6 @@ int main(int argc, char** argv)
 
     /// handler objects
     RequestHandler handlers[nH];
-
     for(int i=0; i < nH; i++)
         handlers[i].init(&availablePool);
 
@@ -295,7 +294,7 @@ int main(int argc, char** argv)
                     serversock,
                     (struct sockaddr *) &client_in,
                     &clientlen,
-                     0 /*SOCK_NONBLOCK*/);
+                    SOCK_NONBLOCK);
 
             if( clientsock < 0 && errno == EWOULDBLOCK )
             {
@@ -318,7 +317,7 @@ int main(int argc, char** argv)
             RequestHandler* handler = availablePool.getAvailable();
 
             if(handler)
-                handler->start(clientsock);
+                handler->start(clientsock, termNote.readFd());
             else
             {
                 std::cout << "no available handlers, terminating connection"

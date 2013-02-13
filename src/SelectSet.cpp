@@ -53,7 +53,7 @@ void SelectSet::setTimeout( unsigned int sec, unsigned long int usec )
 
 void SelectSet::init()
 {
-    int m_maxfd = 0;
+    m_maxfd = 0;
     for(unsigned int i=0; i < m_fd.size(); i++)
         m_maxfd = std::max(m_maxfd,m_fd[i]);
 }

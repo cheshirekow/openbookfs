@@ -79,7 +79,7 @@ class RequestHandler
         pthreads::Thread    m_thread;           ///< the thread we're running in
         pthreads::Mutex     m_mutex;            ///< locks this data
         MessageBuffer       m_msg;              ///< message buffer
-        int                 m_sock;             ///< socket fd
+        SelectSet           m_fd;               ///< socket and terminal fd
 
         CryptoPP::AutoSeededRandomPool  m_rng;    ///< random number gen
 
@@ -105,7 +105,7 @@ class RequestHandler
         void initDH();
 
         /// start the handler interfacing with the client on the socket
-        void start( int sockfd );
+        void start( int sockfd, int termfd );
 
         /// makes this a callable object that can be sent to the thread
         void* operator()();

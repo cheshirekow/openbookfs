@@ -328,22 +328,38 @@ void MessageBuffer::write( int sockfd, char type,
 // size bytes:      message
 char MessageBuffer::read( SelectSet& fd )
 {
-    unsigned char header[2];     //< header bytes
-    int           received;      //< result of recv
+    unsigned char header[2];        //< header bytes
+    int           received;         //< result of recv
+    int           bytes_received=0; //< total read so far
 
-    // wait for data (do it in a loop because wait may timeout)
-    while( fd.wait() == 0 );
+    while( bytes_received < 2 )
+    {
+        // attempt read
+        received = recv(fd[0], header + bytes_received, 2 - bytes_received, 0);
 
-    // if we were signalled by anything other than data ready, then
-    // just bail
-    if( !fd(0) )
-        ex()() << "Signaled by something other than data, quitting";
+        // if we read some bytes
+        if( received > 0 )
+        {
+            bytes_received += received;
+            continue;
+        }
 
-    received = recv(fd[0], header, 2, 0);
+        // otherwise check for problems
+        checkForDisconnect(received);
+        if( errno != EWOULDBLOCK )
+            ex()() << "Error while trying to read message header, errno "
+                   << errno << " : " << strerror( errno );
 
-    checkForDisconnect(received);
-    if(received < 0)
-        ex()() <<  "failed to read message header from client";
+        // wait for data (do it in a loop because wait may timeout)
+        std::cout << "Waiting for header" << std::endl;
+        while( fd.wait() == 0 );
+
+        // if we were signalled by anything other than data ready, then
+        // just bail
+        if( !fd(0) )
+            ex()() << "Signaled by something other than data, quitting";
+    }
+
 
     // the first bytes of the message
     char         type;      //< message enum
@@ -351,9 +367,6 @@ char MessageBuffer::read( SelectSet& fd )
 
     size    = header[0] ; //< the rest are size
     size   |= header[1] << 8;
-
-    int     recv_bytes   = 0;
-    char    byte;
 
     if( size > BUFSIZE )
         ex()() << "Received a message with size " << size <<
@@ -368,28 +381,37 @@ char MessageBuffer::read( SelectSet& fd )
     // now we can read in the rest of the message
     // since we know it's length
     //receive remainder of message
-    recv_bytes = 0;
-    while(recv_bytes < size)
+    bytes_received = 0;
+    while(bytes_received < size)
     {
+        // try to read some data
+        received = recv(fd[0], &m_plain[0] + bytes_received,
+                                                    size-bytes_received, 0);
+
+        // if we got some bytes loop around
+        if( received > 0 )
+        {
+            bytes_received += received;
+            continue;
+        }
+
+        // otherwise check for problems
+        checkForDisconnect(received);
+        if( errno != EWOULDBLOCK )
+            ex()() <<  "failed to read bytes " << bytes_received
+                    << "+ of the message";
+
         // wait for data
+        std::cout << "Waiting for the rest of the message" << std::endl;
         while( fd.wait() == 0 );
 
         // if we were signalled by something other than data, then bail
         if( !fd(0) )
             ex()() << "Signalled by something other than data while waiting for "
                       "the rest of the message";
-
-        // otherwise read the data
-        received = recv(fd[0], &m_plain[0] + recv_bytes,
-                        size-recv_bytes, 0);
-        checkForDisconnect(received);
-        if(received < 0)
-            ex()() <<  "failed to read bytes " << recv_bytes
-                    << "+ of the message";
-        recv_bytes += received;
     }
 
-    std::cout << "Finished reading " << recv_bytes << " bytes" << std::endl;
+    std::cout << "Finished reading " << bytes_received << " bytes" << std::endl;
 
     // the first decoded byte is the type
     type = m_plain[0];
@@ -448,6 +470,8 @@ void MessageBuffer::write( SelectSet& fd, char type )
         sent = send( fd[0], &m_plain[0]+bytes_sent, size-bytes_sent, 0 );
         if( sent > 0 )
         {
+            std::cout << "   sent " << sent <<  "/" << size
+                      << " bytes to netstack " << std::endl;
             bytes_sent += sent;
             continue;
         }
@@ -466,6 +490,7 @@ void MessageBuffer::write( SelectSet& fd, char type )
                       "up, bailing";
     }
 
+    std::cout << "Finished sending message\n";
 }
 
 
