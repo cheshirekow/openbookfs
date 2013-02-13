@@ -495,18 +495,18 @@ int main(int argc, char** argv)
                << messageIdToString(type) << " (" << (int)type << ")";
 
     std::string solution;
-    msgs::AuthChallenge* challenge =
+    msgs::AuthChallenge* authChallenge =
             static_cast<msgs::AuthChallenge*>(msg[MSG_AUTH_CHALLENGE]);
 
-    if( challenge->type() != msgs::AuthChallenge::AUTHENTICATE )
+    if( authChallenge->type() != msgs::AuthChallenge::AUTHENTICATE )
         ex()() << "Protocol error: expected an authentication challenge";
 
     // create an RSA Decryptor to verify ownership
     cryp::RSAES_OAEP_SHA_Decryptor rsaDec( rsaPrivKey );
     solution.resize( rsaDec.FixedMaxPlaintextLength() );
     rsaDec.Decrypt(rng,
-                    (unsigned char*)&challenge->challenge()[0],
-                    challenge->challenge().size(),
+                    (unsigned char*)&authChallenge->challenge()[0],
+                    authChallenge->challenge().size(),
                     (unsigned char*)&solution[0] );
 
     msgs::AuthSolution* authSoln =
@@ -527,7 +527,47 @@ int main(int argc, char** argv)
     if( !authResult->response() )
         ex()() << "Failed the servers challenge";
 
+    // now we expect a authorization challenge
+    type = msg.read(sockfd,dec);
+    dec.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
 
+    if( type != MSG_AUTH_CHALLENGE )
+        ex()() << "Protocol Error: expected AUTH_CHALLENGE but got "
+               << messageIdToString(type) << " (" << (int)type << ")";
+    if( authChallenge->type() != msgs::AuthChallenge::AUTHORIZE )
+        ex()() << "Protocol Error: expected AUTHORIZE challenge";
+    if( authChallenge->challenge().size() != cryp::SHA512::BLOCKSIZE )
+        ex()() << "Expected salt of size " << cryp::SHA512::BLOCKSIZE
+               << " but got one of " << authChallenge->challenge().size();
+
+    cryp::SecByteBlock salt( cryp::SHA512::BLOCKSIZE );
+    memcpy( salt.BytePtr(), authChallenge->challenge().c_str(),
+                                            cryp::SHA512::BLOCKSIZE );
+
+    std::string password = "fabulous";
+    cryp::SHA512 hash;
+    hash.Update( (unsigned char*)password.c_str(), password.size() );
+    hash.Update( salt.BytePtr(), salt.SizeInBytes() );
+
+    cryp::SecByteBlock digest( cryp::SHA512::DIGESTSIZE );
+    hash.Final( digest.BytePtr() );
+    authSoln->set_solution( digest.BytePtr(), digest.SizeInBytes() );
+
+    msg.write(sockfd,MSG_AUTH_SOLN,enc);
+    enc.Resynchronize(iv.BytePtr(), iv.SizeInBytes() );
+
+    // read response
+    type = msg.read(sockfd,dec);
+    dec.Resynchronize(iv.BytePtr(), iv.SizeInBytes() );
+
+    if( type != MSG_AUTH_RESULT )
+        ex()() << "Protocol Error: expected AUTH_RESULT but got "
+               << messageIdToString(type) << " (" << (int)type << ")";
+
+    if( authResult->response() )
+        std::cout << "Authorized!!" << std::endl;
+    else
+        ex()() << "Not authorized";
 
     sleep(1);
 

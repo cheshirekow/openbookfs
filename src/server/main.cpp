@@ -264,7 +264,7 @@ int main(int argc, char** argv)
     /// handler objects
     RequestHandler* handlers = new RequestHandler[nH];
     for(int i=0; i < nH; i++)
-        handlers[i].init(&handlerPool);
+        handlers[i].init(&handlerPool,&server);
 
     // for waiting until things happen
     SelectSet selectMe(2);

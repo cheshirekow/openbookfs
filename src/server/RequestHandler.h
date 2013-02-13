@@ -47,6 +47,7 @@
 #include "MessageBuffer.h"
 #include "Pool.h"
 #include "SelectSet.h"
+#include "Server.h"
 
 
 namespace   openbook {
@@ -76,6 +77,7 @@ class RequestHandler
         static const unsigned int sm_bufsize = 256;
 
         Pool_t*             m_pool;             ///< pool to which this belongs
+        Server*             m_server;           ///< server configuration
         pthreads::Thread    m_thread;           ///< the thread we're running in
         pthreads::Mutex     m_mutex;            ///< locks this data
         MessageBuffer       m_msg;              ///< message buffer
@@ -95,7 +97,7 @@ class RequestHandler
 
         /// set the parent pointer and start DH parameter generation in
         /// detached thread
-        void init( Pool_t* );
+        void init( Pool_t*, Server* );
 
         /// initialize Diffie Hellman paramters (takes a while and blocks)
         void* initDH();

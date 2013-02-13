@@ -100,10 +100,11 @@ RequestHandler::~RequestHandler()
     m_mutex.destroy();
 }
 
-void RequestHandler::init(Pool_t* pool)
+void RequestHandler::init(Pool_t* pool, Server* server)
 {
     using namespace pthreads;
-    m_pool = pool;
+    m_pool   = pool;
+    m_server = server;
 
     std::cout << "Initializing handler " << (void*)this << std::endl;
     ScopedLock lock(m_mutex);
@@ -380,7 +381,7 @@ void* RequestHandler::handshake()
     {
         authResult->set_response(false);
         m_msg.write(m_fd,MSG_AUTH_RESULT,enc);
-
+        enc.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
         ex()() << "Client does not own the key";
     }
 
@@ -389,35 +390,77 @@ void* RequestHandler::handshake()
     enc.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
     std::cout << "Client authenticated" << std::endl;
 
-    ex()() << "Exiting early";
     // now that the client is authenticated we send an authorization challenge
+    // start by creating a salt
+    SecByteBlock salt( SHA512::BLOCKSIZE );
+    m_rng.GenerateBlock( salt.BytePtr(), salt.SizeInBytes() );
 
+    // now create the hashed password so we can verify the user's input
+    SHA512 hash;
+    hash.Update( (unsigned char*) m_server->password().c_str(),
+                  m_server->password().size() );
+    hash.Update( salt.BytePtr(), salt.SizeInBytes() );
+    SecByteBlock digest( SHA512::DIGESTSIZE );
+    hash.Final( digest.BytePtr() );
+
+    challenge->set_type( msgs::AuthChallenge::AUTHORIZE );
+    challenge->set_challenge( salt.BytePtr(), salt.SizeInBytes() );
+
+    // give the user some retries
     int authRetry = 0;
     for(; authRetry < 3; authRetry++)
     {
-        break;
-        msgs::AuthChallenge* challenge =
-            static_cast<msgs::AuthChallenge*>( m_msg[MSG_AUTH_CHALLENGE] );
+        // now send the challenge to the user
+        m_msg.write(m_fd,MSG_AUTH_CHALLENGE,enc);
+        enc.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
 
-        // for now, let's pretend that all clients are authorized and we'll
-        // just verify that they are the key owner
-        challenge->set_challenge(cipherChallenge);
-        challenge->set_type( msgs::AuthChallenge::AUTHENTICATE );
+        // read the users reply
+        type = m_msg.read(m_fd,dec);
+        dec.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
 
+        if( type != MSG_AUTH_SOLN )
+            ex()() << "Protocol error, expected AUTH_SOLN but got "
+                   << messageIdToString(type) << " (" <<(int)type << ")";
+
+        // if wrongs size
+        if( authSoln->solution().size() != SHA512::DIGESTSIZE )
+        {
+            std::cout << "Wrong size digest" << std::endl;
+            authResult->set_response(false);
+            m_msg.write(m_fd,MSG_AUTH_RESULT,enc);
+            enc.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
+            continue;
+        }
+
+        // copy out the users response
+        SecByteBlock soln( SHA512::DIGESTSIZE );
+        memcpy( soln.BytePtr(), authSoln->solution().c_str(),
+                                                SHA512::DIGESTSIZE );
+
+        // if mismatch
+        if( soln != digest )
+        {
+            std::cout << "Digest doesn't match" << std::endl;
+            authResult->set_response(false);
+            m_msg.write(m_fd,MSG_AUTH_RESULT,enc);
+            enc.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
+            continue;
+        }
+
+        // otherwise success
+        authResult->set_response(true);
+        m_msg.write(m_fd,MSG_AUTH_RESULT,enc);
+        enc.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
         break;
     }
 
     // if too many retries
     if( authRetry >= 3 )
-    {
-        std::cout << "client failed too many times" << std::endl;
-        msgs::AuthResult* result =
-                static_cast<msgs::AuthResult*>( m_msg[MSG_AUTH_REQ] );
-        result->set_response(false);
+        ex()() << "Client failed too many retries";
 
-        cleanup();
-        return 0;
-    }
+    // otherwise, authed
+    std::cout << "Client is authorized" << std::endl;
+    ex()() << "The rest of the protocol is unimplemented" << std::endl;
 
     }
     catch ( std::exception& ex )
