@@ -257,17 +257,14 @@ int main(int argc, char** argv)
 
 
     // Pool of request handlers
-    std::cout << "Initializing handler pool" << std::endl;
-    const int nH = 5;
-    Pool<RequestHandler> availablePool(nH);  ///< threads that are ready
-    Pool<RequestHandler> retiredPool(nH);    ///< threads that have terminated
+    int nH = server.maxConn();
+    std::cout << "Initializing handler pool (" << nH << ")" << std::endl;
+    Pool<RequestHandler> handlerPool(nH);  ///< threads that are ready
 
     /// handler objects
-    RequestHandler handlers[nH];
+    RequestHandler* handlers = new RequestHandler[nH];
     for(int i=0; i < nH; i++)
-        handlers[i].init(&availablePool);
-
-
+        handlers[i].init(&handlerPool);
 
     // for waiting until things happen
     SelectSet selectMe(2);
@@ -326,7 +323,7 @@ int main(int argc, char** argv)
                       << "] port=[" << clientport << "]" << std::endl;
 
             // get a request handler
-            RequestHandler* handler = availablePool.getAvailable();
+            RequestHandler* handler = handlerPool.getAvailable();
 
             if(handler)
                 handler->start(clientsock, termNote.readFd());
@@ -346,10 +343,11 @@ int main(int argc, char** argv)
     // wait for all the child threads to quit
     std::cout << "Waiting for threads to terminate" << std::endl;
 
-    while( availablePool.size() < nH )
+    while( handlerPool.size() < nH )
         sleep(1);
 
     std::cout << "All threads have come home, quitting" << std::endl;
+    delete [] handlers;
     close(serversock);
 }
 
