@@ -49,6 +49,11 @@ class Pool
             m_available.reserve(size);
         }
 
+        ~Pool()
+        {
+            m_mutex.destroy();
+        }
+
         /// retrieve an available handler
         Obj* getAvailable()
         {
@@ -72,6 +77,18 @@ class Pool
         {
             pthreads::ScopedLock lock(m_mutex);
             m_available.push_back(obj);
+        }
+
+        int size()
+        {
+            int size = 0;
+
+            // lock scope
+            {
+                pthreads::ScopedLock lock(m_mutex);
+                size = m_available.size();
+            }
+            return size;
         }
 };
 

@@ -331,6 +331,13 @@ int main(int argc, char** argv)
         std::cerr << "Exception in main loop: " << ex.what();
     }
 
+    // wait for all the child threads to quit
+    std::cout << "Waiting for threads to terminate" << std::endl;
+
+    while( availablePool.size() < nH )
+        sleep(1);
+
+    std::cout << "All threads have come home, quitting" << std::endl;
     close(serversock);
 }
 
