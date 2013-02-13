@@ -296,13 +296,13 @@ int main(int argc, char** argv)
                 ex()() << "Failed to accept client connection: errno "
                        << errno << " : " << strerror(errno) ;
 
-            Bytes<in_addr_t> ip( &client_in.sin_addr.s_addr );
+            char clientStr[100];
+            if( inet_ntop(AF_INET,&(client_in.sin_addr),clientStr,100)
+                    != clientStr )
+                ex()() << "Error converting client address to string, errno"
+                       << errno << " : " << strerror(errno);
 
-            std::cout << "Client connected: "
-                      << ip[0] << "."
-                      << ip[1] << "."
-                      << ip[2] << "."
-                      << ip[3] << "\n";
+            std::cout << "Client connected: " << clientStr << "\n";
 
             // get a request handler
             RequestHandler* handler = handlerPool.getAvailable();
