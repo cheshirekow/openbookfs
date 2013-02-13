@@ -228,23 +228,20 @@ void* RequestHandler::operator()()
 
     // first the server sends the diffie hellman parameters so we can do a
     // key exchange
-    std::string p,q,g;
-    p.resize( dh.GetGroupParameters().GetModulus().ByteCount());
-    g.resize( dh.GetGroupParameters().GetGenerator().ByteCount());
-    q.resize( dh.GetGroupParameters().GetSubgroupOrder().ByteCount());
+    std::string pStr,qStr,gStr;
+    pStr.resize( p.ByteCount());
+    gStr.resize( p.ByteCount());
+    qStr.resize( p.ByteCount());
 
-    dh.GetGroupParameters().GetModulus().Encode(
-            (unsigned char*)&p[0], p.size(), Integer::UNSIGNED );
-    dh.GetGroupParameters().GetGenerator().Encode(
-            (unsigned char*)&g[0], g.size(), Integer::UNSIGNED );
-    dh.GetGroupParameters().GetSubgroupOrder().Encode(
-            (unsigned char*)&q[0], q.size(), Integer::UNSIGNED );
+    p.Encode( (unsigned char*)&pStr[0], pStr.size(), Integer::UNSIGNED );
+    p.Encode( (unsigned char*)&gStr[0], gStr.size(), Integer::UNSIGNED );
+    p.Encode( (unsigned char*)&qStr[0], qStr.size(), Integer::UNSIGNED );
 
     msgs::DiffieHellmanParams* dhParams =
             static_cast<msgs::DiffieHellmanParams*>(m_msg[MSG_DH_PARAMS]);
-    dhParams->set_p(p);
-    dhParams->set_q(q);
-    dhParams->set_g(g);
+    dhParams->set_p(pStr);
+    dhParams->set_q(qStr);
+    dhParams->set_g(gStr);
 
     std::cout << "Sending DH_PARAMS message " << std::endl;
     m_msg.write(m_fd, MSG_DH_PARAMS);
