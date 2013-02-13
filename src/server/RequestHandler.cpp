@@ -331,7 +331,13 @@ void* RequestHandler::operator()()
                     iv.BytePtr(), iv.SizeInBytes());
 
     // read the client's public key
+    sleep(2);
+    // this works
+    // type = m_msg.read(m_fd[0],dec);
+
+    // this doesn't, but why??
     type = m_msg.read(m_fd,dec);
+
     dec.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
 
     if( type != MSG_AUTH_REQ )

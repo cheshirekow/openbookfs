@@ -375,7 +375,6 @@ char MessageBuffer::read( SelectSet& fd )
     std::cout << "Receiving "
               << "unencrypted message of size " << size << " bytes "
               << std::endl;
-
     m_plain.resize(size);
 
     // now we can read in the rest of the message
@@ -421,7 +420,8 @@ char MessageBuffer::read( SelectSet& fd )
         ex()() << "Invalid message type: " << (int)type;
 
     if( !m_msgs[type]->ParseFromArray(&m_plain[1],m_plain.size()-1) )
-        ex()() << "Failed to parse message";
+        ex()() << "Failed to parse message " << messageIdToString(type)
+               << " of size " << m_plain.size()-1;
 
     std::cout << "   read done\n";
     return type;
@@ -501,29 +501,45 @@ void MessageBuffer::write( SelectSet& fd, char type )
 char MessageBuffer::read( SelectSet& fd,
                             CryptoPP::GCM<CryptoPP::AES>::Decryption& dec)
 {
-    unsigned char header[2];     //< header bytes
-    int           received;      //< result of recv
+    unsigned char header[2];        //< header bytes
+    int           received;         //< result of recv
+    int           bytes_received=0; //< total read so far
 
-    // wait for data (do it in a loop because wait may timeout)
-    while( fd.wait() == 0 );
+    while( bytes_received < 2 )
+    {
+        // attempt read
+        received = recv(fd[0], header + bytes_received, 2 - bytes_received, 0);
 
-    // bail if signalled by anything other than data
-    if( !fd(0) )
-        ex()() << "Signalled by something other than data, bailing";
+        // if we read some bytes
+        if( received > 0 )
+        {
+            bytes_received += received;
+            continue;
+        }
 
-    received = recv(fd[0], header, 2, 0);
+        // otherwise check for problems
+        checkForDisconnect(received);
+        if( errno != EWOULDBLOCK )
+            ex()() << "Error while trying to read message header, errno "
+                   << errno << " : " << strerror( errno );
 
-    checkForDisconnect(received);
-    if(received < 0)
-        ex()() <<  "failed to read message header from client";
+        // wait for data (do it in a loop because wait may timeout)
+        std::cout << "Waiting for header" << std::endl;
+        while( fd.wait() == 0 );
+
+        // if we were signalled by anything other than data ready, then
+        // just bail
+        if( !fd(0) )
+            ex()() << "Signaled by something other than data, quitting";
+    }
 
     // the first bytes of the message
+    char         type;      //< message enum
     unsigned int size;      //< size of the message
-    char         type;
-    size       = header[0];         //< first byte of size
-    size      |= header[1] << 8;    //< second byte of size
 
-    int     recv_bytes   = 0;
+    size    = header[0] ; //< the rest are size
+    size   |= header[1] << 8;
+
     if( size > BUFSIZE )
         ex()() << "Received a message with size " << size
                << " (" << std::hex << (int)header[0] << " " << (int)header[1]
@@ -531,31 +547,42 @@ char MessageBuffer::read( SelectSet& fd,
 
     std::cout << "Receiving encrypted message of size " << size << " bytes "
               << std::endl;
-    m_cipher.resize(size);
+    m_plain.resize(size);
 
     // now we can read in the rest of the message
     // since we know it's length
     //receive remainder of message
-    recv_bytes = 0;
-    while(recv_bytes < size)
+    bytes_received = 0;
+    while(bytes_received < size)
     {
-        // wait for data (do it in a loop because wait may timeout)
+        // try to read some data
+        received = recv(fd[0], &m_cipher[0] + bytes_received,
+                                                    size-bytes_received, 0);
+
+        // if we got some bytes loop around
+        if( received > 0 )
+        {
+            bytes_received += received;
+            continue;
+        }
+
+        // otherwise check for problems
+        checkForDisconnect(received);
+        if( errno != EWOULDBLOCK )
+            ex()() <<  "failed to read bytes " << bytes_received
+                    << "+ of the message";
+
+        // wait for data
+        std::cout << "Waiting for the rest of the message" << std::endl;
         while( fd.wait() == 0 );
 
-        // bail if signalled by anything other than data
+        // if we were signalled by something other than data, then bail
         if( !fd(0) )
-            ex()() << "Signalled by something other than data, bailing";
-
-        received = recv(fd[0], &m_cipher[0] + recv_bytes,
-                        size-recv_bytes, 0);
-        checkForDisconnect(received);
-        if(received < 0)
-            ex()() <<  "failed to read bytes after " << recv_bytes
-                    << " of the message";
-        recv_bytes += received;
+            ex()() << "Signalled by something other than data while waiting for "
+                      "the rest of the message";
     }
 
-    std::cout << "Finished reading " << recv_bytes << " bytes" << std::endl;
+    std::cout << "Finished reading " << bytes_received << " bytes" << std::endl;
 
     // decrypt the message
     m_plain.clear();
@@ -566,7 +593,7 @@ char MessageBuffer::read( SelectSet& fd,
         )
     );
 
-    std::cout << "Finished ecryption and message authentication" << std::endl;
+    std::cout << "Finished decryption and message authentication" << std::endl;
 
     // the first decoded byte is the type
     type = m_plain[0];
@@ -580,7 +607,6 @@ char MessageBuffer::read( SelectSet& fd,
                << " of size " << m_plain.size()-1;
 
     std::cout << "   read done\n";
-
     return type;
 }
 
@@ -647,6 +673,8 @@ void MessageBuffer::write( SelectSet&fd, char type,
         sent = send( fd[0], &m_plain[0]+bytes_sent, size-bytes_sent, 0 );
         if( sent > 0 )
         {
+            std::cout << "   sent " << sent <<  "/" << size
+                      << " bytes to netstack " << std::endl;
             bytes_sent += sent;
             continue;
         }
