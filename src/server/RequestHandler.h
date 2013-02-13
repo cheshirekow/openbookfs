@@ -98,13 +98,16 @@ class RequestHandler
         void init( Pool_t* );
 
         /// initialize Diffie Hellman paramters (takes a while and blocks)
-        void initDH();
+        void* initDH();
+
+        /// performs handshake protocol
+        void* handshake();
+
+        /// performs main loop, dispatching messages
+        void* mainloop();
 
         /// start the handler interfacing with the client on the socket
         void start( int sockfd, int termfd );
-
-        /// makes this a callable object that can be sent to the thread
-        void* operator()();
 
 };
 

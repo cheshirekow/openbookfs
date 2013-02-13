@@ -50,8 +50,19 @@ extern "C"
     void* request_handler_initDH( void* vp_handler )
     {
         RequestHandler* h = static_cast<RequestHandler*>(vp_handler);
-        h->initDH();
-        return 0;
+        return h->initDH();
+    }
+
+    void* request_handler_handshake( void* vp_handler )
+    {
+        RequestHandler* h = static_cast<RequestHandler*>(vp_handler);
+        return h->handshake();
+    }
+
+    void* request_handler_mainloop( void* vp_handler )
+    {
+        RequestHandler* h = static_cast<RequestHandler*>(vp_handler);
+        return h->mainloop();
     }
 }
 
@@ -105,31 +116,13 @@ void RequestHandler::init(Pool_t* pool)
 
     if( result )
     {
-        std::cerr << "Failed to start handler init thread: ";
-        switch(result)
-        {
-            case EAGAIN:
-                std::cerr << "EAGAIN";
-                break;
-
-            case EINVAL:
-                std::cerr << "EINVAL";
-                break;
-
-            case EPERM:
-                std::cerr << "EPERM";
-                break;
-
-            default:
-                std::cerr << "unexpected errno";
-                break;
-        }
-        std::cerr << std::endl;
+        std::cerr << "Failed to start handler thread, errno " << result
+                  << " : " << strerror(result) << std::endl;
         m_pool->reassign(this);
     }
 }
 
-void RequestHandler::initDH()
+void* RequestHandler::initDH()
 {
     pthreads::ScopedLock lock(m_mutex);
     std::cout << "Handler " << (void*) this
@@ -147,9 +140,8 @@ void RequestHandler::initDH()
     m_pool->reassign(this);
 
     std::cout.flush();
+    return 0;
 }
-
-
 
 
 void RequestHandler::start( int sockfd, int termfd )
@@ -166,37 +158,21 @@ void RequestHandler::start( int sockfd, int termfd )
         Attr<Thread> attr;
         attr.init();
         attr << DETACHED;
-        int result = m_thread.launch(attr,this);
+        int result = m_thread.launch(attr,request_handler_handshake,this);
         attr.destroy();
 
         if( result )
         {
-            std::cerr << "Failed to start handler thread: ";
-            switch(result)
-            {
-                case EAGAIN:
-                    std::cerr << "EAGAIN";
-                    break;
-
-                case EINVAL:
-                    std::cerr << "EINVAL";
-                    break;
-
-                case EPERM:
-                    std::cerr << "EPERM";
-                    break;
-
-                default:
-                    std::cerr << "unexpected errno";
-                    break;
-            }
-            std::cerr << std::endl;
+            std::cerr << "Failed to start handler thread, errno " << result
+                      << " : " << strerror(result) << std::endl;
             m_pool->reassign(this);
         }
     }
 }
 
-void* RequestHandler::operator()()
+
+
+void* RequestHandler::handshake()
 {
     namespace msgs = messages;
     using namespace pthreads;
@@ -230,12 +206,12 @@ void* RequestHandler::operator()()
     // key exchange
     std::string pStr,qStr,gStr;
     pStr.resize( p.ByteCount());
-    gStr.resize( p.ByteCount());
-    qStr.resize( p.ByteCount());
+    qStr.resize( q.ByteCount());
+    gStr.resize( g.ByteCount());
 
     p.Encode( (unsigned char*)&pStr[0], pStr.size(), Integer::UNSIGNED );
-    p.Encode( (unsigned char*)&gStr[0], gStr.size(), Integer::UNSIGNED );
-    p.Encode( (unsigned char*)&qStr[0], qStr.size(), Integer::UNSIGNED );
+    q.Encode( (unsigned char*)&qStr[0], qStr.size(), Integer::UNSIGNED );
+    g.Encode( (unsigned char*)&gStr[0], gStr.size(), Integer::UNSIGNED );
 
     msgs::DiffieHellmanParams* dhParams =
             static_cast<msgs::DiffieHellmanParams*>(m_msg[MSG_DH_PARAMS]);
@@ -413,7 +389,8 @@ void* RequestHandler::operator()()
     enc.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
     std::cout << "Client authenticated" << std::endl;
 
-    ex()() << "Exiting Early";
+    ex()() << "Exiting early";
+    // now that the client is authenticated we send an authorization challenge
 
     int authRetry = 0;
     for(; authRetry < 3; authRetry++)
@@ -441,6 +418,24 @@ void* RequestHandler::operator()()
         cleanup();
         return 0;
     }
+
+    }
+    catch ( std::exception& ex )
+    {
+        std::cerr << ex.what() << std::endl;
+        cleanup();
+    }
+
+    return 0;
+}
+
+void* RequestHandler::mainloop()
+{
+    namespace msgs = messages;
+    using namespace pthreads;
+    ScopedLock lock(m_mutex);
+    try
+    {
 
     while(1)
     {
