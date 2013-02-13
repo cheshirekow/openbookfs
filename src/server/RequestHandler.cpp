@@ -65,9 +65,12 @@ void RequestHandler::cleanup()
               << " re-generating DH parameters\n";
 
     using namespace CryptoPP;
+    CryptoPP::DH m_dh;         ///< Diffie-Hellman structure
     m_dh.AccessGroupParameters().GenerateRandomWithKeySize(m_rng,1024);
-    m_dh2.GenerateStaticKeyPair(m_rng,m_spriv,m_spub);
-    m_dh2.GenerateEphemeralKeyPair(m_rng,m_epriv, m_epub);
+
+    p = m_dh.GetGroupParameters().GetModulus();
+    q = m_dh.GetGroupParameters().GetSubgroupOrder();
+    g = m_dh.GetGroupParameters().GetGenerator();
 
     std::cout << "Handler " << (void*) this
               << " finished re-generating DH and returning to pool\n";
@@ -77,8 +80,7 @@ void RequestHandler::cleanup()
 
 RequestHandler::RequestHandler():
     m_pool(0),
-    m_fd(2),
-    m_dh2(m_dh)
+    m_fd(2)
 {
     m_mutex.init();
 }
@@ -135,15 +137,12 @@ void RequestHandler::initDH()
               << " generating DH parameters\n";
 
     using namespace CryptoPP;
+    CryptoPP::DH m_dh;         ///< Diffie-Hellman structure
     m_dh.AccessGroupParameters().GenerateRandomWithKeySize(m_rng,1024);
-    m_spriv = SecByteBlock( m_dh2.StaticPrivateKeyLength() );
-    m_spub  = SecByteBlock( m_dh2.StaticPublicKeyLength() );
-    m_epriv = SecByteBlock( m_dh2.EphemeralPrivateKeyLength() );
-    m_epub  = SecByteBlock( m_dh2.EphemeralPublicKeyLength() );
 
-    m_dh2.GenerateStaticKeyPair(m_rng,m_spriv,m_spub);
-    m_dh2.GenerateEphemeralKeyPair(m_rng,m_epriv, m_epub);
-    m_shared= SecByteBlock( m_dh2.AgreedValueLength() );
+    p = m_dh.GetGroupParameters().GetModulus();
+    q = m_dh.GetGroupParameters().GetSubgroupOrder();
+    g = m_dh.GetGroupParameters().GetGenerator();
 
     std::cout << "Handler " << (void*) this
               << " finished generating DH and returning to pool\n";
@@ -215,6 +214,26 @@ void* RequestHandler::operator()()
     try
     {
 
+    using namespace CryptoPP;
+
+    DH                m_dh;         ///< Diffie-Hellman structure
+    DH2               m_dh2(m_dh);  ///< Diffie-Hellman structure
+    SecByteBlock      m_spriv;      ///< static private key
+    SecByteBlock      m_spub;       ///< static public key
+    SecByteBlock      m_epriv;      ///< ephemeral private key
+    SecByteBlock      m_epub;       ///< ephemeral public key
+    SecByteBlock      m_shared;     ///< shared key
+
+    m_dh.AccessGroupParameters().Initialize(p,q,g);
+    m_spriv = SecByteBlock( m_dh2.StaticPrivateKeyLength() );
+    m_spub  = SecByteBlock( m_dh2.StaticPublicKeyLength() );
+    m_epriv = SecByteBlock( m_dh2.EphemeralPrivateKeyLength() );
+    m_epub  = SecByteBlock( m_dh2.EphemeralPublicKeyLength() );
+
+    m_dh2.GenerateStaticKeyPair(m_rng,m_spriv,m_spub);
+    m_dh2.GenerateEphemeralKeyPair(m_rng,m_epriv, m_epub);
+    m_shared= SecByteBlock( m_dh2.AgreedValueLength() );
+
     // first the server sends the diffie hellman parameters so we can do a
     // key exchange
     std::string p,q,g;
@@ -282,15 +301,15 @@ void* RequestHandler::operator()()
     cryp::CMAC<cryp::AES> cmac(mack.BytePtr(), mack.SizeInBytes());
 
     // Generate a random CEK and IV
-    cryp::SecByteBlock cek(cryp::AES::DEFAULT_KEYLENGTH);
-    cryp::SecByteBlock iv (cryp::AES::BLOCKSIZE);
-    m_rng.GenerateBlock(cek.BytePtr(), cek.SizeInBytes());
-    m_rng.GenerateBlock(iv.BytePtr(), iv.SizeInBytes());
+    m_cek = cryp::SecByteBlock(cryp::AES::DEFAULT_KEYLENGTH);
+    m_iv  = cryp::SecByteBlock(cryp::AES::BLOCKSIZE);
+    m_rng.GenerateBlock(m_cek.BytePtr(), m_cek.SizeInBytes());
+    m_rng.GenerateBlock( m_iv.BytePtr(), m_iv.SizeInBytes());
 
     // print it for checkin
     cryp::Integer cekOut, ivOut;
-    cekOut.Decode( cek.BytePtr(), cek.SizeInBytes() );
-    ivOut .Decode(  iv.BytePtr(),  iv.SizeInBytes() );
+    cekOut.Decode( m_cek.BytePtr(), m_cek.SizeInBytes() );
+    ivOut .Decode(  m_iv.BytePtr(),  m_iv.SizeInBytes() );
     std::cout << "AES Key: " << std::hex << cekOut << std::endl;
     std::cout << "     iv: " << std::hex << ivOut  << std::endl;
     std::cout << std::dec;
@@ -303,9 +322,9 @@ void* RequestHandler::operator()()
     cryp::SecByteBlock msg_cipher( 2*cryp::AES::BLOCKSIZE );  //< Enc(CEK) | Enc(iv)
     cryp::SecByteBlock   msg_cmac(   cryp::AES::BLOCKSIZE );  //< CMAC(Enc(CEK||iv))
 
-    aes.ProcessData(msg_cipher.BytePtr(), cek.BytePtr(), cryp::AES::BLOCKSIZE );
+    aes.ProcessData(msg_cipher.BytePtr(), m_cek.BytePtr(), cryp::AES::BLOCKSIZE );
     aes.ProcessData(&msg_cipher.BytePtr()[cryp::AES::BLOCKSIZE],
-                                          iv.BytePtr(), cryp::AES::BLOCKSIZE );
+                                          m_iv.BytePtr(), cryp::AES::BLOCKSIZE );
     cmac.CalculateTruncatedDigest(msg_cmac.BytePtr(), cryp::AES::BLOCKSIZE,
                                   msg_cipher.BytePtr(), 2*cryp::AES::BLOCKSIZE );
 
@@ -325,15 +344,15 @@ void* RequestHandler::operator()()
     // now we can make our encryptor and decriptor
     cryp::GCM<cryp::AES>::Encryption enc;
     cryp::GCM<cryp::AES>::Decryption dec;
-    enc.SetKeyWithIV(cek.BytePtr(), cek.SizeInBytes(),
-                     iv.BytePtr(), iv.SizeInBytes());
-    dec.SetKeyWithIV(cek.BytePtr(), cek.SizeInBytes(),
-                    iv.BytePtr(), iv.SizeInBytes());
+    enc.SetKeyWithIV(m_cek.BytePtr(), m_cek.SizeInBytes(),
+                      m_iv.BytePtr(),  m_iv.SizeInBytes());
+    dec.SetKeyWithIV(m_cek.BytePtr(), m_cek.SizeInBytes(),
+                      m_iv.BytePtr(),  m_iv.SizeInBytes());
 
     // read the client's public key
     std::cout << "Reading AUTH_REQ" << std::endl;
     type = m_msg.read(m_fd,dec);
-    dec.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
+    dec.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
 
     if( type != MSG_AUTH_REQ )
         ex()() << "Protocol Error: expected AUTH_REQ from client, instead got"
@@ -378,12 +397,12 @@ void* RequestHandler::operator()()
 
     std::cout << "Sending AUTH_CHALLENGE" << std::endl;
     m_msg.write(m_fd,MSG_AUTH_CHALLENGE,enc);
-    enc.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
+    enc.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
 
     // read the challenge solution
     std::cout << "Waiting for AUTH_SOLUTION" << std::endl;
     type = m_msg.read(m_fd,dec);
-    dec.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
+    dec.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
     if( type != MSG_AUTH_SOLN )
         ex()() << "Protocol error: Expected AUTH_SOLN, got "
                << messageIdToString(type) << " (" << (int)type << ")";
@@ -402,7 +421,7 @@ void* RequestHandler::operator()()
 
     authResult->set_response(true);
     m_msg.write(m_fd,MSG_AUTH_RESULT,enc);
-    enc.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
+    enc.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
     std::cout << "Client authenticated" << std::endl;
 
     ex()() << "Exiting Early";

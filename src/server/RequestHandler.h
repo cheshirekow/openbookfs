@@ -81,15 +81,11 @@ class RequestHandler
         MessageBuffer       m_msg;              ///< message buffer
         SelectSet           m_fd;               ///< socket and terminal fd
 
+        // Diffie-Hellman Paramters
+        CryptoPP::Integer   p,q,g;
+        CryptoPP::SecByteBlock          m_cek;    ///< content encryption key
+        CryptoPP::SecByteBlock          m_iv;     ///< initial vector
         CryptoPP::AutoSeededRandomPool  m_rng;    ///< random number gen
-
-        CryptoPP::DH                m_dh;         ///< Diffie-Hellman structure
-        CryptoPP::DH2               m_dh2;        ///< Diffie-Hellman structure
-        CryptoPP::SecByteBlock      m_spriv;      ///< static private key
-        CryptoPP::SecByteBlock      m_spub;       ///< static public key
-        CryptoPP::SecByteBlock      m_epriv;      ///< ephemeral private key
-        CryptoPP::SecByteBlock      m_epub;       ///< ephemeral public key
-        CryptoPP::SecByteBlock      m_shared;     ///< shared key
 
         void cleanup();
 
