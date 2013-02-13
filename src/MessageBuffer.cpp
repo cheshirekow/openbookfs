@@ -187,6 +187,7 @@ char MessageBuffer::read( int sockfd,
 {
     unsigned char header[2];     //< header bytes
     int           received;      //< result of recv
+
     received = recv(sockfd, header, 2, 0);
 
     checkForDisconnect(received);
@@ -502,13 +503,14 @@ char MessageBuffer::read( SelectSet& fd,
                             CryptoPP::GCM<CryptoPP::AES>::Decryption& dec)
 {
     unsigned char header[2];        //< header bytes
+    unsigned int  size          =2; //< size of the read
     int           received;         //< result of recv
     int           bytes_received=0; //< total read so far
 
-    while( bytes_received < 2 )
+    while( bytes_received < size )
     {
         // attempt read
-        received = recv(fd[0], header + bytes_received, 2 - bytes_received, 0);
+        received = recv(fd[0], header + bytes_received, size-bytes_received, 0);
 
         // if we read some bytes
         if( received > 0 )
@@ -535,10 +537,9 @@ char MessageBuffer::read( SelectSet& fd,
 
     // the first bytes of the message
     char         type;      //< message enum
-    unsigned int size;      //< size of the message
 
-    size    = header[0] ; //< the rest are size
-    size   |= header[1] << 8;
+    size    = header[0] ;       //< first byte of size
+    size   |= header[1] << 8;   //< second byte of size
 
     if( size > BUFSIZE )
         ex()() << "Received a message with size " << size
@@ -547,7 +548,7 @@ char MessageBuffer::read( SelectSet& fd,
 
     std::cout << "Receiving encrypted message of size " << size << " bytes "
               << std::endl;
-    m_plain.resize(size);
+    m_cipher.resize(size);
 
     // now we can read in the rest of the message
     // since we know it's length
@@ -670,7 +671,7 @@ void MessageBuffer::write( SelectSet&fd, char type,
     // send data
     while( bytes_sent < size )
     {
-        sent = send( fd[0], &m_plain[0]+bytes_sent, size-bytes_sent, 0 );
+        sent = send( fd[0], &m_cipher[0]+bytes_sent, size-bytes_sent, 0 );
         if( sent > 0 )
         {
             std::cout << "   sent " << sent <<  "/" << size

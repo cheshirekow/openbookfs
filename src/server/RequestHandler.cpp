@@ -331,13 +331,8 @@ void* RequestHandler::operator()()
                     iv.BytePtr(), iv.SizeInBytes());
 
     // read the client's public key
-    sleep(2);
-    // this works
-    // type = m_msg.read(m_fd[0],dec);
-
-    // this doesn't, but why??
+    std::cout << "Reading AUTH_REQ" << std::endl;
     type = m_msg.read(m_fd,dec);
-
     dec.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
 
     if( type != MSG_AUTH_REQ )
@@ -381,10 +376,12 @@ void* RequestHandler::operator()()
     challenge->set_type( msgs::AuthChallenge::AUTHENTICATE );
     challenge->set_challenge(cipherChallenge);
 
+    std::cout << "Sending AUTH_CHALLENGE" << std::endl;
     m_msg.write(m_fd,MSG_AUTH_CHALLENGE,enc);
     enc.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
 
     // read the challenge solution
+    std::cout << "Waiting for AUTH_SOLUTION" << std::endl;
     type = m_msg.read(m_fd,dec);
     dec.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
     if( type != MSG_AUTH_SOLN )
