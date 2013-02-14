@@ -42,6 +42,7 @@ class TimeVal
         TimeVal( int sec=0, int usec=0 );
         operator timeval&();
         operator const timeval&() const;
+        timeval* ptr();
 };
 
 

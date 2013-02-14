@@ -46,6 +46,11 @@ TimeVal::operator const timeval&() const
     return m_tv;
 }
 
+timeval* TimeVal::ptr()
+{
+    return &m_tv;
+}
+
 
 
 } // namespace filesystem

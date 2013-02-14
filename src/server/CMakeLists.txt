@@ -49,6 +49,7 @@ if( (Boost_FOUND)
                     ../FdSet.cpp
                     ../MessageBuffer.cpp
                     ../NotifyPipe.cpp
+                    ../SelectSpec.cpp
                     ../SelectSet.cpp
                     ../TimeVal.cpp
                     ${MESSAGES_PB_CC}
