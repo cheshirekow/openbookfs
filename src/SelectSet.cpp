@@ -89,14 +89,14 @@ bool FdSet::ConstRef::operator~() const
 
 
 
-FdSet::operator fd_set&()
+FdSet::operator fd_set*()
 {
-    return m_fdset;
+    return &m_fdset;
 }
 
-FdSet::operator const fd_set&() const
+FdSet::operator const fd_set*() const
 {
-    return m_fdset;
+    return &m_fdset;
 }
 
 void FdSet::clear()
@@ -154,13 +154,13 @@ void SelectSet::init()
 int SelectSet::wait(Which which)
 {
     for(unsigned int i=0; i < NUM_WHICH; i++)
-        FD_ZERO( m_set + i );
+        m_set[i].clear();
 
     timeval timeout = m_timeout;
     for(unsigned int i=0; i < m_fd.size(); i++)
-        FD_SET( m_fd[i], m_set + which );
+        m_set[i][m_fd[i]] = true;
 
-    return select( m_maxfd+1, m_set + READ, m_set + WRITE, m_set + EXCEPT, &timeout );
+    return select( m_maxfd+1, m_set[READ], m_set[WRITE], m_set[EXCEPT], &timeout );
 }
 
 bool SelectSet::operator()( unsigned int i_fd, Which which )
@@ -170,7 +170,8 @@ bool SelectSet::operator()( unsigned int i_fd, Which which )
                 << " and there was an attempt to access element " << i_fd;
     if( i_fd >= m_fd.size() )
         m_fd.resize(i_fd+1,0);
-    return FD_ISSET( m_fd[i_fd], m_set + which );
+
+    return m_set[which][m_fd[i_fd]];
 }
 
 

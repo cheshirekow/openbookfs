@@ -77,10 +77,10 @@ class FdSet
 
     public:
         /// implicit conversion
-        operator fd_set&();
+        operator fd_set*();
 
         /// implicit conversion
-        operator const fd_set&() const;
+        operator const fd_set*() const;
 
         /// clears (zeros) the set
         void clear();
@@ -98,9 +98,9 @@ class SelectSet
     public:
         enum Which
         {
-            READ=0,
-            WRITE,
-            EXCEPT,
+            READ    =0,
+            WRITE   =1,
+            EXCEPT  =2,
             NUM_WHICH
         };
 
@@ -109,7 +109,7 @@ class SelectSet
 
     private:
         std::vector<int>    m_fd;
-        fd_set              m_set[NUM_WHICH];
+        FdSet               m_set[NUM_WHICH];
         timeval             m_timeout;
         int                 m_maxfd;
 
