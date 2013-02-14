@@ -80,8 +80,7 @@ void RequestHandler::cleanup()
 }
 
 RequestHandler::RequestHandler():
-    m_pool(0),
-    m_fd(2)
+    m_pool(0)
 {
     m_mutex.init();
 }

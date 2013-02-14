@@ -30,18 +30,111 @@
 namespace   openbook {
 namespace filesystem {
 
-SelectSet::SelectSet(int numfd)
+
+FdSet::Ref::Ref( fd_set* set, int fd ):
+    m_set(set),
+    m_fd(fd)
+{}
+
+FdSet::Ref::operator bool() const
 {
-    m_fd.resize(numfd,0);
-    setTimeout(1,0);
+    return FD_ISSET(m_fd, m_set);
+}
+
+FdSet::Ref& FdSet::Ref::operator=( bool x )
+{
+    if( x )
+        FD_SET( m_fd,m_set );
+    else
+        FD_CLR( m_fd, m_set );
+    return *this;
+}
+
+FdSet::Ref& FdSet::Ref::flip()
+{
+    if( *this )
+        *this = false;
+    else
+        *this = true;
+
+    return *this;
+}
+
+bool FdSet::Ref::operator~() const
+{
+    return !(*this);
+}
+
+
+
+
+FdSet::ConstRef::ConstRef( const fd_set* set, int fd ):
+    m_set(set),
+    m_fd(fd)
+{}
+
+FdSet::ConstRef::operator bool() const
+{
+    return FD_ISSET(m_fd, m_set);
+}
+
+bool FdSet::ConstRef::operator~() const
+{
+    return !(*this);
+}
+
+
+
+
+
+
+
+FdSet::operator fd_set&()
+{
+    return m_fdset;
+}
+
+FdSet::operator const fd_set&() const
+{
+    return m_fdset;
+}
+
+void FdSet::clear()
+{
+    FD_ZERO(&m_fdset);
+}
+
+FdSet::Ref FdSet::operator[]( unsigned int fd )
+{
+    return Ref(&m_fdset,fd);
+}
+
+const FdSet::ConstRef FdSet::operator[]( unsigned int fd ) const
+{
+    return ConstRef(&m_fdset,fd);
+}
+
+
+
+
+
+
+
+SelectSet::SelectSet()
+{
+    setTimeout(0,0);
     init();
+
+
 }
 
 int& SelectSet::operator[]( unsigned int i_fd )
 {
+    if( i_fd >= FD_SETSIZE )
+        ex()() << "FD_SETSIZE is " << FD_SETSIZE
+                << " and there was an attempt to access element " << i_fd;
     if( i_fd >= m_fd.size() )
-        ex()() << "Attempt to access file descriptor " << i_fd
-               << " in a set of size " << m_fd.size() ;
+        m_fd.resize(i_fd+1,0);
     return m_fd[i_fd];
 }
 
@@ -58,22 +151,26 @@ void SelectSet::init()
         m_maxfd = std::max(m_maxfd,m_fd[i]);
 }
 
-int SelectSet::wait()
+int SelectSet::wait(Which which)
 {
-    FD_ZERO( &m_set );
+    for(unsigned int i=0; i < NUM_WHICH; i++)
+        FD_ZERO( m_set + i );
+
     timeval timeout = m_timeout;
     for(unsigned int i=0; i < m_fd.size(); i++)
-        FD_SET( m_fd[i], &m_set );
+        FD_SET( m_fd[i], m_set + which );
 
-    return select( m_maxfd+1, &m_set, 0, 0, &timeout );
+    return select( m_maxfd+1, m_set + READ, m_set + WRITE, m_set + EXCEPT, &timeout );
 }
 
-bool SelectSet::operator()( unsigned int i_fd )
+bool SelectSet::operator()( unsigned int i_fd, Which which )
 {
+    if( i_fd >= FD_SETSIZE )
+        ex()() << "FD_SETSIZE is " << FD_SETSIZE
+                << " and there was an attempt to access element " << i_fd;
     if( i_fd >= m_fd.size() )
-        ex()() << "Attempt to access file descriptor " << i_fd
-               << " in a set of size " << m_fd.size() ;
-    return FD_ISSET( m_fd[i_fd], &m_set );
+        m_fd.resize(i_fd+1,0);
+    return FD_ISSET( m_fd[i_fd], m_set + which );
 }
 
 

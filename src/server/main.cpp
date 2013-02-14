@@ -267,7 +267,7 @@ int main(int argc, char** argv)
         handlers[i].init(&handlerPool,&server);
 
     // for waiting until things happen
-    SelectSet selectMe(2);
+    SelectSet selectMe;
     selectMe[0] = termNote.readFd();
     selectMe[1] = serversock;
     selectMe.setTimeout( 5, 0 );
