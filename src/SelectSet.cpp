@@ -117,6 +117,46 @@ const FdSet::ConstRef FdSet::operator[]( unsigned int fd ) const
 
 
 
+SelectSet::Ref::Ref( SelectSet* set, int ifd ):
+    m_set(set),
+    m_ifd(ifd)
+{}
+
+SelectSet::Ref& SelectSet::Ref::clear()
+{
+    for(int i = READ; i < NUM_WHICH; i++)
+        m_set->m_listen[NUM_WHICH*m_ifd + i] = false;
+    return *this;
+}
+
+SelectSet::Ref& SelectSet::Ref::operator<< (Which which)
+{
+    m_set->m_listen[NUM_WHICH*m_ifd + which] = true;
+    return *this;
+}
+
+SelectSet::Ref& SelectSet::Ref::operator, (Which which)
+{
+    m_set->m_listen[NUM_WHICH*m_ifd + which] = true;
+    return *this;
+}
+
+SelectSet::Ref& SelectSet::Ref::operator= (int fd)
+{
+    m_set->m_fd[m_ifd] = fd;
+    return *this;
+}
+
+bool SelectSet::Ref::operator[](Which which)
+{
+   return m_set->m_listen[NUM_WHICH*m_ifd + which];
+}
+
+SelectSet::Ref::operator int()
+{
+    return m_set->m_fd[m_ifd] ;
+}
+
 
 
 
@@ -128,14 +168,18 @@ SelectSet::SelectSet()
 
 }
 
-int& SelectSet::operator[]( unsigned int i_fd )
+SelectSet::Ref SelectSet::operator[]( unsigned int ifd )
 {
-    if( i_fd >= FD_SETSIZE )
+    if( ifd >= FD_SETSIZE )
         ex()() << "FD_SETSIZE is " << FD_SETSIZE
-                << " and there was an attempt to access element " << i_fd;
-    if( i_fd >= m_fd.size() )
-        m_fd.resize(i_fd+1,0);
-    return m_fd[i_fd];
+                << " and there was an attempt to access element " << ifd;
+    if( ifd >= m_fd.size() )
+    {
+        m_fd.resize(ifd+1,0);
+        m_listen.resize(NUM_WHICH*(ifd+1),0);
+    }
+
+    return Ref(this,ifd);
 }
 
 void SelectSet::setTimeout( unsigned int sec, unsigned long int usec )
@@ -151,27 +195,35 @@ void SelectSet::init()
         m_maxfd = std::max(m_maxfd,m_fd[i]);
 }
 
-int SelectSet::wait(Which which)
+int SelectSet::wait()
 {
     for(unsigned int i=0; i < NUM_WHICH; i++)
         m_set[i].clear();
 
     timeval timeout = m_timeout;
     for(unsigned int i=0; i < m_fd.size(); i++)
-        m_set[i][m_fd[i]] = true;
+    {
+        int fd = m_fd[i];
+
+        for(unsigned int j=0; j < NUM_WHICH; j++)
+            m_set[j][fd] = m_listen[ NUM_WHICH*i + j];
+    }
 
     return select( m_maxfd+1, m_set[READ], m_set[WRITE], m_set[EXCEPT], &timeout );
 }
 
-bool SelectSet::operator()( unsigned int i_fd, Which which )
+bool SelectSet::operator()( unsigned int ifd, Which which )
 {
-    if( i_fd >= FD_SETSIZE )
+    if( ifd >= FD_SETSIZE )
         ex()() << "FD_SETSIZE is " << FD_SETSIZE
-                << " and there was an attempt to access element " << i_fd;
-    if( i_fd >= m_fd.size() )
-        m_fd.resize(i_fd+1,0);
+                << " and there was an attempt to access element " << ifd;
+    if( ifd >= m_fd.size() )
+    {
+        m_fd.resize(ifd+1,0);
+        m_listen.resize(NUM_WHICH*(ifd+1),0);
+    }
 
-    return m_set[which][m_fd[i_fd]];
+    return m_set[which][m_fd[ifd]];
 }
 
 

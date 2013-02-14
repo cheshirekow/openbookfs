@@ -270,6 +270,10 @@ int main(int argc, char** argv)
     SelectSet selectMe;
     selectMe[0] = termNote.readFd();
     selectMe[1] = serversock;
+
+    for(int i=0; i < 2; i++)
+        selectMe[i] << SelectSet::READ;
+
     selectMe.setTimeout( 5, 0 );
     selectMe.init();
 

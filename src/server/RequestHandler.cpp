@@ -143,6 +143,10 @@ void RequestHandler::handshake( int sockfd, int termfd )
         ScopedLock lock(m_mutex);
         m_fd[0] = sockfd;
         m_fd[1] = termfd;
+
+        for(int i=0; i < 2; i++)
+            m_fd[i] << SelectSet::READ;
+
         m_fd.setTimeout(5,0);
         m_fd.init();
 

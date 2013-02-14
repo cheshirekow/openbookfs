@@ -96,6 +96,7 @@ class FdSet
 class SelectSet
 {
     public:
+        /// just some constants we can use for the three sets
         enum Which
         {
             READ    =0,
@@ -104,20 +105,50 @@ class SelectSet
             NUM_WHICH
         };
 
-        /// dangerous, but I believe this can be cast to an fd_set;
-        typedef std::bitset<FD_SETSIZE>  set_t;
+        class Ref
+        {
+            SelectSet*  m_set;
+            int         m_ifd;
+
+            friend class SelectSet;
+            Ref( SelectSet* set, int ifd );
+
+            public:
+                /// clear events
+                Ref& clear();
+
+                /// assignment of an event to select
+                Ref& operator<< ( Which );
+
+                /// assignment of an event to select
+                Ref& operator,  ( Which );
+
+                /// assignment of a file descriptor
+                Ref& operator=( int fd );
+
+                /// retrieval of an event assignment
+                bool operator[]( Which );
+
+                /// conversion to a file descriptor
+                operator int();
+        };
+
 
     private:
+        friend class Ref;
+
         std::vector<int>    m_fd;
+        std::vector<bool>   m_listen;
         FdSet               m_set[NUM_WHICH];
         timeval             m_timeout;
         int                 m_maxfd;
 
+
     public:
         SelectSet( );
 
-        /// access / assign a file descriptor
-        int& operator[]( unsigned int i_fd  );
+        /// access / assign a file descriptor and it's events
+        Ref operator[]( unsigned int i_fd  );
 
         /// returns true if the file descriptor with index i_fd is ready,
         /// i.e. the operation specified in @p which will not block
@@ -131,7 +162,7 @@ class SelectSet
 
         /// calls select() and blocks until a file descriptor is
         /// ready
-        int wait(Which which=READ);
+        int wait();
 
 };
 
