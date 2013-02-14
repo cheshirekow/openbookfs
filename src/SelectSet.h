@@ -31,64 +31,10 @@
 #include <cstdlib>
 #include <bitset>
 #include <unistd.h>
-
+#include "FdSet.h"
 
 namespace   openbook {
 namespace filesystem {
-
-/// an fd_set with array accessors
-class FdSet
-{
-    public:
-        /// reference to an element in a bitset
-        class Ref
-        {
-            private:
-                fd_set* m_set;
-                int     m_fd;
-
-                friend class FdSet;
-                Ref(fd_set* set, int fd );
-
-            public:
-                operator bool() const;          ///< convert to bool
-                Ref& operator=( bool x );       ///< assign from bool
-                Ref& flip();                    ///< flip the bit
-                bool operator~() const;         ///< inverse value
-        };
-
-        /// reference to an element in a bitset
-        class ConstRef
-        {
-            private:
-                const fd_set* m_set;
-                int           m_fd;
-
-                friend class FdSet;
-                ConstRef(const fd_set* set, int fd );
-
-            public:
-                operator bool() const;          ///< convert to bool
-                bool operator~() const;         ///< inverse value
-        };
-
-    private:
-        fd_set  m_fdset;
-
-    public:
-        /// implicit conversion
-        operator fd_set*();
-
-        /// implicit conversion
-        operator const fd_set*() const;
-
-        /// clears (zeros) the set
-        void clear();
-
-        /// array operator
-        Ref operator[]( unsigned int fd );
-        const ConstRef operator[]( unsigned int fd ) const;
-};
 
 
 /// stores a list of file descriptors to select() and manages reuse of the

@@ -99,6 +99,7 @@ if( (Boost_FOUND)
                     ../base64.cpp
                     ../messages.cpp
                     ../MessageBuffer.cpp
+                    ../FdSet.cpp
                     ../SelectSet.cpp
                     ../NotifyPipe.cpp
                     protocol_test.cpp

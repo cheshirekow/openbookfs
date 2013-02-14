@@ -46,9 +46,11 @@ if( (Boost_FOUND)
                     RequestHandler.cpp
                     Server.cpp
                     ../messages.cpp
+                    ../FdSet.cpp
                     ../MessageBuffer.cpp
                     ../NotifyPipe.cpp
                     ../SelectSet.cpp
+                    ../TimeVal.cpp
                     ${MESSAGES_PB_CC}
                              )
     add_dependencies(openbookfs_d proto_messages)
