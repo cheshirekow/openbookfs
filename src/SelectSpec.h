@@ -92,6 +92,8 @@ class SelectSpec
         FdSet               m_fdset[select_spec::NUM_WHICH];
 
     public:
+        SelectSpec();
+
         /// clears the spec
         void reset();
 
@@ -101,9 +103,6 @@ class SelectSpec
         /// set the timeout of the spec
         void setTimeout( const TimeVal& to );
 
-        /// find the max file descriptor
-        void prepare();
-
         /// call select()
         int wait();
 
@@ -112,7 +111,7 @@ class SelectSpec
         bool ready( int fd, Which which );
 
         /// returns a generator for this spec
-        Generator operator()();
+        Generator gen();
 
 
 

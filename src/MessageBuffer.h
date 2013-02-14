@@ -41,7 +41,6 @@
 #include <crypto++/aes.h>
 
 #include "ExceptionStream.h"
-#include "SelectSet.h"
 #include "messages.h"
 #include "messages.pb.h"
 
@@ -116,19 +115,19 @@ class MessageBuffer
                     CryptoPP::GCM<CryptoPP::AES>::Encryption& );
 
         /// read an unencrypted message
-        char read( SelectSet& );
+        char read( int fd[2] );
 
         /// write an unencrypted message
-        void write( SelectSet& , char type);
+        void write( int fd[2] , char type);
 
         /// read an encrypted message from a socket, will throw a
         /// MessageException on any problems
-        char read( SelectSet& ,
+        char read( int fd[2] ,
                     CryptoPP::GCM<CryptoPP::AES>::Decryption& );
 
         /// write an encryupted message to a socket, will throw a
         /// MessageException on any problems
-        void write( SelectSet& , char type,
+        void write( int fd[2] , char type,
                     CryptoPP::GCM<CryptoPP::AES>::Encryption& );
 
 

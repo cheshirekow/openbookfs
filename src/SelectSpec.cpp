@@ -54,14 +54,20 @@ SelectSpec::Generator& SelectSpec::Generator::operator()( const TimeVal& to )
     return *this;
 }
 
+SelectSpec::SelectSpec():
+    m_maxfd(0)
+{}
+
 
 void SelectSpec::reset()
 {
+    m_maxfd = 0;
     m_spec.clear();
 }
 
 void SelectSpec::add( int fd, Which which )
 {
+    m_maxfd = std::max(m_maxfd,fd);
     m_spec.push_back( Elmnt(fd,which) );
 }
 
@@ -96,7 +102,7 @@ bool SelectSpec::ready( int fd, Which which )
     return m_fdset[which][fd];
 }
 
-SelectSpec::Generator SelectSpec::operator()()
+SelectSpec::Generator SelectSpec::gen()
 {
     return Generator(this);
 }

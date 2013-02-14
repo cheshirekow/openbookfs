@@ -49,8 +49,8 @@
 #include "Bytes.h"
 #include "RequestHandler.h"
 #include "NotifyPipe.h"
-#include "SelectSet.h"
 #include "Server.h"
+#include "SelectSpec.h"
 
 using namespace openbook::filesystem;
 
@@ -267,15 +267,14 @@ int main(int argc, char** argv)
         handlers[i].init(&handlerPool,&server);
 
     // for waiting until things happen
-    SelectSet selectMe;
-    selectMe[0] = termNote.readFd();
-    selectMe[1] = serversock;
+    SelectSpec selectMe;
 
-    for(int i=0; i < 2; i++)
-        selectMe[i] << SelectSet::READ;
-
-    selectMe.setTimeout( 5, 0 );
-    selectMe.init();
+    {
+        using namespace select_spec;
+        selectMe.gen()( termNote.readFd(), READ )
+                      ( serversock, READ )
+                      ( TimeVal(5,0 ) );
+    }
 
     //  Run until cancelled
     try
@@ -288,7 +287,7 @@ int main(int argc, char** argv)
                 std::cout << "Who dares disturb my slumber. zzz..." << std::endl;
                 continue;
             }
-            else if( selectMe(0) )
+            else if( selectMe.ready(termNote.readFd(),select_spec::READ) )
             {
                 std::cout << "Terminating!!" << std::endl;
                 break;

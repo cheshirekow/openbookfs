@@ -33,7 +33,7 @@
 #include <crypto++/filters.h>
 
 #include "MessageBuffer.h"
-
+#include "SelectSpec.h"
 
 
 namespace   openbook {
@@ -327,11 +327,18 @@ void MessageBuffer::write( int sockfd, char type,
 // message format
 // first 2 bytes:   size of message
 // size bytes:      message
-char MessageBuffer::read( SelectSet& fd )
+char MessageBuffer::read( int fd[2] )
 {
     unsigned char header[2];        //< header bytes
     int           received;         //< result of recv
     int           bytes_received=0; //< total read so far
+
+    /// create the select spec
+    using namespace select_spec;
+    SelectSpec select;
+    select.gen()(fd[0], READ)
+                (fd[1], READ)
+                ( TimeVal(2,0) );
 
     while( bytes_received < 2 )
     {
@@ -353,11 +360,12 @@ char MessageBuffer::read( SelectSet& fd )
 
         // wait for data (do it in a loop because wait may timeout)
         std::cout << "Waiting for header" << std::endl;
-        while( fd.wait() == 0 );
+        while( select.wait() == 0 );
 
         // if we were signalled by anything other than data ready, then
         // just bail
-        if( !fd(0) )
+
+        if( !select.ready(fd[0],READ) )
             ex()() << "Signaled by something other than data, quitting";
     }
 
@@ -403,10 +411,10 @@ char MessageBuffer::read( SelectSet& fd )
 
         // wait for data
         std::cout << "Waiting for the rest of the message" << std::endl;
-        while( fd.wait() == 0 );
+        while( select.wait() == 0 );
 
         // if we were signalled by something other than data, then bail
-        if( !fd(0) )
+        if( !select.ready(fd[0],READ) )
             ex()() << "Signalled by something other than data while waiting for "
                       "the rest of the message";
     }
@@ -428,9 +436,16 @@ char MessageBuffer::read( SelectSet& fd )
     return type;
 }
 
-void MessageBuffer::write( SelectSet& fd, char type )
+void MessageBuffer::write( int fd[2], char type )
 {
     namespace io = google::protobuf::io;
+
+    /// create the select spec
+    using namespace select_spec;
+    SelectSpec select;
+    select.gen()(fd[0], WRITE)
+                (fd[1], READ)
+                ( TimeVal(2,0) );
 
     unsigned int  msgSize  = m_msgs[type]->ByteSize();
     unsigned int  typeSize = 1;
@@ -483,10 +498,10 @@ void MessageBuffer::write( SelectSet& fd, char type )
                    << " : " << strerror(errno);
 
         // wait for buffer to free up
-        while( fd.wait() == 0 );
+        while( select.wait() == 0 );
 
         // verify that we didn't wake up by some other signal
-        if( !fd(0) )
+        if( !select.ready(fd[0],WRITE) )
             ex()() << "Signalled by something other than buffer freeing "
                       "up, bailing";
     }
@@ -499,9 +514,16 @@ void MessageBuffer::write( SelectSet& fd, char type )
 // first bit:       encrypted
 // next  15 bits:   unsigned size (max 2^15)
 // after first two bytes: message data
-char MessageBuffer::read( SelectSet& fd,
+char MessageBuffer::read( int fd[2],
                             CryptoPP::GCM<CryptoPP::AES>::Decryption& dec)
 {
+    /// create the select spec
+    using namespace select_spec;
+    SelectSpec select;
+    select.gen()(fd[0], READ)
+                (fd[1], READ)
+                ( TimeVal(2,0) );
+
     unsigned char header[2];        //< header bytes
     unsigned int  size          =2; //< size of the read
     int           received;         //< result of recv
@@ -527,11 +549,11 @@ char MessageBuffer::read( SelectSet& fd,
 
         // wait for data (do it in a loop because wait may timeout)
         std::cout << "Waiting for header" << std::endl;
-        while( fd.wait() == 0 );
+        while( select.wait() == 0 );
 
         // if we were signalled by anything other than data ready, then
         // just bail
-        if( !fd(0) )
+        if( !select.ready(fd[0],READ) )
             ex()() << "Signaled by something other than data, quitting";
     }
 
@@ -575,10 +597,10 @@ char MessageBuffer::read( SelectSet& fd,
 
         // wait for data
         std::cout << "Waiting for the rest of the message" << std::endl;
-        while( fd.wait() == 0 );
+        while( select.wait() == 0 );
 
         // if we were signalled by something other than data, then bail
-        if( !fd(0) )
+        if( !select.ready(fd[0],READ) )
             ex()() << "Signalled by something other than data while waiting for "
                       "the rest of the message";
     }
@@ -611,10 +633,17 @@ char MessageBuffer::read( SelectSet& fd,
     return type;
 }
 
-void MessageBuffer::write( SelectSet&fd, char type,
+void MessageBuffer::write( int fd[2], char type,
                             CryptoPP::GCM<CryptoPP::AES>::Encryption& enc )
 {
     namespace io = google::protobuf::io;
+
+    /// create the select spec
+    using namespace select_spec;
+    SelectSpec select;
+    select.gen()(fd[0], WRITE)
+                (fd[1], READ)
+                ( TimeVal(2,0) );
 
     unsigned int  msgSize  = m_msgs[type]->ByteSize();
     unsigned int  typeSize = 1;
@@ -686,10 +715,10 @@ void MessageBuffer::write( SelectSet&fd, char type,
                    << " : " << strerror(errno);
 
         // wait for buffer to free up
-        while( fd.wait() == 0 );
+        while( select.wait() == 0 );
 
         // verify that we didn't wake up by some other signal
-        if( !fd(0) )
+        if( !select.ready(fd[0],WRITE) )
             ex()() << "Signalled by something other than buffer freeing "
                       "up, bailing";
     }

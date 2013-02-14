@@ -37,6 +37,7 @@
 #include <crypto++/gcm.h>
 
 #include "RequestHandler.h"
+#include "SelectSpec.h"
 #include "messages.h"
 #include "messages.pb.h"
 
@@ -144,12 +145,6 @@ void RequestHandler::handshake( int sockfd, int termfd )
         m_fd[0] = sockfd;
         m_fd[1] = termfd;
 
-        for(int i=0; i < 2; i++)
-            m_fd[i] << SelectSet::READ;
-
-        m_fd.setTimeout(5,0);
-        m_fd.init();
-
         Attr<Thread> attr;
         attr.init();
         attr << DETACHED;
@@ -214,7 +209,7 @@ void* RequestHandler::handshake()
     dhParams->set_q(qStr);
     dhParams->set_g(gStr);
 
-    std::cout << "Sending DH_PARAMS message " << std::endl;
+    std::cout << "Sending DH_PARAMS message " << std::dec << std::endl;
     m_msg.write(m_fd, MSG_DH_PARAMS);
 
     // the client must respond with a key exchange
@@ -247,7 +242,8 @@ void* RequestHandler::handshake()
     Integer sharedOut;
     sharedOut.Decode(shared.BytePtr(),shared.SizeInBytes() );
     std::cout << "Shared secret (client): "
-              << "\n   shared: " << std::hex << sharedOut << std::endl;
+              << "\n   shared: " << std::hex << sharedOut
+              << std::dec << std::endl;
 
     // use shared secret to generate real keys
     // Take the leftmost 'n' bits for the KEK

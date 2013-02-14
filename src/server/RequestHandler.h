@@ -46,7 +46,6 @@
 #include "ExceptionStream.h"
 #include "MessageBuffer.h"
 #include "Pool.h"
-#include "SelectSet.h"
 #include "Server.h"
 
 
@@ -81,7 +80,7 @@ class RequestHandler
         pthreads::Thread    m_thread;           ///< the thread we're running in
         pthreads::Mutex     m_mutex;            ///< locks this data
         MessageBuffer       m_msg;              ///< message buffer
-        SelectSet           m_fd;               ///< socket and terminal fd
+        int                 m_fd[2];            ///< socket and terminal fd
 
         // Diffie-Hellman Paramters
         CryptoPP::Integer   p,q,g;

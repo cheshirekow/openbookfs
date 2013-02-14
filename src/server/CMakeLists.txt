@@ -50,7 +50,6 @@ if( (Boost_FOUND)
                     ../MessageBuffer.cpp
                     ../NotifyPipe.cpp
                     ../SelectSpec.cpp
-                    ../SelectSet.cpp
                     ../TimeVal.cpp
                     ${MESSAGES_PB_CC}
                              )

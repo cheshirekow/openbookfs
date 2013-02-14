@@ -100,8 +100,9 @@ if( (Boost_FOUND)
                     ../messages.cpp
                     ../MessageBuffer.cpp
                     ../FdSet.cpp
-                    ../SelectSet.cpp
+                    ../SelectSpec.cpp
                     ../NotifyPipe.cpp
+                    ../TimeVal.cpp                    
                     protocol_test.cpp
                     ${MESSAGES_PB_CC}
                              )
