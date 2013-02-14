@@ -89,7 +89,29 @@ class RequestHandler
         CryptoPP::SecByteBlock          m_iv;     ///< initial vector
         CryptoPP::AutoSeededRandomPool  m_rng;    ///< random number gen
 
+        /// closes the socket and returns the handler to the available pool
         void cleanup();
+
+        /// initialize Diffie Hellman paramters (takes a while and blocks)
+        /**
+         *  @note After initialization, @p this is inserted into the
+         *        available pool
+         */
+        void* initDH();
+
+        /// performs handshake protocol
+        /**
+         *  @note After handshake, @p this is mapped to it's client in the
+         *        Server object
+         */
+        void* handshake();
+
+        /// static method for pthreads, calls initDH()
+        static void* dispatch_initDH( void* vp_h );
+
+        /// static method for pthreads, calls handshake
+        static void* dispatch_handshake( void* vp_h );
+
 
     public:
         RequestHandler();
@@ -99,17 +121,11 @@ class RequestHandler
         /// detached thread
         void init( Pool_t*, Server* );
 
-        /// initialize Diffie Hellman paramters (takes a while and blocks)
-        void* initDH();
+        /// sec the client socket and start the handler interfacing with the
+        /// client in a detached thread
+        void handshake( int sockfd, int termfd );
 
-        /// performs handshake protocol
-        void* handshake();
 
-        /// performs main loop, dispatching messages
-        void* mainloop();
-
-        /// start the handler interfacing with the client on the socket
-        void start( int sockfd, int termfd );
 
 };
 

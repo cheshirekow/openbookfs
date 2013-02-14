@@ -44,26 +44,17 @@ namespace   openbook {
 namespace filesystem {
 
 
-extern "C"
+// calls RequestHandler::init
+void* RequestHandler::dispatch_initDH( void* vp_handler )
 {
-    // calls RequestHandler::init
-    void* request_handler_initDH( void* vp_handler )
-    {
-        RequestHandler* h = static_cast<RequestHandler*>(vp_handler);
-        return h->initDH();
-    }
+    RequestHandler* h = static_cast<RequestHandler*>(vp_handler);
+    return h->initDH();
+}
 
-    void* request_handler_handshake( void* vp_handler )
-    {
-        RequestHandler* h = static_cast<RequestHandler*>(vp_handler);
-        return h->handshake();
-    }
-
-    void* request_handler_mainloop( void* vp_handler )
-    {
-        RequestHandler* h = static_cast<RequestHandler*>(vp_handler);
-        return h->mainloop();
-    }
+void* RequestHandler::dispatch_handshake( void* vp_handler )
+{
+    RequestHandler* h = static_cast<RequestHandler*>(vp_handler);
+    return h->handshake();
 }
 
 
@@ -112,7 +103,7 @@ void RequestHandler::init(Pool_t* pool, Server* server)
     Attr<Thread> attr;
     attr.init();
     attr << DETACHED;
-    int result = m_thread.launch(attr,request_handler_initDH,this);
+    int result = m_thread.launch(attr,dispatch_initDH,this);
     attr.destroy();
 
     if( result )
@@ -145,7 +136,7 @@ void* RequestHandler::initDH()
 }
 
 
-void RequestHandler::start( int sockfd, int termfd )
+void RequestHandler::handshake( int sockfd, int termfd )
 {
     // lock scope
     {
@@ -159,7 +150,7 @@ void RequestHandler::start( int sockfd, int termfd )
         Attr<Thread> attr;
         attr.init();
         attr << DETACHED;
-        int result = m_thread.launch(attr,request_handler_handshake,this);
+        int result = m_thread.launch(attr,dispatch_handshake,this);
         attr.destroy();
 
         if( result )
@@ -479,31 +470,6 @@ void* RequestHandler::handshake()
 
     return 0;
 }
-
-void* RequestHandler::mainloop()
-{
-    namespace msgs = messages;
-    using namespace pthreads;
-    ScopedLock lock(m_mutex);
-    try
-    {
-
-    while(1)
-    {
-        ex()() << "Exiting loop";
-    }
-
-    }
-    catch ( std::exception& ex )
-    {
-        std::cerr << ex.what() << std::endl;
-        cleanup();
-        return 0;
-    }
-
-    return 0;
-}
-
 
 
 

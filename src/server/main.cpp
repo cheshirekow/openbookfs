@@ -326,7 +326,7 @@ int main(int argc, char** argv)
             RequestHandler* handler = handlerPool.getAvailable();
 
             if(handler)
-                handler->start(clientsock, termNote.readFd());
+                handler->handshake(clientsock, termNote.readFd());
             else
             {
                 std::cout << "no available handlers, terminating connection"
