@@ -78,6 +78,8 @@ class RequestHandler
         Pool_t*             m_pool;             ///< pool to which this belongs
         Server*             m_server;           ///< server configuration
         pthreads::Thread    m_thread;           ///< the thread we're running in
+        pthreads::Thread    m_listenThread;     ///< child thread for listening
+        pthreads::Thread    m_shoutThread;      ///< child thread for shouting
         pthreads::Mutex     m_mutex;            ///< locks this data
         MessageBuffer       m_msg;              ///< message buffer
         int                 m_fd[2];            ///< socket and terminal fd
@@ -105,11 +107,25 @@ class RequestHandler
          */
         void* handshake();
 
+        /// listens for job messages from the client and adds them to the
+        /// job queue
+        void* listen();
+
+        /// waits for jobs to complete and sends job completion messages back
+        /// to the client
+        void* shout();
+
         /// static method for pthreads, calls initDH()
         static void* dispatch_initDH( void* vp_h );
 
-        /// static method for pthreads, calls handshake
+        /// static method for pthreads, calls handshake()
         static void* dispatch_handshake( void* vp_h );
+
+        /// static method for pthreads, calls listen()
+        static void* dispatch_listen( void* vp_h );
+
+        /// static method for pthreads, calls shout()
+        static void* dispatch_shout( void* vp_h );
 
 
     public:
