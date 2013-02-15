@@ -61,6 +61,12 @@ message AuthResult {
 }
 
 
+// job finished ack
+message JobFinished {
+    optional int32  job_id =1;  // id of the job that was finished
+}
+
+
 
 
 

@@ -25,14 +25,19 @@
  */
 
 
-
 #include "Job.h"
+#include "ClientHandler.h"
 
 namespace   openbook {
 namespace filesystem {
 
-Job::Job( unsigned int id, ClientHandler* handler ):
+Job::Job( JobClass derived,
+            unsigned int id,
+            unsigned int version,
+            ClientHandler* handler ):
+    m_derived(derived),
     m_id(id),
+    m_clientVersion(version),
     m_handler(handler)
 {}
 
@@ -42,6 +47,20 @@ void Job::finish()
     /// m_handler->jobFinished(this);
 }
 
+unsigned int Job::id() const
+{
+    return m_id;
+}
+
+unsigned int Job::version() const
+{
+    return m_clientVersion;
+}
+
+JobClass Job::derived() const
+{
+    return m_derived;
+}
 
 
 } // namespace filesystem

@@ -24,6 +24,7 @@ if( (Boost_FOUND)
         ${Tclap_INCLUDE_DIR}
         ${Crypto++_INCLUDE_DIR}
         ${YAMLCPP_INCLUDE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}
         )
     
     

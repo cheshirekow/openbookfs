@@ -17,42 +17,35 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/messages.h
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/server/jobs.h
  *
- *  @date   Feb 8, 2013
+ *  @date   Feb 15, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_MESSAGES_H_
-#define OPENBOOK_MESSAGES_H_
+#ifndef OPENBOOK_JOBS_H_
+#define OPENBOOK_JOBS_H_
 
-#include "messages.pb.h"
+
 
 namespace   openbook {
 namespace filesystem {
+namespace       jobs {
 
-enum MessageId
+enum JobClass
 {
-    MSG_DH_PARAMS=0,
-    MSG_KEY_EXCHANGE,
-    MSG_CEK,
-    MSG_AUTH_REQ,
-    MSG_AUTH_CHALLENGE,
-    MSG_AUTH_SOLN,
-    MSG_AUTH_RESULT,
-    MSG_JOB_FINISHED,
-    NUM_MSG
+    QUIT_SHOUTER=0, ///< special job telling shouter to quit
 };
 
 
-const char* messageIdToString( char id );
+} // namespace jobs
 
-
+typedef jobs::JobClass JobClass;
 
 } // namespace filesystem
 } // namespace openbook
 
 
 
-#endif // MESSAGES_H_
+#endif // JOBS_H_

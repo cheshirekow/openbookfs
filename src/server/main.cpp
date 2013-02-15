@@ -48,8 +48,9 @@
 #include <crypto++/rng.h>
 
 #include "global.h"
+#include "Job.h"
 #include "Pool.h"
-#include "Bytes.h"
+#include "Queue.h"
 #include "ClientHandler.h"
 #include "NotifyPipe.h"
 #include "Server.h"
@@ -276,6 +277,9 @@ int main(int argc, char** argv)
     /// handlers available for new client connections
     ClientHandler::Pool_t      handlerPool(nH);
 
+    /// job queue
+    Queue<Job*>  jobQueue(100);
+
     /// allows us to store the client handler pointer in thread specific
     /// storage
     g_handlerKey.create();
@@ -283,11 +287,10 @@ int main(int argc, char** argv)
     /// handler objects
     ClientHandler* handlers = new ClientHandler[nH];
     for(int i=0; i < nH; i++)
-        handlers[i].init(&handlerPool,&server);
+        handlers[i].init(&handlerPool,&server,&jobQueue);
 
     // for waiting until things happen
     SelectSpec selectMe;
-
     {
         using namespace select_spec;
         selectMe.gen()( termNote.readFd(), READ )
@@ -380,7 +383,11 @@ int main(int argc, char** argv)
 
     // wait until the handler pool is full
     while( handlerPool.size() < nH )
-        sleep(1);
+    {
+        std::cout << "Waiting for " << nH - handlerPool.size()
+                  << " more threads to finish " << std::endl;
+        sleep(5);
+    }
 
     std::cout << "All threads have come home, quitting" << std::endl;
     g_handlerKey.destroy();

@@ -27,22 +27,30 @@
 #ifndef OPENBOOK_JOB_H_
 #define OPENBOOK_JOB_H_
 
-#include "ClientHandler.h"
+#include "jobs.h"
 
 namespace   openbook {
 namespace filesystem {
+
+class ClientHandler;
 
 /// base class for jobs
 class Job
 {
     protected:
-        unsigned int   m_id;        ///< client specific job id
+        JobClass       m_derived;       ///< enum specifying derived class
+        unsigned int   m_id;            ///< client specific job id
+        unsigned int   m_clientVersion; ///< the version of the client when
+                                        ///  they created the job
         ClientHandler* m_handler;   ///< client who sent the job
 
     public:
         /// simply sets the client handler so we know who to report to
         /// when the job is done
-        Job( unsigned int id, ClientHandler* handler );
+        Job( JobClass derived,
+                unsigned int id,
+                unsigned int version,
+                ClientHandler* handler );
 
         /// jobs have a v-table
         virtual ~Job(){}
@@ -53,6 +61,15 @@ class Job
 
         /// returns the job to the client's queue of finished jobs
         void finish();
+
+        /// returns the job-id
+        unsigned int id() const;
+
+        /// return the client version
+        unsigned int version() const;
+
+        /// return the derived class
+        JobClass derived() const;
 
 };
 

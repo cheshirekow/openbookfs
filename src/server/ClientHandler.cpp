@@ -38,10 +38,12 @@
 #include <crypto++/gcm.h>
 
 #include "global.h"
+#include "jobs.h"
 #include "ClientHandler.h"
 #include "SelectSpec.h"
 #include "messages.h"
 #include "messages.pb.h"
+#include "jobs/QuitShouter.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -87,11 +89,13 @@ ClientHandler::~ClientHandler()
 }
 
 void ClientHandler::init(
-        Pool_t* pool, Server* server)
+        Pool_t* pool, Server* server, JobQueue_t* jobQueue )
 {
     using namespace pthreads;
-    m_pool   = pool;
-    m_server = server;
+    m_pool    = pool;
+    m_server  = server;
+    m_newJobs = jobQueue;
+    m_version = 0;
 
     std::cout << "Initializing handler " << (void*)this << std::endl;
     ScopedLock lock(m_mutex);
@@ -156,6 +160,19 @@ void ClientHandler::handleClient( int sockfd, int termfd )
     }
 }
 
+void ClientHandler::jobFinished(Job* job)
+{
+    // lock the handler so we know for a fact that the handler is in fact
+    // running or not
+    pthreads::ScopedLock(m_mutex);
+
+    // first check to see if the client has died during the job
+    if( job->version() == m_version )
+        delete job;
+    else
+        m_finishedJobs.insert(job);
+}
+
 
 
 void* ClientHandler::main()
@@ -168,11 +185,10 @@ void* ClientHandler::main()
 
     try
     {
-        handshake();
-
         // lock scope
         {
             pthreads::ScopedLock(m_mutex);
+            handshake();
             std::cout << "handler " << (void*)this
                       << " launching listen thread\n";
             m_listenThread.launch( dispatch_listen, this );
@@ -180,14 +196,6 @@ void* ClientHandler::main()
             std::cout << "handler " << (void*)this
                       << " launching shout thread\n";
             m_shoutThread.launch( dispatch_shout, this );
-
-            m_listenThread.join();
-            std::cout << "handler " << (void*)this
-                      << " listen thread quit\n";
-
-            m_shoutThread.join();
-            std::cout << "handler " << (void*)this
-                      << " shout thread quit\n";
         }
     }
     catch( std::exception& ex )
@@ -196,7 +204,17 @@ void* ClientHandler::main()
                   << ex.what();
     }
 
-    // now we do our cleanup
+    // now we do our cleanup, but first lock the object so that no one tries
+    // to modify us while we're doing this
+    pthreads::ScopedLock(m_mutex);
+
+    m_listenThread.join();
+    std::cout << "handler " << (void*)this
+              << " listen thread quit\n";
+
+    m_shoutThread.join();
+    std::cout << "handler " << (void*)this
+              << " shout thread quit\n";
 
     // close the file descriptor
     close(m_fd[0]);
@@ -215,8 +233,21 @@ void* ClientHandler::main()
     std::cout << "Handler " << (void*) this
               << " finished re-generating DH and returning to pool\n";
 
-    // remove ourselves from the active set, and put ourselves back int the
-    // available pool
+    // clear out the finished queue
+    Job* job=0;
+    while( !m_finishedJobs.empty() )
+    {
+        std::cout << "Handler " << (void*) this
+              << " removing unacked finished jobs\n";
+        m_finishedJobs.extract(job);
+        delete job;
+    }
+
+    // increment the version count so any jobs that finish after we die
+    // don't go into the queue
+    m_version++;
+
+    // put ourselves back int the available pool
     m_pool->reassign(this);
     std::cout.flush();
     return 0;
@@ -227,7 +258,6 @@ void ClientHandler::handshake()
 {
     namespace msgs = messages;
     using namespace pthreads;
-    ScopedLock lock(m_mutex);
 
     int received = 0;
 
@@ -520,21 +550,101 @@ void ClientHandler::handshake()
 
 void* ClientHandler::listen()
 {
+    using namespace CryptoPP;
     std::cout << "Starting client listener for handler" << (void*)this
               << " in thread "
               << pthreads::Thread::self().c_obj() << "\n";
-    sleep(10);
-    std::cout << "Handler " << (void*)this << " listener not implemented\n";
+
+    try
+    {
+        GCM<AES>::Decryption dec;
+        dec.SetKeyWithIV(m_cek.BytePtr(), m_cek.SizeInBytes(),
+                         m_iv.BytePtr(),  m_iv.SizeInBytes());
+
+        // infinite loop until exception is thrown
+        while(1)
+        {
+            // read one message from client, exception thrown on disconnect
+            // or termination signal
+            char type = m_msg.read(m_fd,dec);
+            dec.Resynchronize(m_iv.BytePtr(),m_iv.SizeInBytes());
+
+            // generate a job from the message
+            Job* job = 0;
+
+            switch(type)
+            {
+                default:
+                    std::cerr << "Handler " << (void*)this << " : "
+                              << "Dont know what to do with a job request of "
+                              << "message type (" << (int)type << ") : "
+                              << messageIdToString(type) << std::endl;
+                    break;
+            }
+
+            // put the job in the global queue, will block until queue has
+            // capacity
+            if(job)
+                m_newJobs->insert(job);
+        }
+    }
+    catch( std::exception& ex )
+    {
+        std::cout << "Handler " << (void*)this
+                  << " listener is terminating on exception: "
+                  << ex.what() << std::endl;
+    }
+
+    // put a dummy job into the queue so that the shouter can quit
+    m_finishedJobs.insert( new jobs::QuitShouter(m_version,this) );
+
     return 0;
 }
 
 void* ClientHandler::shout()
 {
+    using namespace CryptoPP;
     std::cout << "Starting client shouter for handler" << (void*)this
               << " in thread "
               << pthreads::Thread::self().c_obj() << "\n";
-    sleep(10);
-    std::cout << "Handler " << (void*)this << " shouter not implemented\n";
+
+    try
+    {
+        GCM<AES>::Encryption enc;
+        enc.SetKeyWithIV(m_cek.BytePtr(), m_cek.SizeInBytes(),
+                          m_iv.BytePtr(),  m_iv.SizeInBytes());
+        Job* job = 0;
+
+        while(1)
+        {
+            // wait for a job to be finished from the queue
+            m_finishedJobs.extract(job);
+
+            // if the job is a "quit shouter" job then we just delete it
+            // and break;
+            if( job->derived() == jobs::QUIT_SHOUTER )
+            {
+                delete job;
+                ex()() << "received QUIT_SHOUTER job";
+            }
+
+            // create a "job finished message", and fill it with the details
+            messages::JobFinished* message =
+                    static_cast<messages::JobFinished*>(m_msg[MSG_JOB_FINISHED]);
+            message->set_job_id(job->id());
+
+            // send the message
+            m_msg.write(m_fd,MSG_JOB_FINISHED,enc);
+            enc.Resynchronize(m_iv.BytePtr(),m_iv.SizeInBytes());
+        }
+    }
+    catch( std::exception& ex )
+    {
+        std::cout << "Handler " << (void*)this
+                  << " shouter is terminating on exception: "
+                  << ex.what() << std::endl;
+    }
+
     return 0;
 }
 

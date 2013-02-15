@@ -45,9 +45,12 @@
 #include <crypto++/dh.h>
 #include <crypto++/dh2.h>
 
+#include "jobs.h"
 #include "ExceptionStream.h"
 #include "MessageBuffer.h"
+#include "Job.h"
 #include "Pool.h"
+#include "Queue.h"
 #include "Server.h"
 #include "Synchronized.h"
 
@@ -73,12 +76,16 @@ class ClientHandler
 {
     public:
         typedef ExceptionStream<ClientException> ex;
-        typedef Pool<ClientHandler>                         Pool_t;
+        typedef Pool<ClientHandler>              Pool_t;
+        typedef Queue<Job*>                      JobQueue_t;
 
     private:
         static const unsigned int sm_bufsize = 256;
 
+        unsigned int        m_version;          ///< incremented on reuse
         Pool_t*             m_pool;             ///< pool to which this belongs
+        JobQueue_t*         m_newJobs;          ///< global job queue
+        JobQueue_t          m_finishedJobs;     ///< finished jobs
         Server*             m_server;           ///< server configuration
         pthreads::Thread    m_thread;           ///< the thread we're running in
 
@@ -136,11 +143,14 @@ class ClientHandler
 
         /// set the parent pointer and start DH parameter generation in
         /// detached thread
-        void init( Pool_t*, Server* );
+        void init( Pool_t*, Server*, JobQueue_t* );
 
         /// sec the client socket and start the handler interfacing with the
         /// client in a detached thread
         void handleClient( int sockfd, int termfd );
+
+        /// called by a job thread when a job finishes
+        void jobFinished(Job*);
 
 
 

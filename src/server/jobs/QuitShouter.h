@@ -17,42 +17,44 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/messages.h
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/server/jobs/QuitShouter.h
  *
- *  @date   Feb 8, 2013
+ *  @date   Feb 15, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_MESSAGES_H_
-#define OPENBOOK_MESSAGES_H_
+#ifndef OPENBOOK_QUITSHOUTER_H_
+#define OPENBOOK_QUITSHOUTER_H_
 
-#include "messages.pb.h"
+#include "jobs.h"
+#include "Job.h"
 
 namespace   openbook {
 namespace filesystem {
 
-enum MessageId
+class ClientHandler;
+
+namespace       jobs {
+
+class QuitShouter:
+    public Job
 {
-    MSG_DH_PARAMS=0,
-    MSG_KEY_EXCHANGE,
-    MSG_CEK,
-    MSG_AUTH_REQ,
-    MSG_AUTH_CHALLENGE,
-    MSG_AUTH_SOLN,
-    MSG_AUTH_RESULT,
-    MSG_JOB_FINISHED,
-    NUM_MSG
+    public:
+        QuitShouter(unsigned int version, ClientHandler* handler):
+            Job(QUIT_SHOUTER,0,version,handler)
+        {}
+
+        virtual void doJob(){}
 };
 
-
-const char* messageIdToString( char id );
-
-
-
+} // namespace jobs
 } // namespace filesystem
 } // namespace openbook
 
 
 
-#endif // MESSAGES_H_
+
+
+
+#endif // QUITSHOUTER_H_

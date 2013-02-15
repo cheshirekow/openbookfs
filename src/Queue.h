@@ -196,7 +196,7 @@ class Queue
         }
 
         /// insert an element into the queue
-        void insert( T& data )
+        void insert( T data )
         {
             // lock the queue during this call
             pthreads::ScopedLock lock(m_mutex);
@@ -275,6 +275,14 @@ class Queue
             // into the queue, then release them
             m_notFull.signal();
         }
+
+        /// returns true if the queue is empty
+        bool empty()
+        {
+            pthreads::ScopedLock lock(m_mutex);
+            return m_first==0;
+        }
+
 
 
 
