@@ -111,8 +111,10 @@ class Queue
 
     private:
         pthreads::Mutex         m_mutex;    ///< locks the queue
-        pthreads::Condition     m_new;      ///< signals a new item added to
+        pthreads::Condition     m_notEmpty; ///< signals a new item added to
                                             ///  the queue
+        pthreads::Condition     m_notFull;  ///< signals that the queue has
+                                            ///  availabile capacity
 
         Node_t*  m_memblock;    ///< block to deallocate when destroyed
         Node_t*  m_firstFree;   ///< first unusued node
@@ -165,7 +167,8 @@ class Queue
         Queue( unsigned int size=100 )
         {
             m_mutex.init();
-            m_new.init();
+            m_notEmpty.init();
+            m_notFull.init();
 
             // allocate storage
             m_memblock = new Node_t[size];
@@ -187,7 +190,8 @@ class Queue
         ~Queue()
         {
             m_mutex.destroy();
-            m_new.destroy();
+            m_notEmpty.destroy();
+            m_notFull.destroy();
             delete [] m_memblock;
         }
 
@@ -200,8 +204,21 @@ class Queue
             // first get a free node structure
             Node_t* node = alloc();
 
+            // if there is no free node available then we wait for capacity
+            // to be restored
             if(!node)
-                ex()() << "Attempt to insert element into full queue";
+            {
+                // when we enter the wait we release the mutex, so someone
+                // else may put something into the queue... when we return
+                // from the wait we own the mutex again so we cannot be
+                // pre-empted
+                m_notFull.wait(m_mutex);
+                node = alloc();
+            }
+
+            if(!node)
+                ex()() << "No available free nodes after being signalled "
+                          "in a wait";
 
             // set the data
             node->data = data;
@@ -216,7 +233,7 @@ class Queue
             // if there is any thread waiting for new data then signal that
             // thread, note that we still own the mutex until after this
             // call finishes so there is no contention for the queue
-            m_new.signal();
+            m_notEmpty.signal();
         }
 
         /// extract one element from the queue
@@ -235,7 +252,7 @@ class Queue
                 // again so we can safely assume that there is an item
                 // available and that we own the mutex so no one else will
                 // be able to take it before we do
-                m_new.wait(m_mutex);
+                m_notEmpty.wait(m_mutex);
             }
 
             if(!m_first)
@@ -253,6 +270,10 @@ class Queue
 
             // return the node to the free chain
             free(node);
+
+            // if there are any threads waiting for capacity to insert
+            // into the queue, then release them
+            m_notFull.signal();
         }
 
 
