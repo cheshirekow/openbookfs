@@ -77,19 +77,6 @@ void signal_callback( int signum )
         {
             std::cout << "Received signal, going to terminate" << std::endl;
             g_termNote->notify();
-
-            // if this is a handler thread then retrieve the handler object
-            // and signal a kill on it's children
-            // get the handler from thread local storage
-            ClientHandler* h =
-                    static_cast<ClientHandler*>(g_handlerKey.getSpecific());
-            if( h )
-            {
-                std::cout << "SIGINT received in handler thread "
-                          << pthreads::Thread::self().c_obj() << "\n";
-                h->killChildren();
-            }
-
             break;
         }
 
@@ -393,22 +380,6 @@ int main(int argc, char** argv)
 
     // wait for all the child threads to quit
     std::cout << "Waiting for threads to terminate" << std::endl;
-
-    // iterate over all active threads and send the kill signal, because the
-    // activeHandlers set is locked while we loop over it any thread that is
-    // active will not be able to die while we're trying to kill it... if it
-    // were goint to die it would get blocked while waiting for the mutex for
-    // the activeHandlers set. Thus it is safe to send the kill signal to it
-    {
-        pthreads::ScopedLock( activeHandlers.mutex() );
-        std::set<ClientHandler*>::iterator iph;
-        for( iph = activeHandlers.subvert()->begin();
-             iph != activeHandlers.subvert()->end();
-             ++iph)
-        {
-            (*iph)->kill();
-        }
-    }
 
     // wait until the handler pool is full
     while( handlerPool.size() < nH )

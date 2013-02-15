@@ -544,17 +544,6 @@ void* ClientHandler::shout()
 }
 
 
-void ClientHandler::kill()
-{
-    m_thread.kill(SIGINT);
-}
-
-
-void ClientHandler::killChildren()
-{
-    m_listenThread.kill(SIGINT);
-    m_shoutThread.kill(SIGINT);
-}
 
 
 

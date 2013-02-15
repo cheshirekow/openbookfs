@@ -144,12 +144,6 @@ class ClientHandler
         /// client in a detached thread
         void handleClient( int sockfd, int termfd );
 
-        /// sends SIGINT to the main thread
-        void kill();
-
-        /// sends SIGINT to children
-        void killChildren();
-
 
 
 };
