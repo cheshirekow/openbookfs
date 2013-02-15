@@ -27,7 +27,7 @@
 #ifndef OPENBOOK_POOL_H_
 #define OPENBOOK_POOL_H_
 
-
+#include <vector>
 
 namespace   openbook {
 namespace filesystem {

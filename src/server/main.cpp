@@ -25,19 +25,21 @@
  */
 
 
-#include <sys/socket.h>
-#include <sys/types.h>
-#include <netdb.h>
-#include <arpa/inet.h>
+#include <iostream>
 #include <cstdlib>
 #include <cstring>
 #include <csignal>
+#include <set>
+
 #include <unistd.h>
 #include <fcntl.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
-#include <iostream>
-#include <cpp-pthreads.h>
 
+#include <cpp-pthreads.h>
 #include <boost/filesystem.hpp>
 #include <tclap/CmdLine.h>
 
@@ -51,6 +53,7 @@
 #include "NotifyPipe.h"
 #include "Server.h"
 #include "SelectSpec.h"
+#include "Synchronized.h"
 
 using namespace openbook::filesystem;
 
@@ -260,6 +263,7 @@ int main(int argc, char** argv)
     int nH = server.maxConn();
     std::cout << "Initializing handler pool (" << nH << ")" << std::endl;
     Pool<RequestHandler> handlerPool(nH);  ///< threads that are ready
+    Pool<RequestHandler> activePool(nH);
 
     /// handler objects
     RequestHandler* handlers = new RequestHandler[nH];
@@ -352,6 +356,8 @@ int main(int argc, char** argv)
     std::cout << "All threads have come home, quitting" << std::endl;
     delete [] handlers;
     close(serversock);
+
+
 }
 
 
