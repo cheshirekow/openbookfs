@@ -87,11 +87,10 @@ ClientHandler::~ClientHandler()
 }
 
 void ClientHandler::init(
-        Pool_t* pool, SyncedSet_t* active, Server* server)
+        Pool_t* pool, Server* server)
 {
     using namespace pthreads;
     m_pool   = pool;
-    m_active = active;
     m_server = server;
 
     std::cout << "Initializing handler " << (void*)this << std::endl;
@@ -167,9 +166,6 @@ void* ClientHandler::main()
     // put our pointer into thread-local storage
     g_handlerKey.setSpecific(this);
 
-    // first we insert ourselves into the set of active threads
-    m_active->lockFor()->insert(this);
-
     try
     {
         handshake();
@@ -221,7 +217,6 @@ void* ClientHandler::main()
 
     // remove ourselves from the active set, and put ourselves back int the
     // available pool
-    m_active->lockFor()->erase(this);
     m_pool->reassign(this);
     std::cout.flush();
     return 0;

@@ -276,9 +276,6 @@ int main(int argc, char** argv)
     /// handlers available for new client connections
     ClientHandler::Pool_t      handlerPool(nH);
 
-    /// handlers that are in use
-    ClientHandler::SyncedSet_t activeHandlers;
-
     /// allows us to store the client handler pointer in thread specific
     /// storage
     g_handlerKey.create();
@@ -286,7 +283,7 @@ int main(int argc, char** argv)
     /// handler objects
     ClientHandler* handlers = new ClientHandler[nH];
     for(int i=0; i < nH; i++)
-        handlers[i].init(&handlerPool,&activeHandlers,&server);
+        handlers[i].init(&handlerPool,&server);
 
     // for waiting until things happen
     SelectSpec selectMe;

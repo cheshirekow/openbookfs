@@ -44,6 +44,7 @@ if( (Boost_FOUND)
     add_executable( openbookfs_d
                     main.cpp
                     ClientHandler.cpp
+                    Job.cpp
                     Server.cpp
                     ../messages.cpp
                     ../FdSet.cpp

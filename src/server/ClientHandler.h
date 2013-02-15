@@ -74,13 +74,11 @@ class ClientHandler
     public:
         typedef ExceptionStream<ClientException> ex;
         typedef Pool<ClientHandler>                         Pool_t;
-        typedef Synchronized< std::set< ClientHandler* > >  SyncedSet_t;
 
     private:
         static const unsigned int sm_bufsize = 256;
 
         Pool_t*             m_pool;             ///< pool to which this belongs
-        SyncedSet_t*        m_active;           ///< set of active threads
         Server*             m_server;           ///< server configuration
         pthreads::Thread    m_thread;           ///< the thread we're running in
 
@@ -138,7 +136,7 @@ class ClientHandler
 
         /// set the parent pointer and start DH parameter generation in
         /// detached thread
-        void init( Pool_t*, SyncedSet_t*, Server* );
+        void init( Pool_t*, Server* );
 
         /// sec the client socket and start the handler interfacing with the
         /// client in a detached thread
