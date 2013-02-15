@@ -49,7 +49,7 @@
 
 #include "Pool.h"
 #include "Bytes.h"
-#include "RequestHandler.h"
+#include "ClientHandler.h"
 #include "NotifyPipe.h"
 #include "Server.h"
 #include "SelectSpec.h"
@@ -262,11 +262,11 @@ int main(int argc, char** argv)
     // Pool of request handlers
     int nH = server.maxConn();
     std::cout << "Initializing handler pool (" << nH << ")" << std::endl;
-    Pool<RequestHandler> handlerPool(nH);  ///< threads that are ready
-    Pool<RequestHandler> activePool(nH);
+    Pool<ClientHandler> handlerPool(nH);  ///< threads that are ready
+    Pool<ClientHandler> activePool(nH);
 
     /// handler objects
-    RequestHandler* handlers = new RequestHandler[nH];
+    ClientHandler* handlers = new ClientHandler[nH];
     for(int i=0; i < nH; i++)
         handlers[i].init(&handlerPool,&server);
 
@@ -330,7 +330,7 @@ int main(int argc, char** argv)
                       << "] port=[" << clientport << "]" << std::endl;
 
             // get a request handler
-            RequestHandler* handler = handlerPool.getAvailable();
+            ClientHandler* handler = handlerPool.getAvailable();
 
             if(handler)
                 handler->handshake(clientsock, termNote.readFd());

@@ -17,7 +17,7 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/server/RequestHandler.cpp
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/server/ClientHandler.cpp
  *
  *  @date   Feb 8, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
@@ -36,7 +36,7 @@
 #include <crypto++/modes.h>
 #include <crypto++/gcm.h>
 
-#include "RequestHandler.h"
+#include "ClientHandler.h"
 #include "SelectSpec.h"
 #include "messages.h"
 #include "messages.pb.h"
@@ -45,22 +45,22 @@ namespace   openbook {
 namespace filesystem {
 
 
-// calls RequestHandler::init
-void* RequestHandler::dispatch_initDH( void* vp_handler )
+// calls ClientHandler::init
+void* ClientHandler::dispatch_initDH( void* vp_handler )
 {
-    RequestHandler* h = static_cast<RequestHandler*>(vp_handler);
+    ClientHandler* h = static_cast<ClientHandler*>(vp_handler);
     return h->initDH();
 }
 
-void* RequestHandler::dispatch_handshake( void* vp_handler )
+void* ClientHandler::dispatch_handshake( void* vp_handler )
 {
-    RequestHandler* h = static_cast<RequestHandler*>(vp_handler);
+    ClientHandler* h = static_cast<ClientHandler*>(vp_handler);
     return h->handshake();
 }
 
 
 
-void RequestHandler::cleanup()
+void ClientHandler::cleanup()
 {
     close(m_fd[0]);
 
@@ -80,18 +80,18 @@ void RequestHandler::cleanup()
     std::cout.flush();
 }
 
-RequestHandler::RequestHandler():
+ClientHandler::ClientHandler():
     m_pool(0)
 {
     m_mutex.init();
 }
 
-RequestHandler::~RequestHandler()
+ClientHandler::~ClientHandler()
 {
     m_mutex.destroy();
 }
 
-void RequestHandler::init(Pool_t* pool, Server* server)
+void ClientHandler::init(Pool_t* pool, Server* server)
 {
     using namespace pthreads;
     m_pool   = pool;
@@ -114,7 +114,7 @@ void RequestHandler::init(Pool_t* pool, Server* server)
     }
 }
 
-void* RequestHandler::initDH()
+void* ClientHandler::initDH()
 {
     pthreads::ScopedLock lock(m_mutex);
     std::cout << "Handler " << (void*) this
@@ -136,7 +136,7 @@ void* RequestHandler::initDH()
 }
 
 
-void RequestHandler::handshake( int sockfd, int termfd )
+void ClientHandler::handshake( int sockfd, int termfd )
 {
     // lock scope
     {
@@ -162,7 +162,7 @@ void RequestHandler::handshake( int sockfd, int termfd )
 
 
 
-void* RequestHandler::handshake()
+void* ClientHandler::handshake()
 {
     namespace msgs = messages;
     using namespace pthreads;

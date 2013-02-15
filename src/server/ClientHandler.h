@@ -17,7 +17,7 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/server/RequestHandler.h
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/server/ClientHandler.h
  *
  *  @date   Feb 8, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
@@ -53,26 +53,26 @@ namespace   openbook {
 namespace filesystem {
 
 
-class RequestException :
+class ClientException :
     public std::runtime_error
 {
     public:
-        RequestException( const std::string& msg ) throw():
+        ClientException( const std::string& msg ) throw():
             std::runtime_error(msg)
         {}
 
-        virtual ~RequestException() throw(){}
+        virtual ~ClientException() throw(){}
 };
 
 
 
-class RequestHandler
+class ClientHandler
 {
     public:
-        typedef ExceptionStream<RequestException> ex;
+        typedef ExceptionStream<ClientException> ex;
 
     private:
-        typedef Pool<RequestHandler>    Pool_t;
+        typedef Pool<ClientHandler>    Pool_t;
         static const unsigned int sm_bufsize = 256;
 
         Pool_t*             m_pool;             ///< pool to which this belongs
@@ -129,8 +129,8 @@ class RequestHandler
 
 
     public:
-        RequestHandler();
-        ~RequestHandler();
+        ClientHandler();
+        ~ClientHandler();
 
         /// set the parent pointer and start DH parameter generation in
         /// detached thread
