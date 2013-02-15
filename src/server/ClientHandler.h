@@ -100,12 +100,12 @@ class ClientHandler
          */
         void* initDH();
 
+        /// main method of the client handler, performs handshake and then
+        /// launches listener and shouter
+        void* main();
+
         /// performs handshake protocol
-        /**
-         *  @note After handshake, @p this is mapped to it's client in the
-         *        Server object
-         */
-        void* handshake();
+        void handshake();
 
         /// listens for job messages from the client and adds them to the
         /// job queue
@@ -119,7 +119,7 @@ class ClientHandler
         static void* dispatch_initDH( void* vp_h );
 
         /// static method for pthreads, calls handshake()
-        static void* dispatch_handshake( void* vp_h );
+        static void* dispatch_main( void* vp_h );
 
         /// static method for pthreads, calls listen()
         static void* dispatch_listen( void* vp_h );
@@ -138,7 +138,7 @@ class ClientHandler
 
         /// sec the client socket and start the handler interfacing with the
         /// client in a detached thread
-        void handshake( int sockfd, int termfd );
+        void handleClient( int sockfd, int termfd );
 
 
 

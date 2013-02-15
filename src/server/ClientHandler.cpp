@@ -52,10 +52,22 @@ void* ClientHandler::dispatch_initDH( void* vp_handler )
     return h->initDH();
 }
 
-void* ClientHandler::dispatch_handshake( void* vp_handler )
+void* ClientHandler::dispatch_main( void* vp_handler )
 {
     ClientHandler* h = static_cast<ClientHandler*>(vp_handler);
-    return h->handshake();
+    return h->main();
+}
+
+void* ClientHandler::dispatch_listen( void* vp_handler )
+{
+    ClientHandler* h = static_cast<ClientHandler*>(vp_handler);
+    return h->listen();
+}
+
+void* ClientHandler::dispatch_shout( void* vp_handler )
+{
+    ClientHandler* h = static_cast<ClientHandler*>(vp_handler);
+    return h->shout();
 }
 
 
@@ -136,7 +148,7 @@ void* ClientHandler::initDH()
 }
 
 
-void ClientHandler::handshake( int sockfd, int termfd )
+void ClientHandler::handleClient( int sockfd, int termfd )
 {
     // lock scope
     {
@@ -148,7 +160,7 @@ void ClientHandler::handshake( int sockfd, int termfd )
         Attr<Thread> attr;
         attr.init();
         attr << DETACHED;
-        int result = m_thread.launch(attr,dispatch_handshake,this);
+        int result = m_thread.launch(attr,dispatch_main,this);
         attr.destroy();
 
         if( result )
@@ -162,7 +174,34 @@ void ClientHandler::handshake( int sockfd, int termfd )
 
 
 
-void* ClientHandler::handshake()
+void* ClientHandler::main()
+{
+    try
+    {
+        handshake();
+
+        std::cout << "handler " << (void*)this << " launching listen thread\n";
+        m_listenThread.launch( dispatch_listen, this );
+        std::cout << "handler " << (void*)this << " launching shout thread\n";
+        m_shoutThread.launch( dispatch_shout, this );
+
+        m_listenThread.join();
+        std::cout << "handler " << (void*)this << " listen thread quit\n";
+        m_shoutThread.join();
+        std::cout << "handler " << (void*)this << " shout thread quit\n";
+    }
+    catch( std::exception& ex )
+    {
+        std::cerr << "Exception in handler " << (void*)this << " main():\n   "
+                  << ex.what();
+    }
+
+    cleanup();
+    return 0;
+}
+
+
+void ClientHandler::handshake()
 {
     namespace msgs = messages;
     using namespace pthreads;
@@ -173,9 +212,6 @@ void* ClientHandler::handshake()
     //create message buffers
     std::cerr << "handler " << (void*) this << " is starting up"
               << std::endl;
-
-    try
-    {
 
     using namespace CryptoPP;
 
@@ -458,22 +494,19 @@ void* ClientHandler::handshake()
 
     // otherwise, authed
     std::cout << "Client is authorized" << std::endl;
-    ex()() << "The rest of the protocol is unimplemented" << std::endl;
+}
 
-    }
-    catch ( std::exception& ex )
-    {
-        std::cerr << ex.what() << std::endl;
-        cleanup();
-    }
-
+void* ClientHandler::listen()
+{
+    std::cout << "Handler " << (void*)this << " listener not implemented\n";
     return 0;
 }
 
-
-
-
-
+void* ClientHandler::shout()
+{
+    std::cout << "Handler " << (void*)this << " shouter not implemented\n";
+    return 0;
+}
 
 
 

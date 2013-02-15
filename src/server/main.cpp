@@ -333,7 +333,7 @@ int main(int argc, char** argv)
             ClientHandler* handler = handlerPool.getAvailable();
 
             if(handler)
-                handler->handshake(clientsock, termNote.readFd());
+                handler->handleClient(clientsock, termNote.readFd());
             else
             {
                 std::cout << "no available handlers, terminating connection"
