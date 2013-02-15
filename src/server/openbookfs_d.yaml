@@ -59,13 +59,13 @@ port : 3031
 # that are allowed. Note that this is not the same as the maximum number of
 # clients because each client may be configured to use multiple connections. 
 # For instance if maxConn is set to 20, it will be able to server no more than
-# four clients if each client keeps 5 connections
+# four clients if each client keeps 5 connections. However, in the current
+# implementation there is one client per mount-point... so if you only mount
+# to one directory it will only use one client slot on the server
 maxConn : 10
 
-# Size of the client pool. This is the maximum number of clients that are 
-# allowed to connect to the server. 
-maxClients : 5
+# Size of the worker pool. The worker pool does work. Work is usually rather
+# short so this doesn't have to be too large.
+maxWorkers : 20
 
-# Maximum number of connections per client. A client will not be allowed to
-# open more than this many active connections
-maxConnPerClient: 4
+

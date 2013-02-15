@@ -63,12 +63,9 @@ struct Server
         std::string  m_password; ///< for authorizing clients
         std::string  m_addressFamily;   ///< address family of iface
         std::string  m_iface;           ///< which interface to bind
-        std::string  m_port;     ///< which port to listen on
-        int          m_maxConn;  ///< number of connections to accept
-        int          m_maxClient;           ///< maximum number of clients
-        int          m_maxConnPerClient;    ///< maximum number of connections
-                                            ///  per client
-
+        std::string  m_port;        ///< which port to listen on
+        int          m_maxConn;     ///< number of connections to accept
+        int          m_maxWorkers;  ///< number of worker threads to run
 
     public:
         Server();
@@ -86,7 +83,9 @@ struct Server
         const std::string& addressFamily()  const{ return m_addressFamily; }
         const std::string& iface()          const{ return m_iface;         }
         const std::string& port()           const{ return m_port;          }
-        int maxConn() const{ return m_maxConn; }
+
+        int maxConn()    const { return m_maxConn;    }
+        int maxWorkers() const { return m_maxWorkers; }
 
 };
 

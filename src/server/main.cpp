@@ -48,14 +48,17 @@
 #include <crypto++/rng.h>
 
 #include "global.h"
+#include "ClientHandler.h"
 #include "Job.h"
+#include "JobHandler.h"
+#include "NotifyPipe.h"
 #include "Pool.h"
 #include "Queue.h"
-#include "ClientHandler.h"
-#include "NotifyPipe.h"
 #include "Server.h"
 #include "SelectSpec.h"
 #include "Synchronized.h"
+
+#include "jobs/QuitWorker.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -272,10 +275,13 @@ int main(int argc, char** argv)
 
     // Pool of request handlers
     int nH = server.maxConn();
-    std::cout << "Initializing handler pool (" << nH << ")" << std::endl;
+    int nJ = server.maxWorkers();
+    std::cout << "Initializing handler pool (" << nH << "," << nJ << ")"
+              << std::endl;
 
     /// handlers available for new client connections
     ClientHandler::Pool_t      handlerPool(nH);
+    JobHandler::Pool_t         workerPool(nJ);
 
     /// job queue
     Queue<Job*>  jobQueue(100);
@@ -286,8 +292,16 @@ int main(int argc, char** argv)
 
     /// handler objects
     ClientHandler* handlers = new ClientHandler[nH];
+    JobHandler*    workers  = new JobHandler[nJ];
+
     for(int i=0; i < nH; i++)
         handlers[i].init(&handlerPool,&server,&jobQueue);
+
+    for(int i=0; i < nJ; i++)
+    {
+        workers[i].init(&workerPool,&jobQueue);
+        workers[i].start();
+    }
 
     // for waiting until things happen
     SelectSpec selectMe;
@@ -379,7 +393,7 @@ int main(int argc, char** argv)
     }
 
     // wait for all the child threads to quit
-    std::cout << "Waiting for threads to terminate" << std::endl;
+    std::cout << "Waiting for client handlers to terminate" << std::endl;
 
     // wait until the handler pool is full
     while( handlerPool.size() < nH )
@@ -389,12 +403,34 @@ int main(int argc, char** argv)
         sleep(5);
     }
 
-    std::cout << "All threads have come home, quitting" << std::endl;
+    // now we need to kill all the job workers
+    std::cout << "Killing job workers" << std::endl;
+    for(int i=0; i < nJ; i++)
+        jobQueue.insert( new jobs::QuitWorker() );
+
+    while( workerPool.size() < nJ )
+    {
+        std::cout << "Waiting for " << nJ - workerPool.size()
+                  << " more threads to finish " << std::endl;
+        sleep(5);
+    }
+
+    // now destroy any extra jobs that we created for the workers
+    std::cout << "Destroying outstanding jobs" << std::endl;
+    while( !jobQueue.empty() )
+    {
+        Job* job;
+        jobQueue.extract(job);
+        delete job;
+    }
+
+    std::cout << "Final destructions" << std::endl;
     g_handlerKey.destroy();
     delete [] handlers;
+    delete [] workers;
     close(serversock);
 
-
+    std::cout << "All cleaned up, terminating" << std::endl;
 }
 
 

@@ -35,13 +35,17 @@ namespace       jobs {
 
 enum JobClass
 {
-    QUIT_SHOUTER=0, ///< special job telling shouter to quit
+    QUIT_SHOUTER=0,     ///< special job telling shouter to quit
+    QUIT_WORKER,        ///< special job telling job handlers to quit
+    NUM_JOB_CLASSES
 };
 
 
 } // namespace jobs
 
 typedef jobs::JobClass JobClass;
+
+const char* jobIdToString( JobClass id );
 
 } // namespace filesystem
 } // namespace openbook

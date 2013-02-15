@@ -43,9 +43,11 @@ if( (Boost_FOUND)
                     ${CMAKE_CURRENT_BINARY_DIR}/openbookfs_d.yaml )
         
     add_executable( openbookfs_d
+                    jobs.cpp
                     main.cpp
                     ClientHandler.cpp
                     Job.cpp
+                    JobHandler.cpp
                     Server.cpp
                     ../messages.cpp
                     ../FdSet.cpp

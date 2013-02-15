@@ -17,15 +17,15 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/server/jobs/QuitShouter.h
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/server/jobs/QuitWorker.h
  *
  *  @date   Feb 15, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_QUITSHOUTER_H_
-#define OPENBOOK_QUITSHOUTER_H_
+#ifndef OPENBOOK_QUITWORKER_H_
+#define OPENBOOK_QUITWORKER_H_
 
 #include "jobs.h"
 #include "Job.h"
@@ -37,15 +37,14 @@ class ClientHandler;
 
 namespace       jobs {
 
-/// pumped into the finished queue by the listener when the client disconnects,
-/// causes the shouter to extract a job when no job is finished and kill
-/// itself
-class QuitShouter:
+/// pumped into the queue by the main thread after all the network
+/// threads have quit, forcing all the job workers to quit
+class QuitWorker:
     public Job
 {
     public:
-        QuitShouter(unsigned int version, ClientHandler* handler):
-            Job(QUIT_SHOUTER,0,version,handler)
+        QuitWorker():
+            Job(QUIT_WORKER,0,0,0)
         {}
 
         virtual void doJob(){}
@@ -60,4 +59,4 @@ class QuitShouter:
 
 
 
-#endif // QUITSHOUTER_H_
+#endif // QUITWORKER_H_

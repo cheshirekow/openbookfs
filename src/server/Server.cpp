@@ -80,6 +80,7 @@ void Server::initConfig(const std::string& configFile)
     config["iface"]         >> m_iface;
     config["port"]          >> m_port;
     config["maxConn"]       >> m_maxConn;
+    config["maxWorkers"]    >> m_maxWorkers;
 
     namespace fs = boost::filesystem;
 
