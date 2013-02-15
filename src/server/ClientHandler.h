@@ -28,16 +28,18 @@
 #define OPENBOOK_HANDLER_H_
 
 #include <cstdio>
-#include <sys/socket.h>
-#include <arpa/inet.h>
 #include <cstdlib>
 #include <cstring>
-#include <unistd.h>
-#include <netinet/in.h>
 #include <iostream>
-#include <cpp-pthreads.h>
 #include <vector>
+#include <set>
 
+#include <unistd.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+
+#include <cpp-pthreads.h>
 #include <crypto++/rsa.h>
 #include <crypto++/osrng.h>
 #include <crypto++/dh.h>
@@ -47,6 +49,7 @@
 #include "MessageBuffer.h"
 #include "Pool.h"
 #include "Server.h"
+#include "Synchronized.h"
 
 
 namespace   openbook {
@@ -70,14 +73,17 @@ class ClientHandler
 {
     public:
         typedef ExceptionStream<ClientException> ex;
+        typedef Pool<ClientHandler>                         Pool_t;
+        typedef Synchronized< std::set< ClientHandler* > >  SyncedSet_t;
 
     private:
-        typedef Pool<ClientHandler>    Pool_t;
         static const unsigned int sm_bufsize = 256;
 
         Pool_t*             m_pool;             ///< pool to which this belongs
+        SyncedSet_t*        m_active;           ///< set of active threads
         Server*             m_server;           ///< server configuration
         pthreads::Thread    m_thread;           ///< the thread we're running in
+
         pthreads::Thread    m_listenThread;     ///< child thread for listening
         pthreads::Thread    m_shoutThread;      ///< child thread for shouting
         pthreads::Mutex     m_mutex;            ///< locks this data
@@ -89,9 +95,6 @@ class ClientHandler
         CryptoPP::SecByteBlock          m_cek;    ///< content encryption key
         CryptoPP::SecByteBlock          m_iv;     ///< initial vector
         CryptoPP::AutoSeededRandomPool  m_rng;    ///< random number gen
-
-        /// closes the socket and returns the handler to the available pool
-        void cleanup();
 
         /// initialize Diffie Hellman paramters (takes a while and blocks)
         /**
@@ -128,17 +131,24 @@ class ClientHandler
         static void* dispatch_shout( void* vp_h );
 
 
+
     public:
         ClientHandler();
         ~ClientHandler();
 
         /// set the parent pointer and start DH parameter generation in
         /// detached thread
-        void init( Pool_t*, Server* );
+        void init( Pool_t*, SyncedSet_t*, Server* );
 
         /// sec the client socket and start the handler interfacing with the
         /// client in a detached thread
         void handleClient( int sockfd, int termfd );
+
+        /// sends SIGINT to the main thread
+        void kill();
+
+        /// sends SIGINT to children
+        void killChildren();
 
 
 

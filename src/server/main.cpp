@@ -47,6 +47,7 @@
 #include <crypto++/rsa.h>
 #include <crypto++/rng.h>
 
+#include "global.h"
 #include "Pool.h"
 #include "Bytes.h"
 #include "ClientHandler.h"
@@ -55,9 +56,18 @@
 #include "SelectSpec.h"
 #include "Synchronized.h"
 
-using namespace openbook::filesystem;
+namespace   openbook {
+namespace filesystem {
 
-NotifyPipe* g_termNote;  ///< ditto
+// declarted in globa.h
+pthreads::Key g_handlerKey;
+NotifyPipe* g_termNote;
+
+}
+}
+
+
+using namespace openbook::filesystem;
 
 void signal_callback( int signum )
 {
@@ -67,6 +77,19 @@ void signal_callback( int signum )
         {
             std::cout << "Received signal, going to terminate" << std::endl;
             g_termNote->notify();
+
+            // if this is a handler thread then retrieve the handler object
+            // and signal a kill on it's children
+            // get the handler from thread local storage
+            ClientHandler* h =
+                    static_cast<ClientHandler*>(g_handlerKey.getSpecific());
+            if( h )
+            {
+                std::cout << "SIGINT received in handler thread "
+                          << pthreads::Thread::self().c_obj() << "\n";
+                h->killChildren();
+            }
+
             break;
         }
 
@@ -262,13 +285,21 @@ int main(int argc, char** argv)
     // Pool of request handlers
     int nH = server.maxConn();
     std::cout << "Initializing handler pool (" << nH << ")" << std::endl;
-    Pool<ClientHandler> handlerPool(nH);  ///< threads that are ready
-    Pool<ClientHandler> activePool(nH);
+
+    /// handlers available for new client connections
+    ClientHandler::Pool_t      handlerPool(nH);
+
+    /// handlers that are in use
+    ClientHandler::SyncedSet_t activeHandlers;
+
+    /// allows us to store the client handler pointer in thread specific
+    /// storage
+    g_handlerKey.create();
 
     /// handler objects
     ClientHandler* handlers = new ClientHandler[nH];
     for(int i=0; i < nH; i++)
-        handlers[i].init(&handlerPool,&server);
+        handlers[i].init(&handlerPool,&activeHandlers,&server);
 
     // for waiting until things happen
     SelectSpec selectMe;
@@ -283,7 +314,8 @@ int main(int argc, char** argv)
     //  Run until cancelled
     try
     {
-        while (1)
+        bool shouldQuit = false;
+        while (!shouldQuit)
         {
             // wait for something to happen
             if( !selectMe.wait() )
@@ -310,14 +342,26 @@ int main(int argc, char** argv)
                     &addrlen,
                     SOCK_NONBLOCK);
 
-            if( clientsock < 0 && errno == EWOULDBLOCK )
+            if( clientsock < 0 )
             {
-                std::cout << "No pending connections" << std::endl;
-                continue;
+                switch( errno )
+                {
+                    case EWOULDBLOCK:
+                    {
+                        std::cout << "No pending connections" << std::endl;
+                        continue;
+                    }
+
+                    default:
+                    {
+                        ex()() << "Failed to accept client connection: errno "
+                               << errno << " : " << strerror(errno) ;
+                        break;
+                    }
+                }
+
             }
-            else if (clientsock < 0)
-                ex()() << "Failed to accept client connection: errno "
-                       << errno << " : " << strerror(errno) ;
+
 
             memset(clienthost, 0, sizeof(clienthost));
             memset(clientport, 0, sizeof(clientport));
@@ -344,16 +388,34 @@ int main(int argc, char** argv)
     }
     catch( std::exception& ex )
     {
-        std::cerr << "Exception in main loop: " << ex.what();
+        std::cerr << "Exception in main loop: " << ex.what() << std::endl;
     }
 
     // wait for all the child threads to quit
     std::cout << "Waiting for threads to terminate" << std::endl;
 
+    // iterate over all active threads and send the kill signal, because the
+    // activeHandlers set is locked while we loop over it any thread that is
+    // active will not be able to die while we're trying to kill it... if it
+    // were goint to die it would get blocked while waiting for the mutex for
+    // the activeHandlers set. Thus it is safe to send the kill signal to it
+    {
+        pthreads::ScopedLock( activeHandlers.mutex() );
+        std::set<ClientHandler*>::iterator iph;
+        for( iph = activeHandlers.subvert()->begin();
+             iph != activeHandlers.subvert()->end();
+             ++iph)
+        {
+            (*iph)->kill();
+        }
+    }
+
+    // wait until the handler pool is full
     while( handlerPool.size() < nH )
         sleep(1);
 
     std::cout << "All threads have come home, quitting" << std::endl;
+    g_handlerKey.destroy();
     delete [] handlers;
     close(serversock);
 

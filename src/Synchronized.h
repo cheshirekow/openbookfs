@@ -78,10 +78,20 @@ class Synchronized
     friend class LockedPtr<Base>;
 
     private:
-        pthreads::Mutex m_mutex;
-        Base            m_base;
+        pthreads::Mutex   m_mutex;
+        Base              m_base;
 
     public:
+        Synchronized()
+        {
+            m_mutex.init();
+        }
+
+        ~Synchronized()
+        {
+            m_mutex.destroy();
+        }
+
         /// when we access the object through pointer indirection we return
         /// an intermediate object which locks the mutex preventing others
         /// from acessing the object
@@ -89,6 +99,20 @@ class Synchronized
         {
             return LockedPtr<Base>(*this);
         }
+
+        LockedPtr<Base> lockFor()
+        {
+            return LockedPtr<Base>(*this);
+        }
+
+        /// explicitly lock
+        int lock(){ return m_mutex.lock(); }
+
+        /// explicitly unlock
+        int unlock(){ return m_mutex.unlock(); }
+
+        /// for using a scoped lock
+        pthreads::Mutex& mutex(){ return m_mutex; }
 
         /// return the base pointer, subverting protections
         Base* subvert()

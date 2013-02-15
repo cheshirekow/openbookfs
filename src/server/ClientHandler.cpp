@@ -26,6 +26,7 @@
 
 #include <errno.h>
 #include <sstream>
+#include <csignal>
 
 #include <protobuf/message.h>
 #include <protobuf/io/zero_copy_stream_impl.h>
@@ -36,6 +37,7 @@
 #include <crypto++/modes.h>
 #include <crypto++/gcm.h>
 
+#include "global.h"
 #include "ClientHandler.h"
 #include "SelectSpec.h"
 #include "messages.h"
@@ -72,25 +74,6 @@ void* ClientHandler::dispatch_shout( void* vp_handler )
 
 
 
-void ClientHandler::cleanup()
-{
-    close(m_fd[0]);
-
-    std::cout << "Handler " << (void*) this
-              << " re-generating DH parameters\n";
-
-    CryptoPP::DH dh;
-    dh.AccessGroupParameters().GenerateRandomWithKeySize(m_rng,1024);
-
-    p = dh.GetGroupParameters().GetModulus();
-    q = dh.GetGroupParameters().GetSubgroupOrder();
-    g = dh.GetGroupParameters().GetGenerator();
-
-    std::cout << "Handler " << (void*) this
-              << " finished re-generating DH and returning to pool\n";
-    m_pool->reassign(this);
-    std::cout.flush();
-}
 
 ClientHandler::ClientHandler():
     m_pool(0)
@@ -103,10 +86,12 @@ ClientHandler::~ClientHandler()
     m_mutex.destroy();
 }
 
-void ClientHandler::init(Pool_t* pool, Server* server)
+void ClientHandler::init(
+        Pool_t* pool, SyncedSet_t* active, Server* server)
 {
     using namespace pthreads;
     m_pool   = pool;
+    m_active = active;
     m_server = server;
 
     std::cout << "Initializing handler " << (void*)this << std::endl;
@@ -176,19 +161,38 @@ void ClientHandler::handleClient( int sockfd, int termfd )
 
 void* ClientHandler::main()
 {
+    std::cout << "Starting handler " << (void*)this << " in thread "
+              << pthreads::Thread::self().c_obj() << "\n";
+
+    // put our pointer into thread-local storage
+    g_handlerKey.setSpecific(this);
+
+    // first we insert ourselves into the set of active threads
+    m_active->lockFor()->insert(this);
+
     try
     {
         handshake();
 
-        std::cout << "handler " << (void*)this << " launching listen thread\n";
-        m_listenThread.launch( dispatch_listen, this );
-        std::cout << "handler " << (void*)this << " launching shout thread\n";
-        m_shoutThread.launch( dispatch_shout, this );
+        // lock scope
+        {
+            pthreads::ScopedLock(m_mutex);
+            std::cout << "handler " << (void*)this
+                      << " launching listen thread\n";
+            m_listenThread.launch( dispatch_listen, this );
 
-        m_listenThread.join();
-        std::cout << "handler " << (void*)this << " listen thread quit\n";
-        m_shoutThread.join();
-        std::cout << "handler " << (void*)this << " shout thread quit\n";
+            std::cout << "handler " << (void*)this
+                      << " launching shout thread\n";
+            m_shoutThread.launch( dispatch_shout, this );
+
+            m_listenThread.join();
+            std::cout << "handler " << (void*)this
+                      << " listen thread quit\n";
+
+            m_shoutThread.join();
+            std::cout << "handler " << (void*)this
+                      << " shout thread quit\n";
+        }
     }
     catch( std::exception& ex )
     {
@@ -196,7 +200,30 @@ void* ClientHandler::main()
                   << ex.what();
     }
 
-    cleanup();
+    // now we do our cleanup
+
+    // close the file descriptor
+    close(m_fd[0]);
+
+    // generate new paramters for the next time we're run
+    std::cout << "Handler " << (void*) this
+              << " re-generating DH parameters\n";
+
+    CryptoPP::DH dh;
+    dh.AccessGroupParameters().GenerateRandomWithKeySize(m_rng,1024);
+
+    p = dh.GetGroupParameters().GetModulus();
+    q = dh.GetGroupParameters().GetSubgroupOrder();
+    g = dh.GetGroupParameters().GetGenerator();
+
+    std::cout << "Handler " << (void*) this
+              << " finished re-generating DH and returning to pool\n";
+
+    // remove ourselves from the active set, and put ourselves back int the
+    // available pool
+    m_active->lockFor()->erase(this);
+    m_pool->reassign(this);
+    std::cout.flush();
     return 0;
 }
 
@@ -498,14 +525,35 @@ void ClientHandler::handshake()
 
 void* ClientHandler::listen()
 {
+    std::cout << "Starting client listener for handler" << (void*)this
+              << " in thread "
+              << pthreads::Thread::self().c_obj() << "\n";
+    sleep(10);
     std::cout << "Handler " << (void*)this << " listener not implemented\n";
     return 0;
 }
 
 void* ClientHandler::shout()
 {
+    std::cout << "Starting client shouter for handler" << (void*)this
+              << " in thread "
+              << pthreads::Thread::self().c_obj() << "\n";
+    sleep(10);
     std::cout << "Handler " << (void*)this << " shouter not implemented\n";
     return 0;
+}
+
+
+void ClientHandler::kill()
+{
+    m_thread.kill(SIGINT);
+}
+
+
+void ClientHandler::killChildren()
+{
+    m_listenThread.kill(SIGINT);
+    m_shoutThread.kill(SIGINT);
 }
 
 
