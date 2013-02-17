@@ -110,7 +110,8 @@ if( (Boost_FOUND)
                     ../SelectSpec.cpp
                     ../NotifyPipe.cpp
                     ../TimeVal.cpp   
-                    Client.cpp                 
+                    Client.cpp       
+                    ServerHandler.cpp          
                     protocol_test.cpp
                     ${MESSAGES_PB_CC}
                              )
