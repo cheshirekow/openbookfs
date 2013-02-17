@@ -28,11 +28,10 @@
 #define OPENBOOK_JOB_H_
 
 #include "jobs.h"
+#include "JobSink.h"
 
 namespace   openbook {
 namespace filesystem {
-
-class ClientHandler;
 
 /// base class for jobs
 class Job
@@ -42,7 +41,7 @@ class Job
         unsigned int   m_id;            ///< client specific job id
         unsigned int   m_clientVersion; ///< the version of the client when
                                         ///  they created the job
-        ClientHandler* m_handler;   ///< client who sent the job
+        JobSink* m_sink;   ///< who to send the job to when done
 
     public:
         /// simply sets the client handler so we know who to report to
@@ -50,7 +49,7 @@ class Job
         Job( JobClass derived,
                 unsigned int id,
                 unsigned int version,
-                ClientHandler* handler );
+                JobSink* sink );
 
         /// jobs have a v-table
         virtual ~Job(){}

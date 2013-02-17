@@ -61,6 +61,7 @@
 #include "SelectSpec.h"
 #include "messages.h"
 #include "messages.pb.h"
+#include "jobs/QuitShouter.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -704,7 +705,7 @@ void* ServerHandler::listen()
             dec.Resynchronize(m_iv.BytePtr(),m_iv.SizeInBytes());
 
             // generate a job from the message
-            // Job* job = 0;
+            Job* job = 0;
 
             switch(type)
             {
@@ -718,8 +719,8 @@ void* ServerHandler::listen()
 
             // put the job in the global queue, will block until queue has
             // capacity
-            // if(job)
-            //    m_newJobs->insert(job);
+             if(job)
+                m_newJobs->insert(job);
         }
     }
     catch( std::exception& ex )
@@ -730,7 +731,7 @@ void* ServerHandler::listen()
     }
 
     // put a dummy job into the queue so that the shouter can quit
-    // m_finishedJobs.insert( new jobs::QuitShouter(m_version,this) );
+    m_finishedJobs.insert( new jobs::QuitShouter(0,this) );
 
     return 0;
 }
@@ -747,25 +748,25 @@ void* ServerHandler::shout()
         GCM<AES>::Encryption enc;
         enc.SetKeyWithIV(m_cek.BytePtr(), m_cek.SizeInBytes(),
                           m_iv.BytePtr(),  m_iv.SizeInBytes());
-        //Job* job = 0;
+        Job* job = 0;
 
         while(1)
         {
             // wait for a job to be finished from the queue
-            // m_finishedJobs.extract(job);
+            m_finishedJobs.extract(job);
 
             // if the job is a "quit shouter" job then we just delete it
             // and break;
-//            if( job->derived() == jobs::QUIT_SHOUTER )
-//            {
-//                delete job;
-//                ex()() << "received QUIT_SHOUTER job";
-//            }
+            if( job->derived() == jobs::QUIT_SHOUTER )
+            {
+                delete job;
+                ex()() << "received QUIT_SHOUTER job";
+            }
 
             // create a "job finished message", and fill it with the details
-//            messages::JobFinished* message =
-//                    static_cast<messages::JobFinished*>(m_msg[MSG_JOB_FINISHED]);
-//            message->set_job_id(job->id());
+            messages::JobFinished* message =
+                    static_cast<messages::JobFinished*>(m_msg[MSG_JOB_FINISHED]);
+            message->set_job_id(job->id());
 
             // send the message
             m_msg.write(m_fd,MSG_JOB_FINISHED,enc);
@@ -780,6 +781,17 @@ void* ServerHandler::shout()
     }
 
     return 0;
+}
+
+void ServerHandler::jobFinished(Job* job)
+{
+    pthreads::ScopedLock lock(m_mutex);
+
+     // first check to see if the client has died during the job
+    if( job->version() == 0 )
+        delete job;
+    else
+        m_finishedJobs.insert(job);
 }
 
 

@@ -33,8 +33,6 @@
 namespace   openbook {
 namespace filesystem {
 
-class ClientHandler;
-
 namespace       jobs {
 
 /// pumped into the finished queue by the listener when the client disconnects,
@@ -44,7 +42,7 @@ class QuitShouter:
     public Job
 {
     public:
-        QuitShouter(unsigned int version, ClientHandler* handler):
+        QuitShouter(unsigned int version, JobSink* handler):
             Job(QUIT_SHOUTER,0,version,handler)
         {}
 

@@ -104,9 +104,11 @@ if( (Boost_FOUND)
     
     add_executable( client_protocol_test
                     ../base64.cpp
+                    ../jobs.cpp
                     ../messages.cpp
                     ../MessageBuffer.cpp
                     ../FdSet.cpp
+                    ../Job.cpp
                     ../SelectSpec.cpp
                     ../NotifyPipe.cpp
                     ../TimeVal.cpp   

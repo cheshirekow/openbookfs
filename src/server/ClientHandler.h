@@ -72,7 +72,8 @@ class ClientException :
 
 
 
-class ClientHandler
+class ClientHandler:
+    public JobSink
 {
     public:
         typedef ExceptionStream<ClientException> ex;
@@ -150,7 +151,7 @@ class ClientHandler
         void handleClient( int sockfd, int termfd );
 
         /// called by a job thread when a job finishes
-        void jobFinished(Job*);
+        virtual void jobFinished(Job*);
 
 
 

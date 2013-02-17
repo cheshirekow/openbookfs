@@ -17,51 +17,41 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/server/Job.cpp
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/client_fs/JobSink.h
  *
- *  @date   Feb 15, 2013
+ *  @date   Feb 17, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
+#ifndef OPENBOOK_JOBSINK_H_
+#define OPENBOOK_JOBSINK_H_
 
-#include "Job.h"
-#include "ClientHandler.h"
 
 namespace   openbook {
 namespace filesystem {
 
-Job::Job( JobClass derived,
-            unsigned int id,
-            unsigned int version,
-            ClientHandler* handler ):
-    m_derived(derived),
-    m_id(id),
-    m_clientVersion(version),
-    m_handler(handler)
-{}
+class Job;
 
-
-void Job::finish()
+/// base class for something that wants to be notified when
+/// a job is complete
+class JobSink
 {
-    /// m_handler->jobFinished(this);
-}
+    public:
+        /// jobsinks have a v-table
+        virtual ~JobSink(){}
 
-unsigned int Job::id() const
-{
-    return m_id;
-}
+        /// handles a completed job, is reponsible for destroying the
+        /// job object
+        virtual void jobFinished(Job*)=0;
+};
 
-unsigned int Job::version() const
-{
-    return m_clientVersion;
-}
 
-JobClass Job::derived() const
-{
-    return m_derived;
-}
 
 
 } // namespace filesystem
 } // namespace openbook
+
+
+
+#endif // JOBSINK_H_

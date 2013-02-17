@@ -46,8 +46,10 @@
 #include <crypto++/dh.h>
 #include <crypto++/dh2.h>
 
+#include "jobs.h"
 #include "Client.h"
 #include "ExceptionStream.h"
+#include "Job.h"
 #include "MessageBuffer.h"
 #include "Queue.h"
 
@@ -70,16 +72,20 @@ class ServerException :
 
 
 
-class ServerHandler
+class ServerHandler:
+    public JobSink
 {
     public:
         typedef ExceptionStream<ServerException> ex;
+        typedef Queue<Job*>                      JobQueue_t;
 
     private:
         static const unsigned int sm_bufsize = 256;
 
         Client*             m_client;           ///< server configuration
         pthreads::Thread    m_thread;           ///< the thread we're running in
+        JobQueue_t*         m_newJobs;          ///< global job queue
+        JobQueue_t          m_finishedJobs;     ///< finished jobs
 
         pthreads::Thread    m_listenThread;     ///< child thread for listening
         pthreads::Thread    m_shoutThread;      ///< child thread for shouting
@@ -143,8 +149,8 @@ class ServerHandler
         /// join the handler
         void join();
 
-        /// called by a job thread when a job finishes
-        //void jobFinished(Job*);
+        /// job sink
+        virtual void jobFinished( Job* );
 };
 
 
