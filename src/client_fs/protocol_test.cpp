@@ -32,7 +32,17 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
+#include <cstdlib>
+#include <cstring>
+#include <cerrno>
 
+#include <unistd.h>
+#include <fcntl.h>
+#include <netdb.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
 #include <dirent.h>
 #include <sys/time.h>
 
@@ -50,16 +60,8 @@
 #include <crypto++/gcm.h>
 #include <re2/re2.h>
 
-#include <netdb.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <cstdlib>
-#include <cstring>
-#include <unistd.h>
-#include <netinet/in.h>
-
 #include "Bytes.h"
+#include "Client.h"
 #include "MessageBuffer.h"
 #include "messages.h"
 #include "messages.pb.h"
@@ -72,85 +74,57 @@ int main(int argc, char** argv)
     namespace cryp = CryptoPP;
     namespace msgs = messages;
 
-    std::string pubKey;
-    std::string privKey;
-    std::string host;
+    std::string config;
 
     // Wrap everything in a try block.  Do this every time,
     // because exceptions will be thrown for problems.
     try {
 
-    time_t      rawtime;
-    tm*         timeinfo;
-    char        currentYear[5];
+        time_t      rawtime;
+        tm*         timeinfo;
+        char        currentYear[5];
 
-    ::time( &rawtime );
-    timeinfo = ::localtime( &rawtime );
-    strftime (currentYear,5,"%Y",timeinfo);
+        ::time( &rawtime );
+        timeinfo = ::localtime( &rawtime );
+        strftime (currentYear,5,"%Y",timeinfo);
 
-    fs::path homeDir     = getenv("HOME");
-    fs::path dfltPubKey  = "./rsa-openssl-pub.der";
-    fs::path dfltPrivKey = "./rsa-openssl-priv.der";
+        fs::path homeDir     = getenv("HOME");
+        fs::path dfltConfig  = "./openbookfs_c.yaml";
 
-    std::string dfltServer = "localhost:3031";
+        std::stringstream sstream;
+        sstream << "Openbook Filesystem\n"
+                << "Copyright (c) 2012-" << currentYear
+                << " Josh Bialkowski <jbialk@mit.edu>";
 
-    std::stringstream sstream;
-    sstream << "Openbook Filesystem\n"
-            << "Copyright (c) 2012-" << currentYear
-            << " Josh Bialkowski <jbialk@mit.edu>";
+        // Define the command line object, and insert a message
+        // that describes the program. The "Command description message"
+        // is printed last in the help text. The second argument is the
+        // delimiter (usually space) and the last one is the version number.
+        // The CmdLine object parses the argv array based on the Arg objects
+        // that it contains.
+        TCLAP::CmdLine cmd(sstream.str().c_str(), ' ', "0.1.0");
 
-    // Define the command line object, and insert a message
-    // that describes the program. The "Command description message"
-    // is printed last in the help text. The second argument is the
-    // delimiter (usually space) and the last one is the version number.
-    // The CmdLine object parses the argv array based on the Arg objects
-    // that it contains.
-    TCLAP::CmdLine cmd(sstream.str().c_str(), ' ', "0.1.0");
+        // Define a value argument and add it to the command line.
+        // A value arg defines a flag and a type of value that it expects,
+        // such as "-n Bishop".
+        TCLAP::ValueArg<std::string> configArg(
+                "f",
+                "config",
+                "path to configuration file",
+                false,
+                dfltConfig.string(),
+                "path"
+                );
 
-    // Define a value argument and add it to the command line.
-    // A value arg defines a flag and a type of value that it expects,
-    // such as "-n Bishop".
-    TCLAP::ValueArg<std::string> pubKeyArg(
-            "b",
-            "pubkey",
-            "path to the ssh public key",
-            false,
-            dfltPubKey.string(),
-            "path"
-            );
+        // Add the argument nameArg to the CmdLine object. The CmdLine object
+        // uses this Arg to parse the command line.
+        cmd.add( configArg );
 
-    TCLAP::ValueArg<std::string> privKeyArg(
-            "v",
-            "privkey",
-            "path to the ssh private key",
-            false,
-            dfltPrivKey.string(),
-            "path"
-            );
+        // Parse the argv array.
+        cmd.parse( argc, argv );
 
-    TCLAP::ValueArg<std::string> serverArg(
-            "s",
-            "server",
-            "hostname and port of the server",
-            false,
-            dfltServer,
-            "string [HOST]:[PORT]"
-            );
-
-    // Add the argument nameArg to the CmdLine object. The CmdLine object
-    // uses this Arg to parse the command line.
-    cmd.add( pubKeyArg );
-    cmd.add( privKeyArg );
-    cmd.add( serverArg );
-
-    // Parse the argv array.
-    cmd.parse( argc, argv );
-
-    // Get the value parsed by each arg.
-    pubKey  = pubKeyArg.getValue();
-    privKey = privKeyArg.getValue();
-    host    = serverArg.getValue();
-
+        // Get the value parsed by each arg.
+        config  = configArg.getValue();
     }
 
     catch (TCLAP::ArgException &e)  // catch any exceptions
@@ -160,14 +134,26 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    // attempt to open the public and private key files and read them in
-    if( !fs::exists( fs::path(pubKey) ) )
+    // attempt to load the config file
+    Client client;
+
+    try
     {
-        std::cerr << "public key file: " << pubKey << " does not exist\n";
+        client.initConfig( config );
+    }
+    catch( std::exception& ex )
+    {
+        std::cerr << "Problam loading config: " << ex.what() << std::endl;
         return 1;
     }
 
 
+    // attempt to open the public and private key files and read them in
+    if( !fs::exists( fs::path(client.pubKeyFile()) ) )
+    {
+        std::cerr << "public key file: " << client.pubKeyFile() << " does not exist\n";
+        return 1;
+    }
 
     std::string             rsaPubStr;
     cryp::RSA::PublicKey    rsaPubKey;
@@ -176,9 +162,11 @@ int main(int argc, char** argv)
     try
     {
         // open a stream to the public key file
-        std::ifstream in(pubKey.c_str(), std::ios::in | std::ios::binary);
+        std::ifstream in(client.pubKeyFile().c_str(),
+                            std::ios::in | std::ios::binary);
         if (!in)
-            ex()() << "Failed to open " << pubKey << " for reading ";
+            ex()() << "Failed to open " << client.pubKeyFile().c_str()
+                   << " for reading ";
 
         // seek to the end of the file to get it's size
         in.seekg(0, std::ios::end);
@@ -205,14 +193,14 @@ int main(int argc, char** argv)
     }
     catch( cryp::Exception& ex )
     {
-        std::cerr << "Failed to load public key from " << pubKey
+        std::cerr << "Failed to load public key from " << client.pubKeyFile()
                   <<  " : " << ex.what() << std::endl;
         return 1;
     }
 
     try
     {
-        cryp::FileSource keyFile(privKey.c_str(),true);
+        cryp::FileSource keyFile(client.privKeyFile().c_str(),true);
         cryp::ByteQueue  queue;
         keyFile.TransferTo(queue);
         queue.MessageEnd();
@@ -221,7 +209,7 @@ int main(int argc, char** argv)
     }
     catch( cryp::Exception& ex )
     {
-        std::cerr << "Failed to load private key from " << privKey
+        std::cerr << "Failed to load private key from " << client.privKeyFile()
                   <<  " : " << ex.what() << std::endl;
         return 1;
     }
@@ -237,17 +225,9 @@ int main(int argc, char** argv)
         return 1;
     }
 
-    // Create the TCP socket
-    int sockfd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if( sockfd < 0 )
-    {
-        std::cerr << "Failed to open tcp socket" << std::endl;
-        return 1;
-    }
-
     // parse the server string
     std::string hostName;
-    int         hostPort;
+    std::string hostPort;
     RE2         serverRegex( "([^:]+):(\\d+)" );
 
     if( !serverRegex.ok() )
@@ -258,51 +238,150 @@ int main(int argc, char** argv)
     }
 
     bool matchResult =
-            RE2::FullMatch(host.c_str(),serverRegex,&hostName,&hostPort);
+            RE2::FullMatch(client.server().c_str(),
+                            serverRegex,&hostName,&hostPort);
     if( !matchResult )
     {
-        std::cerr << "Failed to match [HOST]:[PORT] in string " << host
+        std::cerr << "Failed to match [HOST]:[PORT] in string "
+                  << client.server()
                   << std::endl;
         return 1;
     }
 
-    hostent* hostInfo;
-    in_addr  hostAddr;
+    int sockfd;
 
-    if( !inet_aton(hostName.c_str(),&hostAddr) )
+    try
     {
-        hostInfo        = gethostbyname(hostName.c_str());
-        hostAddr.s_addr = * ( (unsigned long*)hostInfo->h_addr_list[0] );
+        // defaults
+        addrinfo  hints;
+        addrinfo* found;
+        memset(&hints,0,sizeof(addrinfo));
+        hints.ai_family   = AF_UNSPEC;
+        hints.ai_socktype = SOCK_STREAM;
+        hints.ai_protocol = 0;
+
+        if( client.addressFamily() == "AF_INET" )
+            hints.ai_family     = AF_INET;
+        else if( client.addressFamily() == "AF_INET6" )
+            hints.ai_family = AF_INET6;
+        else if( client.addressFamily() != "AF_UNSPEC" )
+        {
+            std::cerr << "I dont understand the address family "
+                      << client.addressFamily() << ", check the config file. "
+                      << "I will use AF_UNSPEC to seach for an interface";
+        }
+
+        if( client.iface() == "any" )
+        {
+            sockfd = socket( hints.ai_family,
+                             hints.ai_socktype ,
+                             hints.ai_protocol );
+            if (sockfd < 0)
+                ex()() << "Failed to create a socket for 'any'";
+        }
+        else
+        {
+            const char* node    = client.iface().c_str();
+            const char* service = 0;
+
+            int result = getaddrinfo(node,service,&hints,&found);
+            if( result < 0  )
+            {
+                ex()() << "Failed to find an interface which matches family: "
+                       << client.addressFamily() << ", node: "
+                       << client.iface()
+                       << "\nErrno is " << errno << " : " << strerror(errno);
+            }
+
+            addrinfo* addr = found;
+
+            for( ; addr; addr = addr->ai_next )
+            {
+                std::cout << "Attempting to create socket:"
+                          << "\n   family: " << addr->ai_family
+                          << "\n     type: " << addr->ai_socktype
+                          << "\n protocol: " << addr->ai_protocol
+                          << std::endl;
+
+                sockfd = socket(addr->ai_family,
+                                    addr->ai_socktype ,
+                                    addr->ai_protocol);
+                if (sockfd < 0)
+                    continue;
+                else
+                    break;
+            }
+
+            freeaddrinfo(found);
+
+            if( !addr )
+                ex()() << "None of the matched interfaces work";
+
+                    char host[NI_MAXHOST];
+            char port[NI_MAXSERV];
+            memset(host, 0, sizeof(host));
+            memset(port, 0, sizeof(port));
+            getnameinfo( (sockaddr*)addr->ai_addr, addr->ai_addrlen,
+                         host, sizeof(host),
+                         port, sizeof(port),
+                         NI_NUMERICHOST | NI_NUMERICSERV );
+
+            std::cout << "Using client interface to " << host
+                      << ":" << port << std::endl;
+        }
+
+        // attempt to make connection
+        const char* node    = hostName.c_str();
+        const char* service = hostPort.c_str();
+
+        std::cout << "Searching for host addr matching "
+                  << hostName << ":" << hostPort << std::endl;
+
+        int result = getaddrinfo(node,service,&hints,&found);
+        if( result < 0 )
+        {
+            ex()() << "Failed to find an interface which matches family: "
+                   << client.addressFamily() << ", node: "
+                   << hostName << ", server: " << hostPort
+                   << "\nErrno is " << errno << " : " << strerror(errno);
+        }
+
+        addrinfo* addr = found;
+
+        for( ; addr; addr = addr->ai_next )
+        {
+            std::cout << "Attempting to connect to server:"
+                      << "\n   family: " << addr->ai_family
+                      << "\n     type: " << addr->ai_socktype
+                      << "\n protocol: " << addr->ai_protocol
+                      << std::endl;
+
+            int connectResult =
+                    connect( sockfd, addr->ai_addr, addr->ai_addrlen );
+            if (connectResult < 0 )
+            {
+                std::cerr << "Connection failed, errno " << errno << " : "
+                          << strerror(errno) << "\n";
+                continue;
+            }
+            else
+                break;
+        }
+
+        freeaddrinfo(found);
+
+        if( !addr )
+            ex()() << "None of the matched server interfaces work";
     }
-
-    Bytes<in_addr_t> hbytes( &hostAddr.s_addr );
-    std::cout << "Host address: "
-              << hbytes[0] << "."
-              << hbytes[1] << "."
-              << hbytes[2] << "."
-              << hbytes[3] << "\n";
-
-
-    sockaddr_in         server;
-
-    memset(&server, 0, sizeof(server));         //< Clear struct
-    server.sin_family       = AF_INET;          //< Internet/IP
-    server.sin_addr         = hostAddr;         //< IP address
-    server.sin_port         = htons(hostPort);  //< server port
-
-    const unsigned int  bufsize = 1024;
-    char                buffer[bufsize];
-    unsigned int        len;
-    int                 received = 0;
-
-    // Establish connection
-    int connectResult = connect( sockfd, (sockaddr*)&server, sizeof(server) );
-    if( connectResult < 0 )
+    catch( std::exception& ex )
     {
-        std::cerr << "Failed to open connection to host "
-                  << hostName << " on port " << hostPort << std::endl;
+        std::cerr << "Error while setting up the socket or creating connection: "
+                  << ex.what() << std::endl;
+        if( sockfd > 0 )
+            close(sockfd);
         return 1;
     }
+
 
     try
     {

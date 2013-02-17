@@ -75,19 +75,25 @@ message JobFinished {
 
 
 // ----------------------------------------------------------------------------
-//                      File System Notifications
+//                      File System Notifications and Jobs
 // ----------------------------------------------------------------------------
 
-// sent by client when a new files is created
+// acknowledges a job completion
+message JobComplete {
+    optional int32   job_id = 1;    
+}
+
+
+// a new file has been created
 message Create {
-    optional int32   req_id = 1;    // client specific request id
+    optional int32   job_id = 1;    // client specific request id
     optional int64   time   = 2;    // creation time of the file
     optional string  path   = 3;    // path of the file (including file name)
 }
 
-// sent by client when a file should be removed from the server
+// a file has been deleted
 message Delete {
-    optional int32   req_id = 1;    // client specific request id
+    optional int32   job_id = 1;    // client specific request id
     optional int64   time   = 2;    // creation time of the file
     optional string  path   = 3;    // path of the file (including file name)
 }
@@ -95,23 +101,24 @@ message Delete {
 
 // sent when a subscription is created
 message Subscribe {
-    optional int32   req_id     = 1;    // client specific request id
+    optional int32   job_id     = 1;    // client specific request id
     optional int32   client_id  = 2;    // which client get's the subscription
     optional string  path       = 3;    // path to the file
 }
 
-// sent when a subscription is deleted
+// sent when a subscription is removed
 message Unsubscribe {
-    optional int32   req_id     = 1;    // client specific request id
+    optional int32   job_id     = 1;    // client specific request id
     optional int32   client_id  = 2;    // which client get's the subscription
     optional string  path       = 3;    // path to the file
 }
 
 // sent when a client wants to upload a new version
 message RequestUpload {
-    optional int32   req_id     = 1;    // client specific request id
+    optional int32   job_id     = 1;    // client specific request id
     optional int32   version    = 2;    // previous file version
-    optional int32   path       = 3;    // path of the file
+    optional int64   size       = 3;    // new file size
+    optional int32   path       = 4;    // path of the file
 }
 
 // sent by server when it grants an upload request
@@ -123,25 +130,26 @@ message GrantUpload {
                          // already
     }
 
-    optional int32   req_id     = 1;    // request to which the server is 
+    optional int32   job_id     = 1;    // request to which the server is 
                                         // responding
     optional Status  status     = 2;    // whether or not it was granted
     optional int32   up_id      = 3;    // numeric identifier for this
                                         // transaction
-    optional int32   stage_file = 4;    // path of the file where client may
-                                        // scp to
 }
 
-// sent by the client when an upload is complete
-message UploadComplete {
-    optional int32   req_id     = 1;    // client specific request id
-    optional int32   up_id      = 2;    // numeric identifier for this
-                                        // transaction
+// sent by a client containing one segment of a file upload
+message UploadChunk {
+    optional int32  job_id  = 1;    // used for ack
+    optional int32  up_id   = 2;    // upload session
+    optional int64  offset  = 3;    // where to write the chunk in the file
+    optional bytes  data    = 4;    // actual chunk of data
 }
+
+
 
 // sent when a client wants to download a new version
 message RequestDownload {
-    optional int32   req_id     = 1;    // client specific request id
+    optional int32   job_id     = 1;    // client specific request id
     optional int32   path       = 2;    // path of the file
 }
 
@@ -153,26 +161,47 @@ message GrantDownload {
         LOCKED  = 1;    // someone is writing a new version
     }
 
-    optional int32   req_id     = 1;    // client specific request id
+    optional int32   job_id     = 1;    // client specific request id
     optional Status  status     = 2;    // whether or not download was granted
-    optional int32   down_id    = 3;    // numeric identifier for this 
+    optional int32   version    = 3;    // version being downloaded
+    optional int64   size       = 4;    // file size
+    optional int32   down_id    = 5;    // numeric identifier for this 
                                         // transaction
 }
 
-// sent by the client whan a download is complete (unlocks the file)
-message DownloadComplete {
-    optional int32   req_id     = 1;    // client specific request id
-    optional int32   down_id    = 2;    // numeric identifier for this 
-                                        // transaction
+// sent by the client when he's ready to receive data
+message DownloadReady{
+    optional int32 down_id = 1; // id of the download job
+}
+
+// sent by the server containing one segment of a file to download
+message DownloadChunk {
+    optional int32  job_id  = 1;    // used for ack
+    optional int32  down_id = 2;    // upload session
+    optional int64  offset  = 3;    // where to write the chunk in the file
+    optional bytes  data    = 4;    // actual chunk of data
+}
+
+// sent by the server to ack receipt of an upload chunk or by the client to
+// ack receipt of a download chunk
+// note: this is *almost* unnecessary b/c TCP offers guarentee but the problem
+// is that if we send a chunk and it gets to the network stack buffer of the
+// OS it *appears* to the software that the send was sucessful, even if the
+// connection is terminated before the data is actually sent. This ensures that
+// the server *knows* for a fact when chunks are sent
+message ChunkReceived {
+    optional int32  job_id   = 1;   // the id of the upload/download job
 }
 
 
 // sent by the server to all subscribed clients when a file changes version
 message NewVersion {
-    optional int32  req_id      = 1;    // server specific request_id
+    optional int32  job_id      = 1;    // server specific request_id
     optional int32  version     = 2;    // version number of the file
     optional string path        = 3;    // path of the file 
 }
+
+
 
 
 

@@ -6,6 +6,10 @@ find_package(Protobuf)
 find_package(Crypto++)
 find_package(RE2)
 find_package(Tclap)
+find_package(YamlCpp)
+
+configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/openbookfs_c.yaml
+                ${CMAKE_CURRENT_BINARY_DIR}/openbookfs_c.yaml )
                              
 if( (FUSE_FOUND)
     AND (Boost_FOUND)
@@ -71,6 +75,7 @@ if( (Boost_FOUND)
     AND (Crypto++_FOUND)
     AND (RE2_FOUND)
     AND (Tclap_FOUND) 
+    AND (YAMLCPP_FOUND)
     )
                                                                     
     include_directories( 
@@ -81,6 +86,7 @@ if( (Boost_FOUND)
         ${Crypto++_INCLUDE_DIR}
         ${RE2_INCLUDE_DIR}
         ${Tclap_INCLUDE_DIR}
+        ${YAMLCPP_INCLUDE_DIR}
         )
     
     
@@ -91,10 +97,11 @@ if( (Boost_FOUND)
         ${THREADS_LIBRARIES}
         ${Crypto++_LIBRARY}
         ${RE2_LIBRARY}
+        ${YAMLCPP_LIBRARY}
         )
         
     set_source_files_properties( ${MESSAGES_PB_CC} GENERATED )      
-        
+    
     add_executable( client_protocol_test
                     ../base64.cpp
                     ../messages.cpp
@@ -102,7 +109,8 @@ if( (Boost_FOUND)
                     ../FdSet.cpp
                     ../SelectSpec.cpp
                     ../NotifyPipe.cpp
-                    ../TimeVal.cpp                    
+                    ../TimeVal.cpp   
+                    Client.cpp                 
                     protocol_test.cpp
                     ${MESSAGES_PB_CC}
                              )
