@@ -28,7 +28,6 @@ class OpenbookFS
         boost::filesystem::path m_dataDir;
 
         int  result_or_errno(int result);
-        const char* wrap(const char* path);
 
     public:
         OpenbookFS(boost::filesystem::path dataDir);

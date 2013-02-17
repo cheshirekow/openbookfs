@@ -33,10 +33,6 @@ int OpenbookFS::result_or_errno(int result)
         return result;
 }
 
-const char* OpenbookFS::wrap( const char* path )
-{
-    return (m_dataDir / path).c_str();
-}
 
 
 OpenbookFS::OpenbookFS(boost::filesystem::path dataDir)
@@ -57,7 +53,7 @@ OpenbookFS::~OpenbookFS()
 
 int OpenbookFS::getattr (const char *path, struct stat *out)
 {
-    std::string wrapped = wrap(path);
+    std::string wrapped = (m_dataDir / path).string();
 
     std::cerr << "getattr: "
                 << "\n       this: " << (void*) this
@@ -77,128 +73,131 @@ int OpenbookFS::getattr (const char *path, struct stat *out)
 
 int OpenbookFS::readlink (const char *path, char *buf, size_t bufsize)
 {
+    std::string wrapped = (m_dataDir / path).string();
+
     std::cerr << "readlink: " << path
                 << "(" << (m_dataDir / path) << ")" << std::endl;
 
-    return ::readlink(  wrap(path), buf, bufsize ) ? -errno : 0;
+    return ::readlink(  wrapped.c_str(), buf, bufsize ) ? -errno : 0;
 }
 
 
 
 
 
-int OpenbookFS::mknod (const char *pathname, mode_t mode, dev_t dev)
+int OpenbookFS::mknod (const char *path, mode_t mode, dev_t dev)
 {
-    std::cerr << "mknod: " << pathname
-                << "(" << (m_dataDir / pathname) << ")" << std::endl;
+    std::string wrapped = (m_dataDir / path).string();
+    std::cerr << "mknod: " << path
+                << " (" << (m_dataDir / path) << ")" << std::endl;
 
-    return ::mknod( wrap(pathname), mode, dev ) ? -errno : 0;
+    return ::mknod( wrapped.c_str(), mode, dev ) ? -errno : 0;
 }
 
 
 
 int OpenbookFS::mkdir (const char *pathname, mode_t mode)
 {
-    std::cerr << "mkdir: " << pathname
-                << "(" << (m_dataDir / pathname) << ")" << std::endl;
+    std::string wrapped = (m_dataDir / pathname).string();
 
-    return ::mkdir( wrap(pathname), mode|S_IFDIR ) ? -errno : 0;
+    std::cerr << "mkdir: " << pathname
+                << "(" << wrapped << ")" << std::endl;
+    return ::mkdir(  wrapped.c_str() , mode|S_IFDIR ) ? -errno : 0;
 }
 
 
 
 int OpenbookFS::unlink (const char *pathname)
 {
+    std::string wrapped = (m_dataDir / pathname).string();
     std::cerr << "unlink: " << pathname
-                << "(" << (m_dataDir / pathname) << ")" << std::endl;
+                << "(" << wrapped << ")" << std::endl;
 
-    return result_or_errno(
-                ::unlink( wrap(pathname) )
-                 );
+    return result_or_errno( ::unlink(  wrapped.c_str()  ) );
 }
 
 
 
 int OpenbookFS::rmdir (const char *pathname)
 {
-    std::cerr << "rmdir: " << pathname
-                << "(" << (m_dataDir / pathname) << ")" << std::endl;
+    std::string wrapped = (m_dataDir / pathname).string();
 
-    return result_or_errno(
-                ::rmdir( wrap(pathname) )
-                 );
+    std::cerr << "rmdir: " << pathname
+                << "(" << wrapped << ")" << std::endl;
+
+    return result_or_errno( ::rmdir(  wrapped.c_str()  ) );
 }
 
 
 
 int OpenbookFS::symlink (const char *oldpath, const char *newpath)
 {
+    std::string oldwrap = (m_dataDir / oldpath).string();
+    std::string newwrap = (m_dataDir / oldpath).string();
+
     std::cerr << "simlink: "
-                  "\n   old: " << oldpath               <<
-                  "\n      : " << (m_dataDir/oldpath)   <<
-                  "\n   new: " << newpath               <<
-                  "\n      : " << (m_dataDir/newpath)   <<
+                  "\n   old: " << oldpath <<
+                  "\n      : " << oldwrap <<
+                  "\n   new: " << newpath <<
+                  "\n      : " << newwrap <<
                   std::endl;
 
-    return result_or_errno(
-            ::symlink(  wrap(oldpath),
-                        wrap(newpath) )
-                );
+    return result_or_errno( ::symlink( oldwrap.c_str(), newwrap.c_str() ) );
 }
 
 
 
 int OpenbookFS::rename (const char *oldpath, const char *newpath)
 {
+    std::string oldwrap = (m_dataDir / oldpath).string();
+    std::string newwrap = (m_dataDir / oldpath).string();
+
     std::cerr << "rename: "
-                  "\n   old: " << oldpath               <<
-                  "\n      : " << (m_dataDir/oldpath)   <<
-                  "\n   new: " << newpath               <<
-                  "\n      : " << (m_dataDir/newpath)   <<
+                  "\n   old: " << oldpath <<
+                  "\n      : " << oldwrap <<
+                  "\n   new: " << newpath <<
+                  "\n      : " << newwrap <<
                   std::endl;
 
-
-    return ::rename(    wrap(oldpath),
-                        wrap(newpath) );
+    return result_or_errno( ::rename( oldwrap.c_str(), newwrap.c_str() ) );
 }
 
 
 
 int OpenbookFS::link (const char *oldpath, const char *newpath)
 {
+    std::string oldwrap = (m_dataDir / oldpath).string();
+    std::string newwrap = (m_dataDir / oldpath).string();
+
     std::cerr << "link: "
-                  "\n   old: " << oldpath               <<
-                  "\n      : " << (m_dataDir/oldpath)   <<
-                  "\n   new: " << newpath               <<
-                  "\n      : " << (m_dataDir/newpath)   <<
+                  "\n   old: " << oldpath <<
+                  "\n      : " << oldwrap <<
+                  "\n   new: " << newpath <<
+                  "\n      : " << newwrap <<
                   std::endl;
 
-
-    return result_or_errno(
-            ::link( wrap(oldpath),
-                    wrap(newpath) )
-                );
+    return result_or_errno( ::link( oldwrap.c_str(), newwrap.c_str() ) );
 }
 
 
 
 int OpenbookFS::chmod (const char *path, mode_t mode)
 {
+    std::string wrapped = (m_dataDir / path).string();
     std::cerr << "chmod: "
-              "\n    path: " << path                <<
-              "\n        : " << (m_dataDir/path)    <<
-              "\n    mode: " << mode                <<
+              "\n    path: " << path    <<
+              "\n        : " << wrapped <<
+              "\n    mode: " << mode    <<
               std::endl;
 
-    return result_or_errno(
-            ::chmod(    wrap(path), mode )
-             );
+    return result_or_errno( ::chmod( wrapped.c_str(), mode ) );
 }
 
 
 
 int OpenbookFS::chown (const char *path, uid_t owner, gid_t group)
 {
+    std::string wrapped = (m_dataDir / path).string();
     std::cerr << "chown: "
               "\n    path: " << path                <<
               "\n        : " << (m_dataDir/path)    <<
@@ -206,26 +205,21 @@ int OpenbookFS::chown (const char *path, uid_t owner, gid_t group)
               "\n     gid: " << group               <<
               std::endl;
 
-    return  result_or_errno(
-            ::chown(    wrap(path),
-                        owner,
-                        group )
-            );
+    return  result_or_errno( ::chown( wrapped.c_str(), owner, group ) );
 }
 
 
 
 int OpenbookFS::truncate (const char *path, off_t length)
 {
+    std::string wrapped = (m_dataDir / path).string();
     std::cerr << "truncate: "
-              "\n      path: " << path                <<
-              "\n          : " << (m_dataDir/path)    <<
-              "\n    length: " << length              <<
+              "\n      path: " << path    <<
+              "\n          : " << wrapped <<
+              "\n    length: " << length  <<
               std::endl;
 
-    return  result_or_errno(
-        ::truncate( wrap(path), length  )
-            );
+    return  result_or_errno( ::truncate( wrapped.c_str(), length  ) );
 }
 
 
@@ -239,14 +233,13 @@ int OpenbookFS::truncate (const char *path, off_t length)
 
 int OpenbookFS::open (const char *path, struct fuse_file_info *fi)
 {
+    std::string wrapped = (m_dataDir / path).string();
     std::cerr << "open: "
-              "\n    path: " << path                <<
-              "\n        : " << (m_dataDir/path)    <<
+              "\n    path: " << path    <<
+              "\n        : " << wrapped <<
               std::endl;
 
-
-
-    int fh = ::open(  wrap(path), fi->flags );
+    int fh = ::open( wrapped.c_str(), fi->flags );
     fi->fh = fh;
 
     return result_or_errno(( fh > 0 ) ? 0 : fh);
@@ -260,18 +253,19 @@ int OpenbookFS::read (const char *pathname,
                         off_t offset,
                         struct fuse_file_info *fi)
 {
+    std::string wrapped = (m_dataDir / pathname).string();
+
     std::cerr << "read: "
-              "\n    path: " << pathname                <<
-              "\n        : " << (m_dataDir/pathname)    <<
-              "\n    size: " << bufsize                 <<
-              "\n     off: " << offset                  <<
-              "\n      fh: " << fi->fh                  <<
+              "\n    path: " << pathname  <<
+              "\n        : " << wrapped   <<
+              "\n    size: " << bufsize   <<
+              "\n     off: " << offset    <<
+              "\n      fh: " << fi->fh    <<
               std::endl;
 
     if(fi->fh)
     {
-        int result = result_or_errno(
-                ::pread(fi->fh,buf,bufsize,offset) );
+        int result = result_or_errno( ::pread(fi->fh,buf,bufsize,offset) );
         return result;
     }
     else
@@ -293,9 +287,7 @@ int OpenbookFS::write (const char *pathname,
               std::endl;
 
     if(fi->fh)
-    {
         return result_or_errno( ::pwrite(fi->fh,buf,bufsize,offset) );
-    }
     else
         return -EBADF;
 }
@@ -304,14 +296,13 @@ int OpenbookFS::write (const char *pathname,
 
 int OpenbookFS::statfs (const char *path, struct statvfs *buf)
 {
+    std::string wrapped = (m_dataDir / path).string();
     std::cerr << "statfs: "
                 "\n   path: " << path <<
                 "\n       : " << (m_dataDir / path)
                 << std::endl;
 
-    return result_or_errno(
-            ::statvfs(   wrap(path), buf )
-             );
+    return result_or_errno( ::statvfs( wrapped.c_str(), buf ) );
 }
 
 
@@ -422,7 +413,8 @@ int OpenbookFS::opendir (const char *path, struct fuse_file_info *fi)
                  "\n       : " << (m_dataDir / path) <<
                  std::endl;
 
-    DIR* dir = ::opendir( wrap(path) );
+    std::string wrapped = (m_dataDir / path).string();
+    DIR* dir = ::opendir( wrapped.c_str() );
 
     if(dir)
     {
@@ -538,9 +530,8 @@ int OpenbookFS::access (const char *pathname, int mode)
              "\n   mode: " << mode <<
              std::endl;
 
-    return result_or_errno(
-            ::access(    wrap(pathname), mode )
-             );
+    std::string wrapped = (m_dataDir / pathname).string();
+    return result_or_errno( ::access( wrapped.c_str(), mode ) );
 }
 
 
@@ -555,7 +546,8 @@ int OpenbookFS::create (const char *pathname,
              "\n   mode: " << mode <<
              std::endl;
 
-    fi->fh = ::creat( wrap(pathname), mode );
+    std::string wrapped = (m_dataDir / pathname).string();
+    fi->fh = ::creat( wrapped.c_str() , mode );
     if( fi->fh > 0 )
         return 0;
     else
@@ -591,7 +583,7 @@ int OpenbookFS::fgetattr (const char *path,
                             struct stat *out,
                             struct fuse_file_info *fi)
 {
-    std::string wrapped = wrap(path);
+    std::string wrapped = (m_dataDir / path).string();
 
     std::cerr << "fgetattr: "
                 << "\n       this: " << (void*) this
