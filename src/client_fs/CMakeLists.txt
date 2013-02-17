@@ -109,6 +109,7 @@ if( (Boost_FOUND)
                     ../MessageBuffer.cpp
                     ../FdSet.cpp
                     ../Job.cpp
+                    ../JobHandler.cpp
                     ../SelectSpec.cpp
                     ../NotifyPipe.cpp
                     ../TimeVal.cpp   

@@ -68,8 +68,11 @@
 #include "messages.h"
 #include "messages.pb.h"
 #include "ServerHandler.h"
+#include "Pool.h"
+#include "JobHandler.h"
 #include "Queue.h"
 #include "NotifyPipe.h"
+#include "jobs/QuitWorker.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -200,9 +203,43 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    // create job pool
+    JobHandler* jobHandlers = new JobHandler[ client.maxWorkers() ];
+    Pool<JobHandler> jobPool( client.maxWorkers() );
+    for(int i=0; i < client.maxWorkers(); i++)
+    {
+        jobHandlers[i].init(&jobPool,&jobQueue);
+        jobHandlers[i].start();
+    }
+
+
     // wait for the server to quit
     serverHandler.join();
 
+    std::cout << "Server handler quit, shutting down job pool\n";
+
+    // pump quit messags into job pool
+    for(int i=0; i < client.maxWorkers(); i++)
+        jobQueue.insert( new jobs::QuitWorker() );
+
+    // wait for the workers to quit
+    while( jobPool.size() < client.maxWorkers() )
+    {
+        std::cout << "Waiting for "
+                  << client.maxWorkers() - jobPool.size()
+                  << " workers to quit\n";
+        sleep(1);
+    }
+
+    // empty out any extra jobs
+    while( !jobQueue.empty() )
+    {
+        Job* job;
+        jobQueue.extract(job);
+        delete job;
+    }
+
+    std::cout << "Terminating\n";
 
 
 }

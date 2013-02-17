@@ -45,12 +45,12 @@ if( (Boost_FOUND)
     add_executable( openbookfs_d
                     main.cpp
                     ClientHandler.cpp
-                    JobHandler.cpp
                     Server.cpp
                     ../jobs.cpp
                     ../messages.cpp
                     ../FdSet.cpp
                     ../Job.cpp
+                    ../JobHandler.cpp
                     ../MessageBuffer.cpp
                     ../NotifyPipe.cpp
                     ../SelectSpec.cpp
