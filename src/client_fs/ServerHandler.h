@@ -141,7 +141,7 @@ class ServerHandler:
         ~ServerHandler();
 
         /// set the parent pointer and terminator pipe fd
-        void init( Client*, int termfd );
+        void init( Client*, JobQueue_t*, int termfd );
 
         /// start the handler
         void start();

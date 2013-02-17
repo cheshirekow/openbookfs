@@ -59,6 +59,7 @@
 
 #include "ServerHandler.h"
 #include "SelectSpec.h"
+#include "global.h"
 #include "messages.h"
 #include "messages.pb.h"
 #include "jobs/QuitShouter.h"
@@ -99,12 +100,13 @@ ServerHandler::~ServerHandler()
 }
 
 void ServerHandler::init(
-        Client* client, int termfd )
+        Client* client, JobQueue_t* jobQueue, int termfd )
 {
     using namespace pthreads;
     namespace cryp = CryptoPP;
 
     m_client    = client;
+    m_newJobs   = jobQueue;
     m_fd[0]     = 0;
     m_fd[1]     = termfd;
     m_shouldDie = false;
@@ -208,7 +210,7 @@ void* ServerHandler::main()
     std::cout << "Starting handler " << (void*)this << " in thread "
               << pthreads::Thread::self().c_obj() << "\n";
 
-    while(!m_shouldDie)
+    while(!g_shouldDie)
     {
         std::cout << "Will start handler in 5 seconds" << std::endl;
         sleep(5);
@@ -221,6 +223,11 @@ void* ServerHandler::main()
                 createConnection();
                 handshake();
             }
+
+            // set the connection to nonblocking
+            int result = fcntl( m_fd[0], F_SETFL, O_NONBLOCK );
+            if( result )
+                ex()() << "Failed to set the socket to nonblocking";
 
             std::cout << "handler " << (void*)this
                       << " launching listen thread\n";
@@ -241,7 +248,7 @@ void* ServerHandler::main()
         catch( std::exception& ex )
         {
             std::cerr << "Exception in handler " << (void*)this << " main():\n   "
-                      << ex.what();
+                      << ex.what() << std::endl;
         }
 
         // now we do our clean  up, but first lock the object so that no one tries

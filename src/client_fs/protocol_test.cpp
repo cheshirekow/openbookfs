@@ -35,6 +35,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cerrno>
+#include <csignal>
 
 #include <unistd.h>
 #include <fcntl.h>
@@ -63,16 +64,54 @@
 #include "Bytes.h"
 #include "Client.h"
 #include "MessageBuffer.h"
+#include "global.h"
 #include "messages.h"
 #include "messages.pb.h"
+#include "ServerHandler.h"
+#include "Queue.h"
+#include "NotifyPipe.h"
+
+namespace   openbook {
+namespace filesystem {
+
+volatile bool   g_shouldDie = false;
+NotifyPipe*     g_termNote;
+
+}
+}
 
 using namespace openbook::filesystem;
+
+void signal_callback( int signum )
+{
+    switch(signum)
+    {
+        case SIGINT:
+        {
+            std::cout << "Received signal, going to terminate" << std::endl;
+            g_shouldDie = true;
+            g_termNote->notify();
+            break;
+        }
+
+        default:
+            std::cout << "Unexpected signal, ignoring" << std::endl;
+            break;
+    }
+}
 
 int main(int argc, char** argv)
 {
     namespace fs   = boost::filesystem;
     namespace cryp = CryptoPP;
     namespace msgs = messages;
+
+    // register signal handler
+    signal(SIGINT, signal_callback);
+
+    // initialize pipe to notify of termination
+    NotifyPipe termNote;
+    g_termNote = &termNote;
 
     std::string config;
 
@@ -135,7 +174,7 @@ int main(int argc, char** argv)
     }
 
     // attempt to load the config file
-    Client client;
+    Client        client;
 
     try
     {
@@ -147,525 +186,22 @@ int main(int argc, char** argv)
         return 1;
     }
 
-
-    // attempt to open the public and private key files and read them in
-    if( !fs::exists( fs::path(client.pubKeyFile()) ) )
-    {
-        std::cerr << "public key file: " << client.pubKeyFile() << " does not exist\n";
-        return 1;
-    }
-
-    std::string             rsaPubStr;
-    cryp::RSA::PublicKey    rsaPubKey;
-    cryp::RSA::PrivateKey   rsaPrivKey;
-    cryp::AutoSeededRandomPool  rng;
-    try
-    {
-        // open a stream to the public key file
-        std::ifstream in(client.pubKeyFile().c_str(),
-                            std::ios::in | std::ios::binary);
-        if (!in)
-            ex()() << "Failed to open " << client.pubKeyFile().c_str()
-                   << " for reading ";
-
-        // seek to the end of the file to get it's size
-        in.seekg(0, std::ios::end);
-
-        // resize the storage space
-        rsaPubStr.resize((unsigned int)in.tellg(),'\0');
-
-        // seek back to the beginning
-        in.seekg(0, std::ios::beg);
-
-        // read in the entire file
-        in.read(&rsaPubStr[0], rsaPubStr.size());
-
-        // seek back to the beginning again
-        in.seekg(0, std::ios::beg);
-
-        // read into public key
-        cryp::FileSource keyFile(in,true);
-        cryp::ByteQueue  queue;
-        keyFile.TransferTo(queue);
-        queue.MessageEnd();
-
-        rsaPubKey.Load(queue);
-    }
-    catch( cryp::Exception& ex )
-    {
-        std::cerr << "Failed to load public key from " << client.pubKeyFile()
-                  <<  " : " << ex.what() << std::endl;
-        return 1;
-    }
+    ServerHandler serverHandler;
+    Queue<Job*>   jobQueue;
 
     try
     {
-        cryp::FileSource keyFile(client.privKeyFile().c_str(),true);
-        cryp::ByteQueue  queue;
-        keyFile.TransferTo(queue);
-        queue.MessageEnd();
-
-        rsaPrivKey.Load(queue);
-    }
-    catch( cryp::Exception& ex )
-    {
-        std::cerr << "Failed to load private key from " << client.privKeyFile()
-                  <<  " : " << ex.what() << std::endl;
-        return 1;
-    }
-
-    if( !rsaPubKey.Validate(rng,3) )
-    {
-        std::cerr << "Failed to validate public key" << std::endl;
-        return 1;
-    }
-    if( !rsaPrivKey.Validate(rng,3) )
-    {
-        std::cerr << "Failed to validate private key" << std::endl;
-        return 1;
-    }
-
-    // parse the server string
-    std::string hostName;
-    std::string hostPort;
-    RE2         serverRegex( "([^:]+):(\\d+)" );
-
-    if( !serverRegex.ok() )
-    {
-        std::cerr << "Something is wrong with the regex: ([^:]+):(\\d+)"
-                  << std::endl;
-        return 1;
-    }
-
-    bool matchResult =
-            RE2::FullMatch(client.server().c_str(),
-                            serverRegex,&hostName,&hostPort);
-    if( !matchResult )
-    {
-        std::cerr << "Failed to match [HOST]:[PORT] in string "
-                  << client.server()
-                  << std::endl;
-        return 1;
-    }
-
-    int sockfd;
-
-    try
-    {
-        // defaults
-        addrinfo  hints;
-        addrinfo* found;
-        memset(&hints,0,sizeof(addrinfo));
-        hints.ai_family   = AF_UNSPEC;
-        hints.ai_socktype = SOCK_STREAM;
-        hints.ai_protocol = 0;
-
-        if( client.addressFamily() == "AF_INET" )
-            hints.ai_family     = AF_INET;
-        else if( client.addressFamily() == "AF_INET6" )
-            hints.ai_family = AF_INET6;
-        else if( client.addressFamily() != "AF_UNSPEC" )
-        {
-            std::cerr << "I dont understand the address family "
-                      << client.addressFamily() << ", check the config file. "
-                      << "I will use AF_UNSPEC to seach for an interface";
-        }
-
-        if( client.iface() == "any" )
-        {
-            sockfd = socket( hints.ai_family,
-                             hints.ai_socktype ,
-                             hints.ai_protocol );
-            if (sockfd < 0)
-                ex()() << "Failed to create a socket for 'any'";
-        }
-        else
-        {
-            const char* node    = client.iface().c_str();
-            const char* service = 0;
-
-            int result = getaddrinfo(node,service,&hints,&found);
-            if( result < 0  )
-            {
-                ex()() << "Failed to find an interface which matches family: "
-                       << client.addressFamily() << ", node: "
-                       << client.iface()
-                       << "\nErrno is " << errno << " : " << strerror(errno);
-            }
-
-            addrinfo* addr = found;
-
-            for( ; addr; addr = addr->ai_next )
-            {
-                std::cout << "Attempting to create socket:"
-                          << "\n   family: " << addr->ai_family
-                          << "\n     type: " << addr->ai_socktype
-                          << "\n protocol: " << addr->ai_protocol
-                          << std::endl;
-
-                sockfd = socket(addr->ai_family,
-                                    addr->ai_socktype ,
-                                    addr->ai_protocol);
-                if (sockfd < 0)
-                    continue;
-                else
-                    break;
-            }
-
-            freeaddrinfo(found);
-
-            if( !addr )
-                ex()() << "None of the matched interfaces work";
-
-                    char host[NI_MAXHOST];
-            char port[NI_MAXSERV];
-            memset(host, 0, sizeof(host));
-            memset(port, 0, sizeof(port));
-            getnameinfo( (sockaddr*)addr->ai_addr, addr->ai_addrlen,
-                         host, sizeof(host),
-                         port, sizeof(port),
-                         NI_NUMERICHOST | NI_NUMERICSERV );
-
-            std::cout << "Using client interface to " << host
-                      << ":" << port << std::endl;
-        }
-
-        // attempt to make connection
-        const char* node    = hostName.c_str();
-        const char* service = hostPort.c_str();
-
-        std::cout << "Searching for host addr matching "
-                  << hostName << ":" << hostPort << std::endl;
-
-        int result = getaddrinfo(node,service,&hints,&found);
-        if( result < 0 )
-        {
-            ex()() << "Failed to find an interface which matches family: "
-                   << client.addressFamily() << ", node: "
-                   << hostName << ", server: " << hostPort
-                   << "\nErrno is " << errno << " : " << strerror(errno);
-        }
-
-        addrinfo* addr = found;
-
-        for( ; addr; addr = addr->ai_next )
-        {
-            std::cout << "Attempting to connect to server:"
-                      << "\n   family: " << addr->ai_family
-                      << "\n     type: " << addr->ai_socktype
-                      << "\n protocol: " << addr->ai_protocol
-                      << std::endl;
-
-            int connectResult =
-                    connect( sockfd, addr->ai_addr, addr->ai_addrlen );
-            if (connectResult < 0 )
-            {
-                std::cerr << "Connection failed, errno " << errno << " : "
-                          << strerror(errno) << "\n";
-                continue;
-            }
-            else
-                break;
-        }
-
-        freeaddrinfo(found);
-
-        if( !addr )
-            ex()() << "None of the matched server interfaces work";
+        serverHandler.init(&client,&jobQueue,termNote.readFd());
+        serverHandler.start();
     }
     catch( std::exception& ex )
     {
-        std::cerr << "Error while setting up the socket or creating connection: "
-                  << ex.what() << std::endl;
-        if( sockfd > 0 )
-            close(sockfd);
+        std::cerr << "Problem starting server handler: " << ex.what() << std::endl;
         return 1;
     }
 
-
-    try
-    {
-
-    MessageBuffer msg;  //< rpc middle man
-    char          type; //< type of reponse message
-
-    // first we receive a DH parameter messages
-    type = msg.read(sockfd);
-    if( type != MSG_DH_PARAMS )
-        ex()() << "Protocol error, first message received from server is "
-               << messageIdToString(type) << "(" << (int)type << "), "
-               << "expecting DH_PARAMS";
-
-    msgs::DiffieHellmanParams* dhParams =
-            static_cast<msgs::DiffieHellmanParams*>( msg[MSG_DH_PARAMS] );
-
-    cryp::Integer p,q,g;
-    p.Decode( (unsigned char*)&dhParams->p()[0],
-                dhParams->p().size(),
-                cryp::Integer::UNSIGNED );
-    q.Decode( (unsigned char*)&dhParams->q()[0],
-                dhParams->q().size(),
-                cryp::Integer::UNSIGNED );
-    g.Decode( (unsigned char*)&dhParams->g()[0],
-                dhParams->g().size(),
-                cryp::Integer::UNSIGNED );
-
-    cryp::DH                dh;         //< Diffie-Hellman structure
-    cryp::DH2               dh2(dh);    //< Diffie-Hellman structure
-    cryp::SecByteBlock      spriv;      //< static private key
-    cryp::SecByteBlock      spub;       //< static public key
-    cryp::SecByteBlock      epriv;      //< ephemeral private key
-    cryp::SecByteBlock      epub;       //< ephemeral public key
-    cryp::SecByteBlock      shared;     //< shared key
-
-    dh.AccessGroupParameters().Initialize(p,q,g);
-    if( !dh.AccessGroupParameters().Validate(rng,3) )
-        ex()() << "WOAH!! diffie-hellman parameters aren't valid... "
-                  "possible tampering with packets";
-
-    // initialize DH
-    {
-        std::cout << "Generating DH parameters, this may take a minute"
-                  << std::endl;
-        using namespace CryptoPP;
-        spriv = SecByteBlock( dh2.StaticPrivateKeyLength() );
-        spub  = SecByteBlock( dh2.StaticPublicKeyLength() );
-        epriv = SecByteBlock( dh2.EphemeralPrivateKeyLength() );
-        epub  = SecByteBlock( dh2.EphemeralPublicKeyLength() );
-
-        dh2.GenerateStaticKeyPair(rng,spriv,spub);
-        dh2.GenerateEphemeralKeyPair(rng,epriv, epub);
-        shared= SecByteBlock( dh2.AgreedValueLength() );
-        std::cout << "Finished generating DH parameters" << std::endl;
-    }
-
-    // the first message is a DH key exchange
-    msgs::KeyExchange* keyEx =
-            static_cast<msgs::KeyExchange*>( msg[MSG_KEY_EXCHANGE] );
-    keyEx->set_skey(spub.BytePtr(),spub.SizeInBytes());
-    keyEx->set_ekey(epub.BytePtr(),epub.SizeInBytes());
-
-    // send unencrypted key exchange
-    msg.write(sockfd,MSG_KEY_EXCHANGE);
-    type = msg.read(sockfd);
-
-    if( type != MSG_KEY_EXCHANGE )
-    {
-        std::cerr << "Protocol error: expected KEY_EXCHANGE message, got "
-                  << messageIdToString(type) << std::endl;
-        return 1;
-    }
-
-    // read the servers keys
-    cryp::SecByteBlock epubServer(
-                    (unsigned char*)&keyEx->ekey()[0], keyEx->ekey().size() );
-    cryp::SecByteBlock spubServer(
-                    (unsigned char*)&keyEx->skey()[0], keyEx->skey().size() );
-
-    // generate shared key
-    if (!dh2.Agree(shared,spriv,epriv,spubServer,epubServer))
-    {
-        std::cerr << "Failed to agree on a shared key" << std::endl;
-        return 1;
-    }
-
-    // use shared secret to generate real keys
-    // Take the leftmost 'n' bits for the KEK
-    cryp::SecByteBlock kek(
-            shared.BytePtr(), cryp::AES::DEFAULT_KEYLENGTH);
-
-    // CMAC key follows the 'n' bits used for KEK
-    cryp::SecByteBlock mack(
-            &shared.BytePtr()[cryp::AES::DEFAULT_KEYLENGTH],
-                                cryp::AES::BLOCKSIZE);
-    cryp::CMAC<cryp::AES> cmac(mack.BytePtr(), mack.SizeInBytes());
-
-    // extract and decode the content key
-    // AES in ECB mode is fine - we're encrypting 1 block, so we don't need
-    // padding
-    cryp::ECB_Mode<cryp::AES>::Decryption aes;
-    aes.SetKey(kek.BytePtr(), kek.SizeInBytes());
-
-    // receive the content encryption key from the server
-    type = msg.read(sockfd);
-    if( type != MSG_CEK )
-        ex()() << "Protocol error: expected CEK message, instead got "
-               << messageIdToString(type) << "(" << (int)type << ") ";
-
-    // verify message sizes
-    msgs::ContentKey* contentKey =
-            static_cast<msgs::ContentKey*>( msg[MSG_CEK] );
-    if( contentKey->key().size() != cryp::AES::BLOCKSIZE )
-        ex()() << "Message error: CEK key size "
-               << contentKey->key().size() << " is incorrect, should be "
-               << cryp::AES::BLOCKSIZE;
-
-    if( contentKey->iv().size() != cryp::AES::BLOCKSIZE )
-        ex()() << "Message error: CEK iv size "
-               << contentKey->iv().size() << " is incorrect, should be "
-               << cryp::AES::BLOCKSIZE;
-
-    if( contentKey->cmac().size() != cryp::AES::BLOCKSIZE )
-        ex()() << "Message error: CEK cmac size "
-               << contentKey->cmac().size() << " is incorrect, should be "
-               << cryp::AES::BLOCKSIZE;
-
-    // Enc(CEK)|Enc(iv)
-    cryp::SecByteBlock msg_cipher( 2*cryp::AES::BLOCKSIZE );
-    memcpy( msg_cipher.BytePtr(), &contentKey->key()[0], cryp::AES::BLOCKSIZE );
-    memcpy( &msg_cipher.BytePtr()[cryp::AES::BLOCKSIZE],
-                                  &contentKey->iv()[0], cryp::AES::BLOCKSIZE );
-
-    // Enc(CEK)
-    cryp::SecByteBlock key_cipher(
-                (unsigned char* )&contentKey->key()[0], cryp::AES::BLOCKSIZE );
-
-    // ENC(IV)
-    cryp::SecByteBlock iv_cipher (
-                (unsigned char*)&contentKey->iv()[0], cryp::AES::BLOCKSIZE);
-
-    // CMAC(Enc(CEK))
-    cryp::SecByteBlock msg_cmac(
-                (unsigned char* )&contentKey->cmac()[0], cryp::AES::BLOCKSIZE );
-
-    // recompute cmac for verification
-    cryp::SecByteBlock chk_cmac( cryp::AES::BLOCKSIZE );
-    cmac.CalculateTruncatedDigest( chk_cmac.BytePtr(), cryp::AES::BLOCKSIZE,
-                                   msg_cipher.BytePtr(), 2*cryp::AES::BLOCKSIZE );
-    if( chk_cmac != msg_cmac )
-        ex()() << "WOAH!!! CEK message digest doesn't match, possible "
-                  "tampering of data";
-
-    // decrypt the CEK
-    cryp::SecByteBlock cek( cryp::AES::DEFAULT_KEYLENGTH );
-    cryp::SecByteBlock  iv( cryp::AES::BLOCKSIZE );
-    aes.ProcessData( cek.BytePtr(), key_cipher.BytePtr(), cryp::AES::DEFAULT_KEYLENGTH );
-    aes.ProcessData(  iv.BytePtr(),  iv_cipher.BytePtr(), cryp::AES::BLOCKSIZE );
-
-    cryp::Integer cekOut, ivOut;
-    cekOut.Decode( cek.BytePtr(), cek.SizeInBytes() );
-    ivOut .Decode(  iv.BytePtr(),  iv.SizeInBytes() );
-    std::cout << "AES Key: " << std::hex << cekOut << std::endl;
-    std::cout << "     iv: " << std::hex <<  ivOut << std::endl;
-    std::cout << std::dec;
-
-    // now we can make our encryptor and decryptor
-    cryp::GCM<cryp::AES>::Encryption enc;
-    cryp::GCM<cryp::AES>::Decryption dec;
-    enc.SetKeyWithIV(cek.BytePtr(), cek.SizeInBytes(),
-                     iv.BytePtr(), iv.SizeInBytes());
-    dec.SetKeyWithIV(cek.BytePtr(), cek.SizeInBytes(),
-                    iv.BytePtr(), iv.SizeInBytes());
-
-    // the next message we send is the authentication message carrying our
-    // public key
-    msgs::AuthRequest* authReq =
-            static_cast<msgs::AuthRequest*>(msg[MSG_AUTH_REQ]);
-    authReq->set_public_key(rsaPubStr);
-
-    msg.write(sockfd,MSG_AUTH_REQ,enc);
-    enc.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
-
-    // we expect a challenge
-    type = msg.read(sockfd,dec);
-    dec.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
-    if( type != MSG_AUTH_CHALLENGE )
-        ex()() << "Protocol error: expected AUTH_CHALLENGE but received "
-               << messageIdToString(type) << " (" << (int)type << ")";
-
-    std::string solution;
-    msgs::AuthChallenge* authChallenge =
-            static_cast<msgs::AuthChallenge*>(msg[MSG_AUTH_CHALLENGE]);
-
-    if( authChallenge->type() != msgs::AuthChallenge::AUTHENTICATE )
-        ex()() << "Protocol error: expected an authentication challenge";
-
-    // create an RSA Decryptor to verify ownership
-    cryp::RSAES_OAEP_SHA_Decryptor rsaDec( rsaPrivKey );
-    solution.resize( rsaDec.FixedMaxPlaintextLength() );
-    rsaDec.Decrypt(rng,
-                    (unsigned char*)&authChallenge->challenge()[0],
-                    authChallenge->challenge().size(),
-                    (unsigned char*)&solution[0] );
-
-    msgs::AuthSolution* authSoln =
-            static_cast<msgs::AuthSolution*>(msg[MSG_AUTH_SOLN]);
-    authSoln->set_solution(solution);
-
-    msg.write(sockfd,MSG_AUTH_SOLN,enc);
-    enc.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
-
-    type = msg.read(sockfd,dec);
-    dec.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
-    if( type != MSG_AUTH_RESULT )
-        ex()() << "Protocol Error: expected AUTH_RESULT but got "
-               << messageIdToString(type) << " (" << (int)type << ")";
-
-    msgs::AuthResult* authResult =
-            static_cast<msgs::AuthResult*>( msg[MSG_AUTH_RESULT] );
-    if( !authResult->response() )
-        ex()() << "Failed the servers challenge";
-
-    // now we expect a authorization challenge
-    type = msg.read(sockfd,dec);
-    dec.Resynchronize(iv.BytePtr(), iv.SizeInBytes());
-
-    if( type != MSG_AUTH_CHALLENGE )
-        ex()() << "Protocol Error: expected AUTH_CHALLENGE but got "
-               << messageIdToString(type) << " (" << (int)type << ")";
-    if( authChallenge->type() != msgs::AuthChallenge::AUTHORIZE )
-        ex()() << "Protocol Error: expected AUTHORIZE challenge";
-    if( authChallenge->challenge().size() != cryp::SHA512::BLOCKSIZE )
-        ex()() << "Expected salt of size " << cryp::SHA512::BLOCKSIZE
-               << " but got one of " << authChallenge->challenge().size();
-
-    cryp::SecByteBlock salt( cryp::SHA512::BLOCKSIZE );
-    memcpy( salt.BytePtr(), authChallenge->challenge().c_str(),
-                                            cryp::SHA512::BLOCKSIZE );
-
-    std::string password = "fabulous";
-    cryp::SHA512 hash;
-    hash.Update( (unsigned char*)password.c_str(), password.size() );
-    hash.Update( salt.BytePtr(), salt.SizeInBytes() );
-
-    cryp::SecByteBlock digest( cryp::SHA512::DIGESTSIZE );
-    hash.Final( digest.BytePtr() );
-    authSoln->set_solution( digest.BytePtr(), digest.SizeInBytes() );
-
-    std::cout << "Sending password challenge";
-    cryp::Integer saltOut, hashOut;
-    saltOut.Decode(salt.BytePtr(),salt.SizeInBytes() );
-    hashOut.Decode(digest.BytePtr(),digest.SizeInBytes() );
-    std::cout << "\n   salt: " << std::hex << saltOut
-              << "\n   hash: " << hashOut << std::dec << std::endl;
-
-    msg.write(sockfd,MSG_AUTH_SOLN,enc);
-    enc.Resynchronize(iv.BytePtr(), iv.SizeInBytes() );
-
-    // read response
-    type = msg.read(sockfd,dec);
-    dec.Resynchronize(iv.BytePtr(), iv.SizeInBytes() );
-
-    if( type != MSG_AUTH_RESULT )
-        ex()() << "Protocol Error: expected AUTH_RESULT but got "
-               << messageIdToString(type) << " (" << (int)type << ")";
-
-    if( authResult->response() )
-        std::cout << "Authorized!!" << std::endl;
-    else
-        ex()() << "Not authorized";
-
-    sleep(1);
-
-    }
-    catch( std::exception& ex )
-    {
-        std::cerr << ex.what() << std::endl;
-        sleep(1);
-    }
-
-    // close the socket
-    close(sockfd);
+    // wait for the server to quit
+    serverHandler.join();
 
 
 
