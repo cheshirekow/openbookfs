@@ -260,17 +260,18 @@ void* ServerHandler::main()
             close(m_fd[0]);
     }
 
+    std::cout << "Server handler is terminating\n";
 
     // now it's time to terminate
-//    // clear out the finished queue
-//    Job* job=0;
-//    while( !m_finishedJobs.empty() )
-//    {
-//        std::cout << "Handler " << (void*) this
-//              << " removing unacked finished jobs\n";
-//        m_finishedJobs.extract(job);
-//        delete job;
-//    }
+    // clear out the finished queue
+    Job* job=0;
+    while( !m_finishedJobs.empty() )
+    {
+        std::cout << "Handler " << (void*) this
+              << " removing unacked finished jobs\n";
+        m_finishedJobs.extract(job);
+        delete job;
+    }
 
     std::cout.flush();
     return 0;
