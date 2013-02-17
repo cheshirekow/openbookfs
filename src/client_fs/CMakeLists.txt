@@ -33,7 +33,7 @@ if( (FUSE_FOUND)
     add_executable( ${CMAKE_PROJECT_NAME} 
                             ../base64.cpp
                             main.cpp
-                            singleton.cpp 
+                            fuse_operations.cpp
                             OpenbookFS.cpp)
                             
     set_target_properties( ${CMAKE_PROJECT_NAME} 

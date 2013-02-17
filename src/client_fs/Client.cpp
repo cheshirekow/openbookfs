@@ -33,7 +33,7 @@
 #include <string>
 
 #include <yaml-cpp/yaml.h>
-#include <boost/filesystem.hpp>
+
 
 namespace   openbook {
 namespace filesystem {
@@ -80,15 +80,17 @@ void Client::initConfig(const std::string& configFile)
 
     namespace fs = boost::filesystem;
 
+    m_realRoot = fs::path(m_dataDir) / "real_root";
+
     // check that the data directory and subdirectories exist
-    if( !fs::exists( fs::path(m_dataDir) ) )
+    if( !fs::exists( m_realRoot  ) )
     {
         std::cout << "creating data directory: "
-                  << fs::absolute( fs::path(m_dataDir) )
+                  << fs::absolute( m_realRoot  )
                   << std::endl;
-        bool result = fs::create_directories( fs::path(m_dataDir ) );
+        bool result = fs::create_directories( m_realRoot  );
         if( !result )
-            ex()() << "failed to create data directory: " << m_dataDir;
+            ex()() << "failed to create data directory: " << m_realRoot ;
     }
 }
 

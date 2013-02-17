@@ -33,6 +33,7 @@
 
 #include <crypto++/rsa.h>
 #include <cryptopp/osrng.h>
+#include <boost/filesystem.hpp>
 
 #include <bitset>
 
@@ -46,6 +47,8 @@ struct Client
     private:
         pthreads::Mutex m_mutex;    ///< locks this data
 
+        boost::filesystem::path m_realRoot;
+                                    ///< real file system location
         std::string  m_dataDir;      ///< client data location
         std::string  m_rootDir;      ///< file system mount point
         std::string  m_pubKeyFile;   ///< public key file

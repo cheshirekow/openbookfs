@@ -17,29 +17,24 @@
 
 #include <boost/filesystem.hpp>
 
-namespace openbookfs
-{
 
-namespace fs = boost::filesystem;
+namespace   openbook {
+namespace filesystem {
 
 
 class OpenbookFS
 {
     private:
-        fs::path        m_dataDir;
-
-        int             m_fuse_argc;
-        char**          m_fuse_argv;
+        boost::filesystem::path m_dataDir;
 
         int  result_or_errno(int result);
         const char* wrap(const char* path);
 
     public:
-        OpenbookFS(int argc, char** argv);
+        OpenbookFS(boost::filesystem::path dataDir);
 
         ~OpenbookFS();
 
-        void getFuseArgs(int* argc, char*** argv);
 
         /** Get file attributes.
          *
@@ -440,6 +435,50 @@ class OpenbookFS
 };
 
 
+/// simply stores initializer options for the OpenbookFS object
+struct OpenbookFS_Init
+{
+    boost::filesystem::path dataDir;
 
-} /* namespace openbookfs */
+    OpenbookFS* create()
+    {
+        return new OpenbookFS(dataDir);
+    }
+};
+
+
+} // namespace filesystem
+} // namespace openbook
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #endif /* OPENBOOKFS_H_ */

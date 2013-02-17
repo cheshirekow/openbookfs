@@ -21,8 +21,8 @@
 #include <boost/filesystem.hpp>
 #include <tclap/CmdLine.h>
 
-namespace openbookfs
-{
+namespace   openbook {
+namespace filesystem {
 
 
 int OpenbookFS::result_or_errno(int result)
@@ -39,254 +39,38 @@ const char* OpenbookFS::wrap( const char* path )
 }
 
 
-OpenbookFS::OpenbookFS(int argc, char** argv)
+OpenbookFS::OpenbookFS(boost::filesystem::path dataDir)
 {
-    namespace fs = boost::filesystem;
-
-    // Wrap everything in a try block.  Do this every time,
-    // because exceptions will be thrown for problems.
-    try {
-
-    time_t      rawtime;
-    tm*         timeinfo;
-    char        currentYear[5];
-
-    ::time( &rawtime );
-    timeinfo = ::localtime( &rawtime );
-    strftime (currentYear,5,"%Y",timeinfo);
-
-    fs::path homeDir     = getenv("HOME");
-    fs::path dfltDataDir = homeDir / ".openbook/data";
-    fs::path dfltMountDir= homeDir / "openbook";
-
-
-    std::stringstream sstream;
-    sstream << "Openbook Filesystem\n"
-            << "Copyright (c) 2012-" << currentYear
-            << " Josh Bialkowski <josh.bialkowski@gmail.com>";
-
-    // Define the command line object, and insert a message
-    // that describes the program. The "Command description message"
-    // is printed last in the help text. The second argument is the
-    // delimiter (usually space) and the last one is the version number.
-    // The CmdLine object parses the argv array based on the Arg objects
-    // that it contains.
-    TCLAP::CmdLine cmd(sstream.str().c_str(), ' ', "0.1.0");
-
-    // Define a value argument and add it to the command line.
-    // A value arg defines a flag and a type of value that it expects,
-    // such as "-n Bishop".
-    TCLAP::ValueArg<std::string> dataDirArg(
-            "a",    // ............................................. short flag
-            "data", // .............................................. long flag
-            "data directory on the "    // .......... user-readable description
-                "actual file system",
-            false,   // .............................................. required?
-            dfltDataDir.string(),   // .......................... default value
-            "path"  // ..................................... user readable type
-            );
-
-    TCLAP::UnlabeledValueArg<std::string> mountArg(
-            "mount_point",  // ........................................... name
-            "where to mount the filesystem ",   // .. user-readable description
-            false,   // .............................................. required?
-            dfltMountDir.string(),   // ......................... default value
-            "path"  // ..................................... user readable type
-            );
-
-    TCLAP::SwitchArg fuseHelpArg(
-            "H",
-            "fusehelp",
-            "show help output and options from fuse",
-            false
-            );
-
-    TCLAP::SwitchArg fuseVersionArg(
-            "V",
-            "fuseversion",
-            "show version info from fuse",
-            false
-            );
-
-    TCLAP::SwitchArg debugArg(
-            "d",
-            "debug",
-            "enable debug output (implies -f)",
-            false
-            );
-
-    TCLAP::SwitchArg foregroundArg(
-            "f",
-            "foreground",
-            "foreground operation (don't daemonize)",
-            false
-            );
-
-    TCLAP::SwitchArg singlethreadArg(
-            "s",
-            "singlethread",
-            "disable multi-threaded operation",
-            false
-            );
-
-    TCLAP::MultiArg<std::string> optionArgs(
-            "o",
-            "options",
-            "additional options for fuse (--fusehelp for more info)",
-            false,
-            "strings"
-            );
-
-
-    // Add the argument nameArg to the CmdLine object. The CmdLine object
-    // uses this Arg to parse the command line.
-    cmd.add( mountArg );
-    cmd.add( dataDirArg );
-    cmd.add( fuseHelpArg );
-    cmd.add( fuseVersionArg );
-    cmd.add( debugArg );
-    cmd.add( foregroundArg );
-    cmd.add( singlethreadArg );
-    cmd.add( optionArgs );
-
-    // Parse the argv array.
-    cmd.parse( argc, argv );
-
-    // Get the value parsed by each arg.
-    m_dataDir  = dataDirArg.getValue();
-
-    // Generate a command line string for fuse
-    std::list<std::string>  fuse_argv;
-
-    fuse_argv.push_back(cmd.getProgramName());
-
-    if( !( fuseHelpArg.getValue() || fuseVersionArg.getValue() ) )
-        fuse_argv.push_back(mountArg.getValue());
-
-    if(fuseHelpArg.getValue())
-        fuse_argv.push_back("-h");
-
-    if(fuseVersionArg.getValue())
-        fuse_argv.push_back("-V");
-
-    if(debugArg.getValue())
-        fuse_argv.push_back("-d");
-
-    if(foregroundArg.getValue())
-        fuse_argv.push_back("-f");
-
-    if(singlethreadArg.getValue())
-        fuse_argv.push_back("-s");
-
-    for(int i=0; i < optionArgs.getValue().size(); i++)
-    {
-        fuse_argv.push_back("-o");
-        fuse_argv.push_back( optionArgs.getValue()[i] );
-    }
-
-    // calculate the number of bytes we need to store argv
-    std::list<std::string>::iterator    itArgv;
-    int                                 nChars = 0;
-    for(itArgv = fuse_argv.begin(); itArgv != fuse_argv.end(); itArgv++)
-        nChars += itArgv->length() + 1;
-
-    // allocate such a character array
-    char* argv_buf  = new char[nChars];
-    int   iArg      = 0;
-    int   iBuf      = 0;
-    m_fuse_argc     = fuse_argv.size();
-    m_fuse_argv     = new char*[m_fuse_argc];
-
-    for(itArgv = fuse_argv.begin(); itArgv != fuse_argv.end(); itArgv++)
-    {
-        char*   ptrArg      = argv_buf + iBuf;
-        int     argLen      = itArgv->length();
-        m_fuse_argv[iArg++] = ptrArg;
-
-        itArgv->copy(ptrArg,argLen);
-        iBuf += argLen;
-
-        argv_buf[iBuf] = '\0';
-        iBuf ++;
-    }
-
-    std::cerr << "Finished building argument vector: \n   ";
-    for(int i=0; i < nChars; i++)
-    {
-        if(argv_buf[i] != '\0')
-            std::cerr << argv_buf[i];
-        else
-            std::cerr << " ";
-    }
-    std::cerr << std::endl;
-
-
-    }
-
-    catch (TCLAP::ArgException &e)  // catch any exceptions
-    {
-        std::cerr   << "error: " << e.error() << " for arg "
-                    << e.argId() << std::endl;
-    }
-
-
-
-
-
-
-
+    m_dataDir = dataDir;
 
 }
-
-
-
-
-
 
 
 
 
 OpenbookFS::~OpenbookFS()
 {
-    delete [] m_fuse_argv[0];
-    delete [] m_fuse_argv;
 }
-
-
-
-
-
-
-void OpenbookFS::getFuseArgs(int* argc, char*** argv)
-{
-    std::cerr << "Returning fuse arguments (" << m_fuse_argc << "):\n";
-    for(int i=0; i < m_fuse_argc; i++)
-    {
-        std::cerr << "   " << m_fuse_argv[i] << "\n";
-    }
-    std::cerr << std::endl;
-
-    *argc = m_fuse_argc;
-    *argv = m_fuse_argv;
-}
-
-
-
-
-
-
-
-
 
 
 
 
 int OpenbookFS::getattr (const char *path, struct stat *out)
 {
-    std::cerr << "getattr: " << path
-                << "(" << (m_dataDir / path) << ")" << std::endl;
+    std::string wrapped = wrap(path);
 
-    return ::lstat( wrap(path), out ) ? -errno : 0;
+    std::cerr << "getattr: "
+                << "\n       this: " << (void*) this
+                << "\n    request: " << path
+                << "\n translated: "
+                    << "(" << wrapped << ")" << std::endl;
+
+    int result = ::lstat( wrapped.c_str(), out );
+    if( result )
+        std::cerr << "Problem!!" << std::endl;
+    else
+        std::cerr << "No problem" << std::endl;
+    return result ? -errno : 0;
 }
 
 
@@ -632,6 +416,7 @@ int OpenbookFS::removexattr (const char *path, const char *key)
 
 int OpenbookFS::opendir (const char *path, struct fuse_file_info *fi)
 {
+    std::cerr << "opendir" << std::endl;
     std::cerr << "opendir: "
                  "\n   path: " << path <<
                  "\n       : " << (m_dataDir / path) <<
@@ -656,7 +441,9 @@ int OpenbookFS::readdir (const char *path,
                         off_t offset,
                         struct fuse_file_info *fi)
 {
+    std::cerr << "readdir" << std::endl;
     std::cerr << "readdir: "
+                 "\n   this: " << (void*)this <<
                  "\n   path: " << path <<
                  "\n       : " << (m_dataDir / path) <<
                  "\n    off: " << offset <<
@@ -804,8 +591,13 @@ int OpenbookFS::fgetattr (const char *path,
                             struct stat *out,
                             struct fuse_file_info *fi)
 {
-    std::cerr << "getattr: " << path
-                << "(" << (m_dataDir / path) << ")" << std::endl;
+    std::string wrapped = wrap(path);
+
+    std::cerr << "fgetattr: "
+                << "\n       this: " << (void*) this
+                << "\n    request: " << path
+                << "\n translated: "
+                    << "(" << wrapped << ")" << std::endl;
 
     return result_or_errno( ::fstat( fi->fh, out ) );
 }
@@ -890,19 +682,6 @@ int OpenbookFS::poll ( const char *, struct fuse_file_info *,
 
 
 
+} // namespace filesystem
+} // namespace openbook
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-} /* namespace openbookfs */

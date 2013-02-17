@@ -6,67 +6,226 @@
  */
 
 #include <cstdlib>
-#include "singleton.h"
+#include <algorithm>
+#include <cstdio>
+#include <ctime>
+#include <iostream>
+#include <sstream>
+#include <string>
 
+#include <dirent.h>
+#include <sys/time.h>
 
-static fuse_operations openbookfs_oper;
+#include <boost/filesystem.hpp>
+#include <tclap/CmdLine.h>
 
+#include "fuse_include.h"
+#include "fuse_operations.h"
+#include "OpenbookFS.h"
 
-
+using namespace openbook::filesystem;
 
 int main(int argc, char** argv)
 {
-    openbookfs_oper.getattr     = openbookfs_getattr;
-    openbookfs_oper.readlink    = openbookfs_readlink;
-    openbookfs_oper.getdir      = NULL;
-    openbookfs_oper.mknod       = openbookfs_mknod;
-    openbookfs_oper.mkdir       = openbookfs_mkdir;
-    openbookfs_oper.unlink      = openbookfs_unlink;
-    openbookfs_oper.rmdir       = openbookfs_rmdir;
-    openbookfs_oper.symlink     = openbookfs_symlink;
-    openbookfs_oper.rename      = openbookfs_rename;
-    openbookfs_oper.link        = openbookfs_link;
-    openbookfs_oper.chmod       = openbookfs_chmod;
-    openbookfs_oper.chown       = openbookfs_chown;
-    openbookfs_oper.truncate    = openbookfs_truncate;
-    openbookfs_oper.utime       = NULL;
-    openbookfs_oper.open        = openbookfs_open;
-    openbookfs_oper.read        = openbookfs_read;
-    openbookfs_oper.write       = openbookfs_write;
-    openbookfs_oper.statfs      = openbookfs_statfs;
-    openbookfs_oper.flush       = openbookfs_flush;
-    openbookfs_oper.release     = openbookfs_release;
-    openbookfs_oper.fsync       = openbookfs_fsync;
-#ifdef HAVE_SETXATTR
-    openbookfs_oper.setxattr    = openbookfs_setxattr;
-    openbookfs_oper.getxattr    = openbookfs_getxattr;
-    openbookfs_oper.listxattr   = openbookfs_listxattr;
-    openbookfs_oper.removexattr = openbookfs_removexattr;
-#endif
-    openbookfs_oper.opendir     = openbookfs_opendir;
-    openbookfs_oper.readdir     = openbookfs_readdir;
-    openbookfs_oper.releasedir  = openbookfs_releasedir;
-    openbookfs_oper.fsyncdir    = openbookfs_fsyncdir;
-    openbookfs_oper.init        = openbookfs_init;
-    openbookfs_oper.destroy     = openbookfs_destroy;
-    openbookfs_oper.access      = openbookfs_access;
-    openbookfs_oper.create      = openbookfs_create;
-    openbookfs_oper.ftruncate   = openbookfs_ftruncate;
-    openbookfs_oper.fgetattr    = openbookfs_fgetattr;
-    openbookfs_oper.lock        = openbookfs_lock;
-    openbookfs_oper.utimens     = openbookfs_utimens;
-    openbookfs_oper.bmap        = NULL;
-    openbookfs_oper.ioctl       = openbookfs_ioctl;
-    openbookfs_oper.poll        = openbookfs_poll;
+    namespace fs = boost::filesystem;
+
+    fuse_operations fuse_ops;
+    setFuseOps(fuse_ops);
+
+    int             fuse_argc;
+    char**          fuse_argv;
+    OpenbookFS_Init fs_init;
+
+    // Wrap everything in a try block.  Do this every time,
+    // because exceptions will be thrown for problems.
+    try
+    {
+        time_t      rawtime;
+        tm*         timeinfo;
+        char        currentYear[5];
+
+        ::time( &rawtime );
+        timeinfo = ::localtime( &rawtime );
+        strftime (currentYear,5,"%Y",timeinfo);
+
+        fs::path homeDir     = getenv("HOME");
+        fs::path dfltDataDir = homeDir / ".openbook/data";
+        fs::path dfltMountDir= homeDir / "openbook";
+
+
+        std::stringstream sstream;
+        sstream << "Openbook Filesystem\n"
+                << "Copyright (c) 2012-" << currentYear
+                << " Josh Bialkowski <josh.bialkowski@gmail.com>";
+
+        // Define the command line object, and insert a message
+        // that describes the program. The "Command description message"
+        // is printed last in the help text. The second argument is the
+        // delimiter (usually space) and the last one is the version number.
+        // The CmdLine object parses the argv array based on the Arg objects
+        // that it contains.
+        TCLAP::CmdLine cmd(sstream.str().c_str(), ' ', "0.1.0");
+
+        // Define a value argument and add it to the command line.
+        // A value arg defines a flag and a type of value that it expects,
+        // such as "-n Bishop".
+        TCLAP::ValueArg<std::string> dataDirArg(
+                "a",    // ......................................... short flag
+                "data", // .......................................... long flag
+                "data directory on the "    // ...... user-readable description
+                    "actual file system",
+                false,   // ......................................... required?
+                dfltDataDir.string(),   // ...................... default value
+                "path"  // ................................. user readable type
+                );
+
+        TCLAP::UnlabeledValueArg<std::string> mountArg(
+                "mount_point",  // ....................................... name
+                "where to mount the filesystem ",  // user-readable description
+                false,   // ......................................... required?
+                dfltMountDir.string(),   // ..................... default value
+                "path"  // ................................. user readable type
+                );
+
+        TCLAP::SwitchArg fuseHelpArg(
+                "H",
+                "fusehelp",
+                "show help output and options from fuse",
+                false
+                );
+
+        TCLAP::SwitchArg fuseVersionArg(
+                "V",
+                "fuseversion",
+                "show version info from fuse",
+                false
+                );
+
+        TCLAP::SwitchArg debugArg(
+                "d",
+                "debug",
+                "enable debug output (implies -f)",
+                false
+                );
+
+        TCLAP::SwitchArg foregroundArg(
+                "f",
+                "foreground",
+                "foreground operation (don't daemonize)",
+                false
+                );
+
+        TCLAP::SwitchArg singlethreadArg(
+                "s",
+                "singlethread",
+                "disable multi-threaded operation",
+                false
+                );
+
+        TCLAP::MultiArg<std::string> optionArgs(
+                "o",
+                "options",
+                "additional options for fuse (--fusehelp for more info)",
+                false,
+                "strings"
+                );
+
+
+        // Add the argument nameArg to the CmdLine object. The CmdLine object
+        // uses this Arg to parse the command line.
+        cmd.add( mountArg );
+        cmd.add( dataDirArg );
+        cmd.add( fuseHelpArg );
+        cmd.add( fuseVersionArg );
+        cmd.add( debugArg );
+        cmd.add( foregroundArg );
+        cmd.add( singlethreadArg );
+        cmd.add( optionArgs );
+
+        // Parse the argv array.
+        cmd.parse( argc, argv );
+
+        // Get the value parsed by each arg.
+        fs_init.dataDir = dataDirArg.getValue();
+
+        // Generate a command line string for fuse
+        std::list<std::string>  fuse_argv_list;
+
+        fuse_argv_list.push_back(cmd.getProgramName());
+
+        if( !( fuseHelpArg.getValue() || fuseVersionArg.getValue() ) )
+            fuse_argv_list.push_back(mountArg.getValue());
+
+        if(fuseHelpArg.getValue())
+            fuse_argv_list.push_back("-h");
+
+        if(fuseVersionArg.getValue())
+            fuse_argv_list.push_back("-V");
+
+        if(debugArg.getValue())
+            fuse_argv_list.push_back("-d");
+
+        if(foregroundArg.getValue())
+            fuse_argv_list.push_back("-f");
+
+        if(singlethreadArg.getValue())
+            fuse_argv_list.push_back("-s");
+
+        for(int i=0; i < optionArgs.getValue().size(); i++)
+        {
+            fuse_argv_list.push_back("-o");
+            fuse_argv_list.push_back( optionArgs.getValue()[i] );
+        }
+
+        // calculate the number of bytes we need to store argv
+        std::list<std::string>::iterator    itArgv;
+        int                                 nChars = 0;
+        for(itArgv = fuse_argv_list.begin();
+                itArgv != fuse_argv_list.end(); itArgv++)
+            nChars += itArgv->length() + 1;
+
+        // allocate such a character array
+        char* argv_buf  = new char[nChars];
+        int   iArg      = 0;
+        int   iBuf      = 0;
+        fuse_argc   = fuse_argv_list.size();
+        fuse_argv   = new char*[fuse_argc];
+
+        for(itArgv = fuse_argv_list.begin();
+                itArgv != fuse_argv_list.end(); itArgv++)
+        {
+            char*   ptrArg      = argv_buf + iBuf;
+            int     argLen      = itArgv->length();
+            fuse_argv[iArg++] = ptrArg;
+
+            itArgv->copy(ptrArg,argLen);
+            iBuf += argLen;
+
+            argv_buf[iBuf] = '\0';
+            iBuf ++;
+        }
+
+        std::cerr << "Finished building argument vector: \n   ";
+        for(int i=0; i < nChars; i++)
+        {
+            if(argv_buf[i] != '\0')
+                std::cerr << argv_buf[i];
+            else
+                std::cerr << " ";
+        }
+        std::cerr << std::endl;
+
+    }
+
+    catch (TCLAP::ArgException &e)  // catch any exceptions
+    {
+        std::cerr   << "error: " << e.error() << " for arg "
+                    << e.argId() << std::endl;
+        return 1;
+    }
 
     umask(0);
 
-    openbookfs_createSingleton(argc,argv);
-    openbookfs_getFuseArgs(&argc,&argv);
-
-    int fuseResult = fuse_main(argc, argv, &openbookfs_oper, NULL);
-
-    openbookfs_destroySingleton();
-
+    int fuseResult = fuse_main(fuse_argc, fuse_argv, &fuse_ops, &fs_init);
     return fuseResult;
 }

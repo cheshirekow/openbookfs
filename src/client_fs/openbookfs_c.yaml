@@ -8,7 +8,8 @@
 password : "fabulous"
 
 # Storage location of client data. This is where the client will store files 
-# that it generates for persistence, like a database of unsent messages
+# that it generates for persistence, like a database of unsent messages, the
+# real file sistem is also stored here
 dataDir : "${CMAKE_CURRENT_BINARY_DIR}/data"
 
 # Mount point. This is the location where we mount the FUSE file system
