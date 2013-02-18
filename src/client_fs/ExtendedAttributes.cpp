@@ -50,7 +50,7 @@ CStr g_stateStr[NUM_STATES] =
     DEFSTR("downloading"),
     DEFSTR("conflict"),
     DEFSTR("clobber"),
-    DEFSTR("INVALID_STATE")
+    DEFSTR("INVALID_STATE"),
 };
 
 CStr toStr( Key key )

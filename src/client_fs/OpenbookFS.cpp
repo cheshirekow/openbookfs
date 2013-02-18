@@ -20,9 +20,14 @@
 #include <sys/types.h>
 #include <sys/xattr.h>
 #include <sys/file.h>
+#include <sys/stat.h>
+#include <sys/mman.h>
+#include <fcntl.h>
 
 #include <boost/filesystem.hpp>
 #include <tclap/CmdLine.h>
+
+#include "MetaFile.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -36,40 +41,6 @@ int OpenbookFS::result_or_errno(int result)
         return result;
 }
 
-
-int OpenbookFS::setState( const std::string& path, xattr::State state)
-{
-    CStr key   = xattr::toStr(xattr::STATE);
-    CStr value = xattr::toStr(state);
-    return ::setxattr( path.c_str(), key.ptr, value.ptr, value.size, 0 );
-}
-
-int OpenbookFS::setState( int fd, xattr::State state)
-{
-    CStr key   = xattr::toStr(xattr::STATE);
-    CStr value = xattr::toStr(state);
-    return ::fsetxattr( fd, key.ptr, value.ptr, value.size, 0 );
-}
-
-int OpenbookFS::setVersion( const std::string& path, int version )
-{
-    CStr key = xattr::toStr(xattr::VERSION);
-    std::stringstream vstrm;
-    vstrm << version;
-
-    return ::setxattr( path.c_str(), key.ptr,
-                        vstrm.str().c_str(), vstrm.str().size(), 0 );
-}
-
-int OpenbookFS::setVersion( int fd, int version )
-{
-    CStr key = xattr::toStr(xattr::VERSION);
-    std::stringstream vstrm;
-    vstrm << version;
-
-    return ::fsetxattr( fd, key.ptr,
-                        vstrm.str().c_str(), vstrm.str().size(), 0 );
-}
 
 
 
@@ -123,12 +94,29 @@ int OpenbookFS::readlink (const char *path, char *buf, size_t bufsize)
 
 int OpenbookFS::mknod (const char *path, mode_t mode, dev_t dev)
 {
-    std::string wrapped = (m_realRoot / path).string();
+    namespace fs = boost::filesystem;
+    fs::path wrapped = (m_realRoot / path);
     std::cerr << "mknod: " << path
                 << " (" << (m_realRoot / path) << ")" << std::endl;
 
-    return ::mknod( wrapped.c_str(), mode, dev ) ? -errno : 0;
+    int result = ::mknod( wrapped.c_str(), mode, dev );
+    if( result )
+        return -errno;
 
+    int metaFd = ::creat( (wrapped/".obfsmeta").c_str(), S_IRUSR | S_IWUSR );
+
+    // make the file the correct size
+    ::ftruncate(metaFd,sizeof(MetaData));
+
+    // map the file, initalize, and then unmap
+    MetaData* data = MetaData::map( metaFd );
+    data->init();
+    data->unmap();
+
+    // close the file
+    ::close( metaFd );
+
+    return result;
 }
 
 
@@ -577,18 +565,61 @@ int OpenbookFS::create (const char *pathname,
                             mode_t mode,
                             struct fuse_file_info *fi)
 {
+    namespace fs = boost::filesystem;
+
     std::cerr << "create: "
              "\n   path: " << pathname <<
              "\n       : " << (m_realRoot / pathname) <<
              "\n   mode: " << mode <<
              std::endl;
 
-    std::string wrapped = (m_realRoot / pathname).string();
+    fs::path wrapped = (m_realRoot / pathname).string();
     fi->fh = ::creat( wrapped.c_str() , mode );
-    if( fi->fh > 0 )
-        return 0;
-    else
+    if( fi->fh < 0 )
         return -errno;
+
+    fs::path metaPath = m_realRoot / (std::string(pathname) + ".obfsmeta");
+
+    int metaFd = ::creat( metaPath.c_str(), S_IRUSR | S_IWUSR );
+    if( metaFd < 0 )
+    {
+        std::cerr << "Failed to create meta file "
+                  << metaPath << std::endl;
+        return 0;
+    }
+    else
+        std::cout << "created meta file" << metaPath << std::endl;
+
+    // make the file the correct size
+    int result = ::ftruncate(metaFd,sizeof(MetaData));
+    if( result )
+    {
+        std::cerr << "Failed to truncate meta data file (" << errno
+                  << ") " << strerror( errno ) << std::endl;
+        return 0;
+    }
+    else
+        std::cout << "truncated meta file" << std::endl;
+
+    // map the file, initalize, and then unmap
+    MetaData* data = MetaData::map( metaFd );
+    if( !data )
+    {
+        std::cerr << "Failed to map meta data file (" << errno
+                  << ") " << strerror( errno ) << std::endl;
+        return 0;
+    }
+    else
+        std::cout << "mapped meta file" << std::endl;
+    data->init();
+    std::cout << "inititalized meta file" << std::endl;
+    data->unmap();
+    std::cout << "unmapped meta file" << std::endl;
+
+    // close the file
+    ::close( metaFd );
+
+    return 0;
 }
 
 

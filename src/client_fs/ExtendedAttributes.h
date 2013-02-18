@@ -47,8 +47,8 @@ namespace      xattr {
 /// numeric constant which maps to a std::string used as the xattr key
 enum Key
 {
-    STATE,      ///< file state
-    VERSION,    ///< last synchronized official version
+    STATE,          ///< file state
+    VERSION,        ///< last synchronized official version
     INVALID_KEY,    ///< invalid key
     NUM_KEYS,
 };
@@ -56,18 +56,13 @@ enum Key
 /// numeric constant which maps to a std::string used for the STATE xattr
 enum State
 {
-    SYNCED,     ///< the file is synchronized
-    DIRTY,      ///< the file has been changed by the user
-    OFFICIAL,   ///< the file has been changed by the user but the server has
-                ///  agreed that our version is the official version, while
-                ///  in this state the file is uploading
-    STALE,      ///< the file has been changed on the server but the client
-                ///  hasn't downloaded it yet
-    DOWNLOADING,///< the file is stale and the client is downloading a new
-                ///  version
-    CONFLICT,   ///< the file has irreconcilable changes
-    CLOBBER,    ///< the user has requested that our file be the official
-                ///  but the server has not yet confirmed
+    SYNCED,         ///< the file is synchronized
+    DIRTY,          ///< the file has been changed by the user
+    OFFICIAL,
+    STALE,          ///< the file has been changed on the server but the client
+    DOWNLOADING,
+    CONFLICT,       ///< the file has irreconcilable changes
+    CLOBBER,
     INVALID_STATE,    ///< invalid state
     NUM_STATES
 };

@@ -20,7 +20,6 @@
 #include "Client.h"
 #include "Queue.h"
 #include "Job.h"
-#include "ExtendedAttributes.h"
 
 #include "jobs.h"
 
@@ -39,12 +38,6 @@ class OpenbookFS
         boost::filesystem::path m_realRoot;
 
         int  result_or_errno(int result);
-
-        int setState( const std::string& path, xattr::State );
-        int setState( int fd, xattr::State );
-
-        int setVersion( const std::string& path, int version );
-        int setVersion( int fd, int version );
 
     public:
         OpenbookFS(Client*, JobQueue_t*);
@@ -78,6 +71,9 @@ class OpenbookFS
          * This is called for creation of all non-directory, non-symlink
          * nodes.  If the filesystem defines a create() method, then for
          * regular files that will be called instead.
+         *
+         * The openbookfs also creates the file path.obfsmeta, which is where
+         * meta data is stored
          */
         int mknod (const char *, mode_t, dev_t);
 

@@ -213,7 +213,7 @@ void* ServerHandler::main()
     while(!g_shouldDie)
     {
         std::cout << "Will start handler in 5 seconds" << std::endl;
-        sleep(5);
+        sleep(30);
 
         try
         {
