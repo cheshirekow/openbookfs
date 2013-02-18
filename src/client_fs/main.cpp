@@ -201,8 +201,6 @@ int main(int argc, char** argv)
 
     // attempt to load the config file
     Client        client;
-
-
     try
     {
         if( !helpOrVersion )
@@ -210,25 +208,20 @@ int main(int argc, char** argv)
     }
     catch( std::exception& ex )
     {
-        std::cerr << "Problam loading config: " << ex.what() << std::endl;
+        std::cerr << "Problem loading config: " << ex.what() << std::endl;
         return 1;
     }
 
-    // set the fields of the fs initialization structure
-    OpenbookFS_Init fs_init;
-    fs_init.client = &client;
-
     // if we're not a help or version call, append the mount point to
     // fuse options
-    if( !helpOrVersion )
-    {
-        std::list<std::string>::iterator itArgv = fuse_argv_list.begin();
-        fuse_argv_list.insert( ++itArgv, client.rootDir() );
-    }
-
-    // calculate the number of bytes we need to store argv
     std::list<std::string>::iterator    itArgv;
-    int                                 nChars = 0;
+    itArgv = fuse_argv_list.begin();
+    fuse_argv_list.insert( ++itArgv, client.rootDir() );
+
+    // setup an argument vector that we can pass to fuse_main
+    // calculate the number of bytes we need to store argv
+
+    int  nChars = 0;
     for(itArgv = fuse_argv_list.begin();
             itArgv != fuse_argv_list.end(); itArgv++)
         nChars += itArgv->length() + 1;
@@ -266,19 +259,101 @@ int main(int argc, char** argv)
 
     umask(0);
 
+    // if we're just asking for fuse help or version then run and quit
+    if( helpOrVersion )
+    {
+        // set the fuse_ops structure
+        fuse_operations fuse_ops;
+        setFuseOps(fuse_ops);
+
+        // call fuse (just prints help or version)
+        int fuseResult = fuse_main(fuse_argc, fuse_argv, &fuse_ops, 0);
+
+        delete [] argv_buf;
+        delete [] fuse_argv;
+
+        return fuseResult;
+    }
+
+
+
+
+    // initialize pipe to notify of termination
+    NotifyPipe termNote;
+    g_termNote = &termNote;
+
+    // create server handler, job queue, and worker objects
+    ServerHandler serverHandler;
+    Queue<Job*>   jobQueue;
+
+    // create job pool
+    JobHandler* jobHandlers = new JobHandler[ client.maxWorkers() ];
+    Pool<JobHandler> jobPool( client.maxWorkers() );
+
+    try
+    {
+        serverHandler.init(&client,&jobQueue,termNote.readFd());
+        serverHandler.start();
+    }
+    catch( std::exception& ex )
+    {
+        std::cerr << "Problem starting server handler: " << ex.what() << std::endl;
+        return 1;
+    }
+
+    for(int i=0; i < client.maxWorkers(); i++)
+    {
+        jobHandlers[i].init(&jobPool,&jobQueue);
+        jobHandlers[i].start();
+    }
+
+    // set the fields of the fs initialization structure
+    OpenbookFS_Init fs_init;
+    fs_init.client = &client;
+
     // set the fuse_ops structure
     fuse_operations fuse_ops;
     setFuseOps(fuse_ops);
 
-    int fuseResult = 0;
-    if( helpOrVersion)
-        fuseResult = fuse_main(fuse_argc, fuse_argv, &fuse_ops, 0);
-    else
-        fuseResult = fuse_main(fuse_argc, fuse_argv, &fuse_ops, &fs_init);
+    int fuseResult = fuse_main(fuse_argc, fuse_argv, &fuse_ops, &fs_init);
+
+    // signal termination in other threads
     g_shouldDie = true;
+    termNote.notify();
+
+    // wait for the server handler to quit
+    std::cout << "\n\nShutting down  \nWaiting for server handler to quit...\n";
+    serverHandler.join();
+
+    // pump quit messages into job pool
+    for(int i=0; i < client.maxWorkers(); i++)
+        jobQueue.insert( new jobs::QuitWorker() );
+
+    std::cout << "Shutting down worker threads\n";
+
+    // wait for the workers to quit
+    while( jobPool.size() < client.maxWorkers() )
+    {
+        std::cout << "Waiting for "
+                  << client.maxWorkers() - jobPool.size()
+                  << " workers to quit\n";
+        sleep(1);
+    }
+
+    std::cout << "Emptying extra jobs\n";
+
+    // empty out any extra jobs
+    while( !jobQueue.empty() )
+    {
+        Job* job;
+        jobQueue.extract(job);
+        delete job;
+    }
 
     delete [] argv_buf;
     delete [] fuse_argv;
+
+    std::cout << "Terminating...\n";
 
     return fuseResult;
 }
