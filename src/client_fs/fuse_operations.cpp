@@ -383,7 +383,7 @@ void *init (struct fuse_conn_info *conn)
 {
     fuse_context*       ctx  = fuse_get_context();
     OpenbookFS_Init*    init = static_cast<OpenbookFS_Init*>(ctx->private_data);
-    return init->create();
+    return init ? init->create() : 0;
 }
 
 
@@ -391,7 +391,7 @@ void *init (struct fuse_conn_info *conn)
 void destroy (void* private_data)
 {
     OpenbookFS* fs = static_cast<OpenbookFS*>(private_data);
-    delete fs;
+    if( fs ) delete fs;
 }
 
 

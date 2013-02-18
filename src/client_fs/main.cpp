@@ -22,8 +22,29 @@
 #include "fuse_include.h"
 #include "fuse_operations.h"
 #include "OpenbookFS.h"
+#include "Bytes.h"
+#include "Client.h"
+#include "MessageBuffer.h"
+#include "global.h"
+#include "messages.h"
+#include "messages.pb.h"
+#include "ServerHandler.h"
+#include "Pool.h"
+#include "JobHandler.h"
+#include "Queue.h"
+#include "NotifyPipe.h"
+#include "jobs/QuitWorker.h"
 
 using namespace openbook::filesystem;
+
+namespace   openbook {
+namespace filesystem {
+
+volatile bool   g_shouldDie = false;
+NotifyPipe*     g_termNote;
+
+}
+}
 
 int main(int argc, char** argv)
 {
@@ -35,6 +56,15 @@ int main(int argc, char** argv)
     int             fuse_argc;
     char**          fuse_argv;
     OpenbookFS_Init fs_init;
+
+    std::string     configFile;
+
+    // Generate a command line string for fuse
+    std::list<std::string>  fuse_argv_list;
+
+    // indicates that help or version was requested so dont do anything
+    // else
+    bool helpOrVersion = false;
 
     // Wrap everything in a try block.  Do this every time,
     // because exceptions will be thrown for problems.
@@ -49,8 +79,7 @@ int main(int argc, char** argv)
         strftime (currentYear,5,"%Y",timeinfo);
 
         fs::path homeDir     = getenv("HOME");
-        fs::path dfltDataDir = homeDir / ".openbook/data";
-        fs::path dfltMountDir= homeDir / "openbook";
+        fs::path dfltConfig  = "./openbookfs_c.yaml";
 
 
         std::stringstream sstream;
@@ -69,22 +98,16 @@ int main(int argc, char** argv)
         // Define a value argument and add it to the command line.
         // A value arg defines a flag and a type of value that it expects,
         // such as "-n Bishop".
-        TCLAP::ValueArg<std::string> dataDirArg(
-                "a",    // ......................................... short flag
-                "data", // .......................................... long flag
-                "data directory on the "    // ...... user-readable description
-                    "actual file system",
-                false,   // ......................................... required?
-                dfltDataDir.string(),   // ...................... default value
-                "path"  // ................................. user readable type
-                );
-
-        TCLAP::UnlabeledValueArg<std::string> mountArg(
-                "mount_point",  // ....................................... name
-                "where to mount the filesystem ",  // user-readable description
-                false,   // ......................................... required?
-                dfltMountDir.string(),   // ..................... default value
-                "path"  // ................................. user readable type
+        // Define a value argument and add it to the command line.
+        // A value arg defines a flag and a type of value that it expects,
+        // such as "-n Bishop".
+        TCLAP::ValueArg<std::string> configArg(
+                "F",
+                "config",
+                "path to configuration file",
+                false,
+                dfltConfig.string(),
+                "path"
                 );
 
         TCLAP::SwitchArg fuseHelpArg(
@@ -133,8 +156,7 @@ int main(int argc, char** argv)
 
         // Add the argument nameArg to the CmdLine object. The CmdLine object
         // uses this Arg to parse the command line.
-        cmd.add( mountArg );
-        cmd.add( dataDirArg );
+        cmd.add( configArg );
         cmd.add( fuseHelpArg );
         cmd.add( fuseVersionArg );
         cmd.add( debugArg );
@@ -145,16 +167,13 @@ int main(int argc, char** argv)
         // Parse the argv array.
         cmd.parse( argc, argv );
 
-        // Get the value parsed by each arg.
-        fs_init.dataDir = dataDirArg.getValue();
+        configFile = configArg.getValue();
 
-        // Generate a command line string for fuse
-        std::list<std::string>  fuse_argv_list;
-
+        // turn real command line arguments into arguments for fuse
         fuse_argv_list.push_back(cmd.getProgramName());
 
-        if( !( fuseHelpArg.getValue() || fuseVersionArg.getValue() ) )
-            fuse_argv_list.push_back(mountArg.getValue());
+        if( fuseHelpArg.getValue() || fuseVersionArg.getValue() )
+            helpOrVersion = true;
 
         if(fuseHelpArg.getValue())
             fuse_argv_list.push_back("-h");
@@ -176,56 +195,85 @@ int main(int argc, char** argv)
             fuse_argv_list.push_back("-o");
             fuse_argv_list.push_back( optionArgs.getValue()[i] );
         }
-
-        // calculate the number of bytes we need to store argv
-        std::list<std::string>::iterator    itArgv;
-        int                                 nChars = 0;
-        for(itArgv = fuse_argv_list.begin();
-                itArgv != fuse_argv_list.end(); itArgv++)
-            nChars += itArgv->length() + 1;
-
-        // allocate such a character array
-        char* argv_buf  = new char[nChars];
-        int   iArg      = 0;
-        int   iBuf      = 0;
-        fuse_argc   = fuse_argv_list.size();
-        fuse_argv   = new char*[fuse_argc];
-
-        for(itArgv = fuse_argv_list.begin();
-                itArgv != fuse_argv_list.end(); itArgv++)
-        {
-            char*   ptrArg      = argv_buf + iBuf;
-            int     argLen      = itArgv->length();
-            fuse_argv[iArg++] = ptrArg;
-
-            itArgv->copy(ptrArg,argLen);
-            iBuf += argLen;
-
-            argv_buf[iBuf] = '\0';
-            iBuf ++;
-        }
-
-        std::cerr << "Finished building argument vector: \n   ";
-        for(int i=0; i < nChars; i++)
-        {
-            if(argv_buf[i] != '\0')
-                std::cerr << argv_buf[i];
-            else
-                std::cerr << " ";
-        }
-        std::cerr << std::endl;
-
     }
 
     catch (TCLAP::ArgException &e)  // catch any exceptions
     {
-        std::cerr   << "error: " << e.error() << " for arg "
+        std::cerr   << "Error parsing command line: "
+                    << e.error() << " for arg "
                     << e.argId() << std::endl;
         return 1;
     }
 
+    // attempt to load the config file
+    Client        client;
+
+
+    try
+    {
+        if( !helpOrVersion )
+            client.initConfig( configFile );
+    }
+    catch( std::exception& ex )
+    {
+        std::cerr << "Problam loading config: " << ex.what() << std::endl;
+        return 1;
+    }
+
+    // set the fields of the fs initialization structure
+    fs_init.client = &client;
+
+    // if we're not a help or version call, append the mount point to
+    // fuse options
+    if( !helpOrVersion )
+    {
+        std::list<std::string>::iterator itArgv = fuse_argv_list.begin();
+        fuse_argv_list.insert( ++itArgv, client.rootDir() );
+    }
+
+    // calculate the number of bytes we need to store argv
+    std::list<std::string>::iterator    itArgv;
+    int                                 nChars = 0;
+    for(itArgv = fuse_argv_list.begin();
+            itArgv != fuse_argv_list.end(); itArgv++)
+        nChars += itArgv->length() + 1;
+
+    // allocate such a character array
+    char* argv_buf  = new char[nChars];
+    int   iArg      = 0;
+    int   iBuf      = 0;
+    fuse_argc   = fuse_argv_list.size();
+    fuse_argv   = new char*[fuse_argc];
+
+    for(itArgv = fuse_argv_list.begin();
+            itArgv != fuse_argv_list.end(); itArgv++)
+    {
+        char*   ptrArg      = argv_buf + iBuf;
+        int     argLen      = itArgv->length();
+        fuse_argv[iArg++] = ptrArg;
+
+        itArgv->copy(ptrArg,argLen);
+        iBuf += argLen;
+
+        argv_buf[iBuf] = '\0';
+        iBuf ++;
+    }
+
+    std::cerr << "Finished building argument vector: \n   ";
+    for(int i=0; i < nChars; i++)
+    {
+        if(argv_buf[i] != '\0')
+            std::cerr << argv_buf[i];
+        else
+            std::cerr << " ";
+    }
+    std::cerr << std::endl;
+
     umask(0);
 
     int fuseResult = fuse_main(fuse_argc, fuse_argv, &fuse_ops, &fs_init);
+    g_shouldDie = true;
+
+
     return fuseResult;
 }

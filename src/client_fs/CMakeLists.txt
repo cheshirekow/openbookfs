@@ -14,28 +14,56 @@ configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/openbookfs_c.yaml
 if( (FUSE_FOUND)
     AND (Boost_FOUND)
     AND (THREADS_FOUND)
-    AND (CPPThreads_FOUND) )
+    AND (CPPThreads_FOUND)
+    AND (Protobuf_FOUND)
+    AND (Crypto++_FOUND)
+    AND (RE2_FOUND)
+    AND (Tclap_FOUND) 
+    AND (YAMLCPP_FOUND)
+    AND (THREADS_FOUND) )
                                                                     
     include_directories( 
         ${FUSE_INCLUDE_DIRS}
         ${Boost_INCLUDE_DIRS}
         ${THREADS_INCLUDE_DIRS}
         ${CPPThreads_INCLUDE_DIR}
-        
+        ${Protobuf_INCLUDE_DIR}
+        ${Crypto++_INCLUDE_DIR}
+        ${RE2_INCLUDE_DIR}
+        ${Tclap_INCLUDE_DIR}
+        ${YAMLCPP_INCLUDE_DIR}
         )
     
     
     set(LIBS ${LIBS} 
         ${FUSE_LIBRARY}
         ${Boost_LIBRARIES}
+        ${Protobuf_LIBRARY}
+        ${CPPThreads_LIBRARY}
+        ${THREADS_LIBRARIES}
+        ${Crypto++_LIBRARY}
+        ${RE2_LIBRARY}
+        ${YAMLCPP_LIBRARY}
         )
-    
+        
     add_executable( ${CMAKE_PROJECT_NAME} 
-                            ../base64.cpp
-                            main.cpp
-                            fuse_operations.cpp
-                            ExtendedAttributes.cpp
-                            OpenbookFS.cpp)
+                    ../jobs.cpp
+                    ../messages.cpp
+                    ../MessageBuffer.cpp
+                    ../FdSet.cpp
+                    ../Job.cpp
+                    ../JobHandler.cpp
+                    ../SelectSpec.cpp
+                    ../NotifyPipe.cpp
+                    ../TimeVal.cpp   
+                    main.cpp
+                    fuse_operations.cpp
+                    Client.cpp
+                    ExtendedAttributes.cpp
+                    OpenbookFS.cpp
+                    ServerHandler.cpp          
+                    ${MESSAGES_PB_CC}
+                    )
                             
     set_target_properties( ${CMAKE_PROJECT_NAME} 
         PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64" )

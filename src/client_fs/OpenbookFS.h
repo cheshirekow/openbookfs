@@ -17,6 +17,7 @@
 
 #include <boost/filesystem.hpp>
 
+#include "Client.h"
 #include "ExtendedAttributes.h"
 
 namespace   openbook {
@@ -26,7 +27,9 @@ namespace filesystem {
 class OpenbookFS
 {
     private:
+        Client*                 m_client;
         boost::filesystem::path m_dataDir;
+        boost::filesystem::path m_realRoot;
 
         int  result_or_errno(int result);
 
@@ -37,7 +40,7 @@ class OpenbookFS
         int setVersion( int fd, int version );
 
     public:
-        OpenbookFS(boost::filesystem::path dataDir);
+        OpenbookFS(Client* client);
 
         ~OpenbookFS();
 
@@ -444,11 +447,11 @@ class OpenbookFS
 /// simply stores initializer options for the OpenbookFS object
 struct OpenbookFS_Init
 {
-    boost::filesystem::path dataDir;
+    Client* client;
 
     OpenbookFS* create()
     {
-        return new OpenbookFS(dataDir);
+        return new OpenbookFS(client);
     }
 };
 

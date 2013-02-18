@@ -74,10 +74,11 @@ int OpenbookFS::setVersion( int fd, int version )
 
 
 
-OpenbookFS::OpenbookFS(boost::filesystem::path dataDir)
+OpenbookFS::OpenbookFS(Client* client)
 {
-    m_dataDir = dataDir;
-
+    m_client  = client;
+    m_dataDir = client->dataDir();
+    m_realRoot= m_dataDir / "real_root";
 }
 
 
@@ -92,7 +93,7 @@ OpenbookFS::~OpenbookFS()
 
 int OpenbookFS::getattr (const char *path, struct stat *out)
 {
-    std::string wrapped = (m_dataDir / path).string();
+    std::string wrapped = (m_realRoot / path).string();
 
     std::cerr << "getattr: "
                 << "\n       this: " << (void*) this
@@ -107,10 +108,10 @@ int OpenbookFS::getattr (const char *path, struct stat *out)
 
 int OpenbookFS::readlink (const char *path, char *buf, size_t bufsize)
 {
-    std::string wrapped = (m_dataDir / path).string();
+    std::string wrapped = (m_realRoot / path).string();
 
     std::cerr << "readlink: " << path
-                << "(" << (m_dataDir / path) << ")" << std::endl;
+                << "(" << (m_realRoot / path) << ")" << std::endl;
 
     return ::readlink(  wrapped.c_str(), buf, bufsize ) ? -errno : 0;
 }
@@ -121,9 +122,9 @@ int OpenbookFS::readlink (const char *path, char *buf, size_t bufsize)
 
 int OpenbookFS::mknod (const char *path, mode_t mode, dev_t dev)
 {
-    std::string wrapped = (m_dataDir / path).string();
+    std::string wrapped = (m_realRoot / path).string();
     std::cerr << "mknod: " << path
-                << " (" << (m_dataDir / path) << ")" << std::endl;
+                << " (" << (m_realRoot / path) << ")" << std::endl;
 
     return ::mknod( wrapped.c_str(), mode, dev ) ? -errno : 0;
 
@@ -133,7 +134,7 @@ int OpenbookFS::mknod (const char *path, mode_t mode, dev_t dev)
 
 int OpenbookFS::mkdir (const char *pathname, mode_t mode)
 {
-    std::string wrapped = (m_dataDir / pathname).string();
+    std::string wrapped = (m_realRoot / pathname).string();
 
     std::cerr << "mkdir: " << pathname
                 << "(" << wrapped << ")" << std::endl;
@@ -144,7 +145,7 @@ int OpenbookFS::mkdir (const char *pathname, mode_t mode)
 
 int OpenbookFS::unlink (const char *pathname)
 {
-    std::string wrapped = (m_dataDir / pathname).string();
+    std::string wrapped = (m_realRoot / pathname).string();
     std::cerr << "unlink: " << pathname
                 << "(" << wrapped << ")" << std::endl;
 
@@ -155,7 +156,7 @@ int OpenbookFS::unlink (const char *pathname)
 
 int OpenbookFS::rmdir (const char *pathname)
 {
-    std::string wrapped = (m_dataDir / pathname).string();
+    std::string wrapped = (m_realRoot / pathname).string();
 
     std::cerr << "rmdir: " << pathname
                 << "(" << wrapped << ")" << std::endl;
@@ -167,8 +168,8 @@ int OpenbookFS::rmdir (const char *pathname)
 
 int OpenbookFS::symlink (const char *oldpath, const char *newpath)
 {
-    std::string oldwrap = (m_dataDir / oldpath).string();
-    std::string newwrap = (m_dataDir / oldpath).string();
+    std::string oldwrap = (m_realRoot / oldpath).string();
+    std::string newwrap = (m_realRoot / oldpath).string();
 
     std::cerr << "simlink: "
                   "\n   old: " << oldpath <<
@@ -184,8 +185,8 @@ int OpenbookFS::symlink (const char *oldpath, const char *newpath)
 
 int OpenbookFS::rename (const char *oldpath, const char *newpath)
 {
-    std::string oldwrap = (m_dataDir / oldpath).string();
-    std::string newwrap = (m_dataDir / oldpath).string();
+    std::string oldwrap = (m_realRoot / oldpath).string();
+    std::string newwrap = (m_realRoot / oldpath).string();
 
     std::cerr << "rename: "
                   "\n   old: " << oldpath <<
@@ -201,8 +202,8 @@ int OpenbookFS::rename (const char *oldpath, const char *newpath)
 
 int OpenbookFS::link (const char *oldpath, const char *newpath)
 {
-    std::string oldwrap = (m_dataDir / oldpath).string();
-    std::string newwrap = (m_dataDir / oldpath).string();
+    std::string oldwrap = (m_realRoot / oldpath).string();
+    std::string newwrap = (m_realRoot / oldpath).string();
 
     std::cerr << "link: "
                   "\n   old: " << oldpath <<
@@ -218,7 +219,7 @@ int OpenbookFS::link (const char *oldpath, const char *newpath)
 
 int OpenbookFS::chmod (const char *path, mode_t mode)
 {
-    std::string wrapped = (m_dataDir / path).string();
+    std::string wrapped = (m_realRoot / path).string();
     std::cerr << "chmod: "
               "\n    path: " << path    <<
               "\n        : " << wrapped <<
@@ -232,10 +233,10 @@ int OpenbookFS::chmod (const char *path, mode_t mode)
 
 int OpenbookFS::chown (const char *path, uid_t owner, gid_t group)
 {
-    std::string wrapped = (m_dataDir / path).string();
+    std::string wrapped = (m_realRoot / path).string();
     std::cerr << "chown: "
               "\n    path: " << path                <<
-              "\n        : " << (m_dataDir/path)    <<
+              "\n        : " << (m_realRoot/path)    <<
               "\n     uid: " << owner               <<
               "\n     gid: " << group               <<
               std::endl;
@@ -247,7 +248,7 @@ int OpenbookFS::chown (const char *path, uid_t owner, gid_t group)
 
 int OpenbookFS::truncate (const char *path, off_t length)
 {
-    std::string wrapped = (m_dataDir / path).string();
+    std::string wrapped = (m_realRoot / path).string();
     std::cerr << "truncate: "
               "\n      path: " << path    <<
               "\n          : " << wrapped <<
@@ -268,7 +269,7 @@ int OpenbookFS::truncate (const char *path, off_t length)
 
 int OpenbookFS::open (const char *path, struct fuse_file_info *fi)
 {
-    std::string wrapped = (m_dataDir / path).string();
+    std::string wrapped = (m_realRoot / path).string();
     std::cerr << "open: "
               "\n    path: " << path    <<
               "\n        : " << wrapped <<
@@ -288,7 +289,7 @@ int OpenbookFS::read (const char *pathname,
                         off_t offset,
                         struct fuse_file_info *fi)
 {
-    std::string wrapped = (m_dataDir / pathname).string();
+    std::string wrapped = (m_realRoot / pathname).string();
 
     std::cerr << "read: "
               "\n    path: " << pathname  <<
@@ -317,7 +318,7 @@ int OpenbookFS::write (const char *pathname,
 {
     std::cerr << "write: "
               "\n    path: " << pathname                <<
-              "\n        : " << (m_dataDir/pathname)    <<
+              "\n        : " << (m_realRoot/pathname)    <<
               "\n      fh: " << fi->fh                  <<
               std::endl;
 
@@ -331,10 +332,10 @@ int OpenbookFS::write (const char *pathname,
 
 int OpenbookFS::statfs (const char *path, struct statvfs *buf)
 {
-    std::string wrapped = (m_dataDir / path).string();
+    std::string wrapped = (m_realRoot / path).string();
     std::cerr << "statfs: "
                 "\n   path: " << path <<
-                "\n       : " << (m_dataDir / path)
+                "\n       : " << (m_realRoot / path)
                 << std::endl;
 
     return result_or_errno( ::statvfs( wrapped.c_str(), buf ) );
@@ -346,7 +347,7 @@ int OpenbookFS::flush (const char *path, struct fuse_file_info *fi)
 {
     std::cerr << "flush: "
                  "\n   path: " << path <<
-                 "\n       : " << (m_dataDir / path) <<
+                 "\n       : " << (m_realRoot / path) <<
                  "\n     fh: " << fi->fh <<
                  std::endl;
 
@@ -360,7 +361,7 @@ int OpenbookFS::release (const char *path, struct fuse_file_info *fi)
 {
     std::cerr << "release: "
                  "\n   path: " << path <<
-                 "\n       : " << (m_dataDir / path) <<
+                 "\n       : " << (m_realRoot / path) <<
                  "\n     fh: " << fi->fh;
 
     if(fi->fh)
@@ -380,7 +381,7 @@ int OpenbookFS::fsync (const char *path,
 {
     std::cerr << "fsync: "
                  "\n   path: " << path <<
-                 "\n       : " << (m_dataDir / path) <<
+                 "\n       : " << (m_realRoot / path) <<
                  "\n     ds: " << datasync <<
                  "\n     fh: " << fi->fh;
 
@@ -445,10 +446,10 @@ int OpenbookFS::opendir (const char *path, struct fuse_file_info *fi)
     std::cerr << "opendir" << std::endl;
     std::cerr << "opendir: "
                  "\n   path: " << path <<
-                 "\n       : " << (m_dataDir / path) <<
+                 "\n       : " << (m_realRoot / path) <<
                  std::endl;
 
-    std::string wrapped = (m_dataDir / path).string();
+    std::string wrapped = (m_realRoot / path).string();
     DIR* dir = ::opendir( wrapped.c_str() );
 
     if(dir)
@@ -472,7 +473,7 @@ int OpenbookFS::readdir (const char *path,
     std::cerr << "readdir: "
                  "\n   this: " << (void*)this <<
                  "\n   path: " << path <<
-                 "\n       : " << (m_dataDir / path) <<
+                 "\n       : " << (m_realRoot / path) <<
                  "\n    off: " << offset <<
                  "\n     fh: " << fi->fh <<
                  std::endl;
@@ -511,7 +512,7 @@ int OpenbookFS::releasedir (const char *path,
 {
     std::cerr << "releasedir: "
              "\n   path: " << path <<
-             "\n       : " << (m_dataDir / path) <<
+             "\n       : " << (m_realRoot / path) <<
              "\n     fh: " << fi->fh <<
              std::endl;
 
@@ -532,7 +533,7 @@ int OpenbookFS::fsyncdir (const char *path,
 {
     std::cerr << "syncdir: "
              "\n   path: " << path <<
-             "\n       : " << (m_dataDir / path) <<
+             "\n       : " << (m_realRoot / path) <<
              "\n     ds: " << datasync <<
              "\n     fh: " << fi->fh <<
              std::endl;
@@ -561,11 +562,11 @@ int OpenbookFS::access (const char *pathname, int mode)
 {
     std::cerr << "access: "
              "\n   path: " << pathname <<
-             "\n       : " << (m_dataDir / pathname) <<
+             "\n       : " << (m_realRoot / pathname) <<
              "\n   mode: " << mode <<
              std::endl;
 
-    std::string wrapped = (m_dataDir / pathname).string();
+    std::string wrapped = (m_realRoot / pathname).string();
     return result_or_errno( ::access( wrapped.c_str(), mode ) );
 }
 
@@ -577,11 +578,11 @@ int OpenbookFS::create (const char *pathname,
 {
     std::cerr << "create: "
              "\n   path: " << pathname <<
-             "\n       : " << (m_dataDir / pathname) <<
+             "\n       : " << (m_realRoot / pathname) <<
              "\n   mode: " << mode <<
              std::endl;
 
-    std::string wrapped = (m_dataDir / pathname).string();
+    std::string wrapped = (m_realRoot / pathname).string();
     fi->fh = ::creat( wrapped.c_str() , mode );
     if( fi->fh > 0 )
         return 0;
@@ -597,7 +598,7 @@ int OpenbookFS::ftruncate (const char *path,
 {
     std::cerr << "ftruncate: "
              "\n   path: " << path <<
-             "\n       : " << (m_dataDir / path) <<
+             "\n       : " << (m_realRoot / path) <<
              "\n    len: " << length <<
              "\n     fh: " << fi->fh <<
              std::endl;
@@ -618,7 +619,7 @@ int OpenbookFS::fgetattr (const char *path,
                             struct stat *out,
                             struct fuse_file_info *fi)
 {
-    std::string wrapped = (m_dataDir / path).string();
+    std::string wrapped = (m_realRoot / path).string();
 
     std::cerr << "fgetattr: "
                 << "\n       this: " << (void*) this
@@ -638,7 +639,7 @@ int OpenbookFS::lock (const char *path,
 {
     std::cerr << "lock: "
              "\n   path: " << path <<
-             "\n       : " << (m_dataDir / path) <<
+             "\n       : " << (m_realRoot / path) <<
              "\n       : " << cmd <<
              "\n     fh: " << fi->fh <<
              std::endl;
@@ -659,7 +660,7 @@ int OpenbookFS::utimens (const char *path, const struct timespec tv[2])
 {
     std::cerr << "utimens: "
              "\n   path: " << path <<
-             "\n       : " << (m_dataDir / path) <<
+             "\n       : " << (m_realRoot / path) <<
              "\n     t1: " << tv[0].tv_sec << " : " << tv[0].tv_nsec <<
              "\n     t2: " << tv[1].tv_sec << " : " << tv[1].tv_nsec <<
              std::endl;
