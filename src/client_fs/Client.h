@@ -79,6 +79,8 @@ struct Client
 
         int maxWorkers() const { return m_maxWorkers; }
 
+        const boost::filesystem::path realRoot() const{ return m_realRoot; }
+
 };
 
 
