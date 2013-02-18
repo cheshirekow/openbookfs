@@ -18,7 +18,11 @@
 #include <boost/filesystem.hpp>
 
 #include "Client.h"
+#include "Queue.h"
+#include "Job.h"
 #include "ExtendedAttributes.h"
+
+#include "jobs.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -26,8 +30,11 @@ namespace filesystem {
 
 class OpenbookFS
 {
+    typedef Queue<Job*> JobQueue_t;
+
     private:
         Client*                 m_client;
+        JobQueue_t*             m_jobQueue;
         boost::filesystem::path m_dataDir;
         boost::filesystem::path m_realRoot;
 
@@ -40,7 +47,7 @@ class OpenbookFS
         int setVersion( int fd, int version );
 
     public:
-        OpenbookFS(Client* client);
+        OpenbookFS(Client*, JobQueue_t*);
 
         ~OpenbookFS();
 
@@ -447,11 +454,14 @@ class OpenbookFS
 /// simply stores initializer options for the OpenbookFS object
 struct OpenbookFS_Init
 {
-    Client* client;
+    typedef Queue<Job*> JobQueue_t;
+
+    Client*     client;
+    JobQueue_t* jobQueue;
 
     OpenbookFS* create()
     {
-        return new OpenbookFS(client);
+        return new OpenbookFS(client,jobQueue);
     }
 };
 

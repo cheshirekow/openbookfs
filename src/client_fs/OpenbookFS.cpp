@@ -74,11 +74,12 @@ int OpenbookFS::setVersion( int fd, int version )
 
 
 
-OpenbookFS::OpenbookFS(Client* client)
+OpenbookFS::OpenbookFS(Client* client, JobQueue_t* jobQueue)
 {
-    m_client  = client;
-    m_dataDir = client->dataDir();
-    m_realRoot= m_dataDir / "real_root";
+    m_client   = client;
+    m_jobQueue = jobQueue;
+    m_dataDir  = client->dataDir();
+    m_realRoot = m_dataDir / "real_root";
 }
 
 
