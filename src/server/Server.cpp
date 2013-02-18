@@ -33,6 +33,10 @@
 
 #include <yaml-cpp/yaml.h>
 #include <boost/filesystem.hpp>
+#include <crypto++/osrng.h>
+#include <crypto++/rsa.h>
+#include <crypto++/filters.h>
+#include <crypto++/files.h>
 
 namespace   openbook {
 namespace filesystem {
@@ -74,8 +78,6 @@ void Server::initConfig(const std::string& configFile)
     config["password"]      >> m_password;
     config["dataDir"]       >> m_dataDir;
     config["rootDir"]       >> m_rootDir;
-    config["pubKeyFile"]    >> m_pubKeyFile;
-    config["privKeyFile"]   >> m_privKeyFile;
     config["addressFamily"] >> m_addressFamily;
     config["iface"]         >> m_iface;
     config["port"]          >> m_port;
@@ -94,6 +96,52 @@ void Server::initConfig(const std::string& configFile)
         if( !result )
             ex()() << "failed to create data directory: " << m_dataDir;
     }
+
+    // check that the root directory exists
+    if( !fs::exists( fs::path(m_rootDir) ) )
+    {
+        std::cout << "creating root directory: "
+                  << fs::absolute( fs::path(m_rootDir) )
+                  << std::endl;
+        bool result = fs::create_directories( fs::path(m_rootDir ) );
+        if( !result )
+            ex()() << "failed to create root directory: " << m_rootDir;
+    }
+
+    // if there is no private key file then create one
+    fs::path privKeyFile = fs::path(m_dataDir) / "id_rsa.der";
+    fs::path pubKeyFile  = fs::path(m_dataDir) / "id_rsa_pub.der";
+
+    if( !fs::exists( privKeyFile) || !fs::exists (pubKeyFile) )
+    {
+        std::cout << "No public or private keyfile in "
+                     "data directory, generating now\n";
+
+        using namespace CryptoPP;
+        AutoSeededRandomPool rng;
+        RSA::PrivateKey rsaPrivate;
+        rsaPrivate.GenerateRandomWithKeySize(rng, 3072 );
+        RSA::PublicKey  rsaPublic(rsaPrivate);
+
+        ByteQueue queue;
+
+        // save private key
+        rsaPrivate.Save(queue);
+        FileSink privKeySink( privKeyFile.string().c_str() );
+        queue.CopyTo(privKeySink);
+        privKeySink.MessageEnd();
+        queue.Clear();
+
+        // save public key
+        rsaPublic.Save(queue);
+        FileSink pubKeySink( pubKeyFile.string().c_str() );
+        queue.CopyTo( pubKeySink );
+        pubKeySink.MessageEnd();
+        queue.Clear();
+    }
+
+    m_pubKeyFile    = pubKeyFile.string();
+    m_privKeyFile   = privKeyFile.string();
 }
 
 
