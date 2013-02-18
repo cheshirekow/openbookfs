@@ -5,6 +5,7 @@ find_package(Protobuf)
 find_package(Tclap)
 find_package(Crypto++)
 find_package(YamlCpp)
+find_package(Soci COMPONENTS sqlite3) 
                              
                              
 if( (Boost_FOUND)
@@ -14,6 +15,7 @@ if( (Boost_FOUND)
     AND (Crypto++_FOUND)
     AND (Tclap_FOUND) 
     AND (YAMLCPP_FOUND)
+    AND (SOCI_FOUND) 
     )
                                                                     
     include_directories( 
@@ -24,6 +26,7 @@ if( (Boost_FOUND)
         ${Tclap_INCLUDE_DIR}
         ${Crypto++_INCLUDE_DIR}
         ${YAMLCPP_INCLUDE_DIR}
+        ${SOCI_INCLUDE_DIRS}
         ${CMAKE_CURRENT_SOURCE_DIR}
         )
     
@@ -35,6 +38,8 @@ if( (Boost_FOUND)
         ${THREADS_LIBRARIES}
         ${Crypto++_LIBRARY}
         ${YAMLCPP_LIBRARY}
+        ${SOCI_LIBRARY}
+        ${SOCI_sqlite3_PLUGIN}
         )
         
     set_source_files_properties( ${MESSAGES_PB_CC} GENERATED )      
@@ -91,6 +96,10 @@ else()
     
     if( NOT (YAMLCPP_FOUND) )
         set(MISSING "${MISSING} yaml-cpp,")
+    endif()
+        
+    if( NOT (Soci_FOUND) )
+        set(MISSING "${MISSING} soci,")
     endif()
     
     message( WARNING "Can't build openbookfs server, missing: ${MISSING}")
