@@ -38,6 +38,9 @@
 #include <crypto++/filters.h>
 #include <crypto++/files.h>
 
+#include <soci/soci.h>
+#include <soci/sqlite3/soci-sqlite3.h>
+
 
 namespace   openbook {
 namespace filesystem {
@@ -129,6 +132,31 @@ void Client::initConfig(const std::string& configFile)
 
     m_pubKeyFile    = pubKeyFile.string();
     m_privKeyFile   = privKeyFile.string();
+
+    // initialize the message database
+    using namespace soci;
+
+    std::cout << "Initializing database" << std::endl;
+    fs::path dbFile = fs::path(m_dataDir) / "store.sqlite";
+    session sql(sqlite3,dbFile.string());
+
+    sql << "CREATE TABLE IF NOT EXISTS conflict_files ("
+            "conflict_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
+            "path TEXT NOT NULL ) ";
+
+    sql << "CREATE TABLE IF NOT EXISTS downloads ("
+            "tx_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
+            "path TEXT NOT NULL ) ";
+
+    sql << "CREATE TABLE IF NOT EXISTS current_messages ("
+            "msg_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
+            "msg_type INTEGER NOT NULL, "
+            "msg BLOB)";
+
+    sql << "CREATE TABLE IF NOT EXISTS old_messages ("
+            "msg_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
+            "msg_type INTEGER NOT NULL, "
+            "msg BLOB)";
 }
 
 

@@ -7,6 +7,7 @@ find_package(Crypto++)
 find_package(RE2)
 find_package(Tclap)
 find_package(YamlCpp)
+find_package(Soci COMPONENTS sqlite3) 
 
 configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/openbookfs_c.yaml
                 ${CMAKE_CURRENT_BINARY_DIR}/openbookfs_c.yaml )
@@ -20,7 +21,9 @@ if( (FUSE_FOUND)
     AND (RE2_FOUND)
     AND (Tclap_FOUND) 
     AND (YAMLCPP_FOUND)
-    AND (THREADS_FOUND) )
+    AND (THREADS_FOUND)
+    AND (SOCI_FOUND) 
+     )
                                                                     
     include_directories( 
         ${FUSE_INCLUDE_DIRS}
@@ -32,6 +35,7 @@ if( (FUSE_FOUND)
         ${RE2_INCLUDE_DIR}
         ${Tclap_INCLUDE_DIR}
         ${YAMLCPP_INCLUDE_DIR}
+        ${SOCI_INCLUDE_DIRS}
         )
     
     
@@ -44,6 +48,8 @@ if( (FUSE_FOUND)
         ${Crypto++_LIBRARY}
         ${RE2_LIBRARY}
         ${YAMLCPP_LIBRARY}
+        ${SOCI_LIBRARY}
+        ${SOCI_sqlite3_PLUGIN}
         )
         
     add_executable( ${CMAKE_PROJECT_NAME} 
@@ -90,6 +96,26 @@ else()
         set(MISSING "${MISSING} cpp-pthreads,")
     endif()
     
+    if( NOT (Protobuf_FOUND) )
+        set(MISSING "${MISSING} protobuf,")
+    endif()
+    
+    if( NOT (Crypto++_FOUND) )
+        set(MISSING "${MISSING} crypto++,")
+    endif()
+    
+    if( NOT (RE2_FOUND) )
+        set(MISSING "${MISSING} re2,")
+    endif()
+    
+    if( NOT (Tclap_FOUND) )
+        set(MISSING "${MISSING} tclap,")
+    endif()
+    
+    if( NOT (Soci_FOUND) )
+        set(MISSING "${MISSING} soci,")
+    endif()
+    
     message( WARNING "Can't build openbook client_fs, missing: ${MISSING}")
 
 endif()
@@ -105,6 +131,7 @@ if( (Boost_FOUND)
     AND (RE2_FOUND)
     AND (Tclap_FOUND) 
     AND (YAMLCPP_FOUND)
+    AND (SOCI_FOUND)
     )
                                                                     
     include_directories( 
@@ -116,6 +143,7 @@ if( (Boost_FOUND)
         ${RE2_INCLUDE_DIR}
         ${Tclap_INCLUDE_DIR}
         ${YAMLCPP_INCLUDE_DIR}
+        ${SOCI_INCLUDE_DIRS}
         )
     
     
@@ -127,6 +155,8 @@ if( (Boost_FOUND)
         ${Crypto++_LIBRARY}
         ${RE2_LIBRARY}
         ${YAMLCPP_LIBRARY}
+        ${SOCI_LIBRARY}
+        ${SOCI_sqlite3_PLUGIN}
         )
         
     set_source_files_properties( ${MESSAGES_PB_CC} GENERATED )      
@@ -181,6 +211,10 @@ else()
     
     if( NOT (Tclap_FOUND) )
         set(MISSING "${MISSING} tclap,")
+    endif()
+    
+    if( NOT (Soci_FOUND) )
+        set(MISSING "${MISSING} soci,")
     endif()
     
     
