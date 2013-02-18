@@ -17,6 +17,9 @@
 
 #include <dirent.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/xattr.h>
+#include <sys/file.h>
 
 #include <boost/filesystem.hpp>
 #include <tclap/CmdLine.h>
@@ -32,6 +35,42 @@ int OpenbookFS::result_or_errno(int result)
     else
         return result;
 }
+
+
+int OpenbookFS::setState( const std::string& path, xattr::State state)
+{
+    CStr key   = xattr::toStr(xattr::STATE);
+    CStr value = xattr::toStr(state);
+    return ::setxattr( path.c_str(), key.ptr, value.ptr, value.size, 0 );
+}
+
+int OpenbookFS::setState( int fd, xattr::State state)
+{
+    CStr key   = xattr::toStr(xattr::STATE);
+    CStr value = xattr::toStr(state);
+    return ::fsetxattr( fd, key.ptr, value.ptr, value.size, 0 );
+}
+
+int OpenbookFS::setVersion( const std::string& path, int version )
+{
+    CStr key = xattr::toStr(xattr::VERSION);
+    std::stringstream vstrm;
+    vstrm << version;
+
+    return ::setxattr( path.c_str(), key.ptr,
+                        vstrm.str().c_str(), vstrm.str().size(), 0 );
+}
+
+int OpenbookFS::setVersion( int fd, int version )
+{
+    CStr key = xattr::toStr(xattr::VERSION);
+    std::stringstream vstrm;
+    vstrm << version;
+
+    return ::fsetxattr( fd, key.ptr,
+                        vstrm.str().c_str(), vstrm.str().size(), 0 );
+}
+
 
 
 
@@ -61,12 +100,7 @@ int OpenbookFS::getattr (const char *path, struct stat *out)
                 << "\n translated: "
                     << "(" << wrapped << ")" << std::endl;
 
-    int result = ::lstat( wrapped.c_str(), out );
-    if( result )
-        std::cerr << "Problem!!" << std::endl;
-    else
-        std::cerr << "No problem" << std::endl;
-    return result ? -errno : 0;
+    return ::lstat( wrapped.c_str(), out ) ? -errno : 0;
 }
 
 
@@ -92,6 +126,7 @@ int OpenbookFS::mknod (const char *path, mode_t mode, dev_t dev)
                 << " (" << (m_dataDir / path) << ")" << std::endl;
 
     return ::mknod( wrapped.c_str(), mode, dev ) ? -errno : 0;
+
 }
 
 

@@ -34,6 +34,7 @@ if( (FUSE_FOUND)
                             ../base64.cpp
                             main.cpp
                             fuse_operations.cpp
+                            ExtendedAttributes.cpp
                             OpenbookFS.cpp)
                             
     set_target_properties( ${CMAKE_PROJECT_NAME} 

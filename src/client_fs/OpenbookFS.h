@@ -17,6 +17,7 @@
 
 #include <boost/filesystem.hpp>
 
+#include "ExtendedAttributes.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -28,6 +29,12 @@ class OpenbookFS
         boost::filesystem::path m_dataDir;
 
         int  result_or_errno(int result);
+
+        int setState( const std::string& path, xattr::State );
+        int setState( int fd, xattr::State );
+
+        int setVersion( const std::string& path, int version );
+        int setVersion( int fd, int version );
 
     public:
         OpenbookFS(boost::filesystem::path dataDir);
