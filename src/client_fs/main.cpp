@@ -50,13 +50,7 @@ int main(int argc, char** argv)
 {
     namespace fs = boost::filesystem;
 
-    fuse_operations fuse_ops;
-    setFuseOps(fuse_ops);
-
-    int             fuse_argc;
-    char**          fuse_argv;
-    OpenbookFS_Init fs_init;
-
+    // location of the configuration file
     std::string     configFile;
 
     // Generate a command line string for fuse
@@ -221,6 +215,7 @@ int main(int argc, char** argv)
     }
 
     // set the fields of the fs initialization structure
+    OpenbookFS_Init fs_init;
     fs_init.client = &client;
 
     // if we're not a help or version call, append the mount point to
@@ -239,11 +234,11 @@ int main(int argc, char** argv)
         nChars += itArgv->length() + 1;
 
     // allocate such a character array
-    char* argv_buf  = new char[nChars];
-    int   iArg      = 0;
-    int   iBuf      = 0;
-    fuse_argc   = fuse_argv_list.size();
-    fuse_argv   = new char*[fuse_argc];
+    char*   argv_buf  = new char[nChars];
+    int     iArg      = 0;
+    int     iBuf      = 0;
+    int     fuse_argc = fuse_argv_list.size();
+    char**  fuse_argv = new char*[fuse_argc];
 
     for(itArgv = fuse_argv_list.begin();
             itArgv != fuse_argv_list.end(); itArgv++)
@@ -271,9 +266,19 @@ int main(int argc, char** argv)
 
     umask(0);
 
-    int fuseResult = fuse_main(fuse_argc, fuse_argv, &fuse_ops, &fs_init);
+    // set the fuse_ops structure
+    fuse_operations fuse_ops;
+    setFuseOps(fuse_ops);
+
+    int fuseResult = 0;
+    if( helpOrVersion)
+        fuseResult = fuse_main(fuse_argc, fuse_argv, &fuse_ops, 0);
+    else
+        fuseResult = fuse_main(fuse_argc, fuse_argv, &fuse_ops, &fs_init);
     g_shouldDie = true;
 
+    delete [] argv_buf;
+    delete [] fuse_argv;
 
     return fuseResult;
 }
