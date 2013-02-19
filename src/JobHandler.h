@@ -34,7 +34,6 @@
 
 #include <cpp-pthreads.h>
 
-#include "jobs.h"
 #include "ExceptionStream.h"
 #include "Job.h"
 #include "Pool.h"

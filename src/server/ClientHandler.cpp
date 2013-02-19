@@ -38,7 +38,6 @@
 #include <crypto++/gcm.h>
 
 #include "global.h"
-#include "jobs.h"
 #include "ClientHandler.h"
 #include "SelectSpec.h"
 #include "messages.h"

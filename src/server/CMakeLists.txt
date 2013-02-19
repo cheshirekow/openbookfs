@@ -51,7 +51,6 @@ if( (Boost_FOUND)
                     main.cpp
                     ClientHandler.cpp
                     Server.cpp
-                    ../jobs.cpp
                     ../messages.cpp
                     ../FdSet.cpp
                     ../Job.cpp

@@ -46,7 +46,6 @@
 #include <crypto++/dh.h>
 #include <crypto++/dh2.h>
 
-#include "jobs.h"
 #include "Client.h"
 #include "ExceptionStream.h"
 #include "Job.h"

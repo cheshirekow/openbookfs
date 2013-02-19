@@ -27,7 +27,6 @@
 #ifndef OPENBOOK_QUITSHOUTER_H_
 #define OPENBOOK_QUITSHOUTER_H_
 
-#include "jobs.h"
 #include "Job.h"
 
 namespace   openbook {

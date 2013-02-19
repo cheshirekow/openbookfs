@@ -27,7 +27,6 @@
 #ifndef OPENBOOK_QUITWORKER_H_
 #define OPENBOOK_QUITWORKER_H_
 
-#include "jobs.h"
 #include "Job.h"
 
 namespace   openbook {

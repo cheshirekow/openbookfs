@@ -53,7 +53,6 @@ if( (FUSE_FOUND)
         )
         
     add_executable( ${CMAKE_PROJECT_NAME} 
-                    ../jobs.cpp
                     ../messages.cpp
                     ../MessageBuffer.cpp
                     ../FdSet.cpp
@@ -163,8 +162,6 @@ if( (Boost_FOUND)
     set_source_files_properties( ${MESSAGES_PB_CC} GENERATED )      
     
     add_executable( client_protocol_test
-                    ../base64.cpp
-                    ../jobs.cpp
                     ../messages.cpp
                     ../MessageBuffer.cpp
                     ../FdSet.cpp

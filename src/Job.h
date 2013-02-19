@@ -27,7 +27,6 @@
 #ifndef OPENBOOK_JOB_H_
 #define OPENBOOK_JOB_H_
 
-#include "jobs.h"
 #include "JobSink.h"
 #include "MessageBuffer.h"
 

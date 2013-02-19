@@ -21,8 +21,6 @@
 #include "Queue.h"
 #include "Job.h"
 
-#include "jobs.h"
-
 namespace   openbook {
 namespace filesystem {
 
