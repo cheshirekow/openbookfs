@@ -64,6 +64,17 @@ google::protobuf::Message* MessageBuffer::operator[]( unsigned int i )
 }
 
 
+void MessageBuffer::initAES( const CryptoPP::SecByteBlock& cek,
+                             const CryptoPP::SecByteBlock& iv )
+{
+    m_iv = iv;
+    m_enc.SetKeyWithIV(  cek.BytePtr(), cek.SizeInBytes(),
+                         iv.BytePtr(),  iv.SizeInBytes());
+    m_dec.SetKeyWithIV(  cek.BytePtr(), cek.SizeInBytes(),
+                         iv.BytePtr(),  iv.SizeInBytes());
+}
+
+
 void MessageBuffer::checkForDisconnect( int value )
 {
     if( value == 0 )
@@ -722,7 +733,20 @@ void MessageBuffer::write( int fd[2], char type,
             ex()() << "Signalled by something other than buffer freeing "
                       "up, bailing";
     }
+}
 
+
+char MessageBuffer::readEnc( int fd[2] )
+{
+    char type = read( fd, m_dec );
+    m_dec.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
+    return type;
+}
+
+void MessageBuffer::writeEnc( int fd[2], char type )
+{
+    write( fd, type, m_enc );
+    m_enc.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
 }
 
 

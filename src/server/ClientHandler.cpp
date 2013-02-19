@@ -350,6 +350,9 @@ void ClientHandler::handshake()
     m_rng.GenerateBlock(m_cek.BytePtr(), m_cek.SizeInBytes());
     m_rng.GenerateBlock( m_iv.BytePtr(), m_iv.SizeInBytes());
 
+    // initialize message buffer encoder, decoder
+    m_msg.initAES(m_cek,m_iv);
+
     // print it for checkin
     Integer cekOut, ivOut;
     cekOut.Decode( m_cek.BytePtr(), m_cek.SizeInBytes() );

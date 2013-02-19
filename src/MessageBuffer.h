@@ -44,6 +44,11 @@
 #include "messages.h"
 #include "messages.pb.h"
 
+#include <crypto++/rsa.h>
+#include <crypto++/osrng.h>
+#include <crypto++/dh.h>
+#include <crypto++/dh2.h>
+
 
 
 namespace   openbook {
@@ -69,6 +74,10 @@ class MessageBuffer
     public:
         typedef ExceptionStream<MessageException> ex;
 
+        typedef CryptoPP::SecByteBlock                    IV_t;
+        typedef CryptoPP::GCM<CryptoPP::AES>::Decryption  Decrypt_t;
+        typedef CryptoPP::GCM<CryptoPP::AES>::Encryption  Encrypt_t;
+
     private:
         /// size of the static buffer used to cache data
         static const unsigned int BUFSIZE = 1024;
@@ -88,6 +97,10 @@ class MessageBuffer
         /// array of generic message pointers
         google::protobuf::Message* m_msgs[NUM_MSG];
 
+        IV_t        m_iv;   ///< initial vector
+        Encrypt_t   m_enc;  ///< AES encryptor
+        Decrypt_t   m_dec;  ///< AES decryptor
+
 
         /// throws a MessageException if value is 0
         void checkForDisconnect( int value );
@@ -97,6 +110,9 @@ class MessageBuffer
         MessageBuffer();
 
         google::protobuf::Message* operator[]( unsigned int );
+
+        void initAES( const CryptoPP::SecByteBlock& cek,
+                      const CryptoPP::SecByteBlock& iv );
 
         /// read an unencrypted message
         char read( int sockfd);
@@ -129,6 +145,14 @@ class MessageBuffer
         /// MessageException on any problems
         void write( int fd[2] , char type,
                     CryptoPP::GCM<CryptoPP::AES>::Encryption& );
+
+        /// read an encrypted message from a socket, will throw a
+        /// MessageException on any problems
+        char readEnc( int fd[2] );
+
+        /// write an encryupted message to a socket, will throw a
+        /// MessageException on any problems
+        void writeEnc( int fd[2] , char type );
 
 
 };

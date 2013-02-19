@@ -590,6 +590,9 @@ void ServerHandler::handshake()
     dec.SetKeyWithIV(m_cek.BytePtr(), m_cek.SizeInBytes(),
                     m_iv.BytePtr(), m_iv.SizeInBytes());
 
+    // initialize message buffer encoder, decoder
+    m_msg.initAES(m_cek,m_iv);
+
     // the next message we send is the authentication message carrying our
     // public key
     msgs::AuthRequest* authReq =
