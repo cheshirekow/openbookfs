@@ -17,30 +17,32 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/client_fs/jobs/FileModified.h
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/server/jobs/NewVersion.h
  *
  *  @date   Feb 19, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_FILEMODIFIED_H_
-#define OPENBOOK_FILEMODIFIED_H_
+#ifndef OPENBOOK_NEWVERSION_H_
+#define OPENBOOK_NEWVERSION_H_
 
 #include "Job.h"
-#include "Client.h"
-#include "ServerHandler.h"
+#include "Server.h"
+#include "ClientHandler.h"
 
 namespace   openbook {
 namespace filesystem {
 namespace       jobs {
 
-/// when a file is modified through the FUSE interface
-class FileModified:
+/// a job created when a message is received indicating a new version on
+/// a client
+class NewVersion:
     public Job
 {
     private:
-        Client*      m_client;
+        Server*      m_server;
+        uint64_t     m_job_id;
         std::string  m_path;
         uint64_t     m_baseVersion;
         uint64_t     m_clientVersion;
@@ -48,15 +50,14 @@ class FileModified:
     public:
         /// simply sets the client handler so we know who to report to
         /// when the job is done
-        FileModified(
-            ServerHandler*        sink,
-            Client*               client,
-            const std::string&    path,
-            uint64_t              baseVersion,
-            uint64_t              clientVersion);
+        NewVersion(
+            ClientHandler*        sink,
+            unsigned int          sinkVersion,
+            Server*               server,
+            messages::NewVersion* msg );
 
         /// jobs have a v-table
-        virtual ~FileModified(){}
+        virtual ~NewVersion(){}
 
         /// there is no real job, just a message sent to the server
         virtual void doJob( );
@@ -66,26 +67,8 @@ class FileModified:
 };
 
 
-
 } // namespace jobs
 } // namespace filesystem
 } // namespace openbook
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif // FILEMODIFIED_H_
+#endif // NEWVERSION_H_

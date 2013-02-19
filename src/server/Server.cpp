@@ -171,6 +171,10 @@ void Server::initConfig(const std::string& configFile)
             "msg_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
             "msg_type INTEGER NOT NULL, "
             "msg BLOB)";
+
+    sql << "CREATE TABLE IF NOT EXISTS known_clients ("
+            "client_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
+            "client_key TEXT NOT NULL) ";
 }
 
 

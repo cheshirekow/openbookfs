@@ -72,7 +72,7 @@ class Job
 
         /// send message associated with this job, it may be an ACK or it
         /// may be an RPC
-        virtual void sendMessage( MessageBuffer& buf )=0;
+        virtual void sendMessage( int fd[2],  MessageBuffer& buf )=0;
 
 };
 

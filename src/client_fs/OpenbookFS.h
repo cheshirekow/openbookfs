@@ -20,6 +20,7 @@
 #include "Client.h"
 #include "Queue.h"
 #include "Job.h"
+#include "ServerHandler.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -31,6 +32,7 @@ class OpenbookFS
 
     private:
         Client*                 m_client;
+        ServerHandler*          m_comm;
         JobQueue_t*             m_jobQueue;
         boost::filesystem::path m_dataDir;
         boost::filesystem::path m_realRoot;
@@ -38,7 +40,7 @@ class OpenbookFS
         int  result_or_errno(int result);
 
     public:
-        OpenbookFS(Client*, JobQueue_t*);
+        OpenbookFS(Client*, ServerHandler*, JobQueue_t*);
 
         ~OpenbookFS();
 
@@ -450,12 +452,13 @@ struct OpenbookFS_Init
 {
     typedef Queue<Job*> JobQueue_t;
 
-    Client*     client;
-    JobQueue_t* jobQueue;
+    Client*         client;
+    JobQueue_t*     jobQueue;
+    ServerHandler*  comm;
 
     OpenbookFS* create()
     {
-        return new OpenbookFS(client,jobQueue);
+        return new OpenbookFS(client,comm,jobQueue);
     }
 };
 

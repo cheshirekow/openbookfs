@@ -17,54 +17,47 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/server/jobs/QuitWorker.h
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/server/jobs/NewVersion.cpp
  *
- *  @date   Feb 15, 2013
+ *  @date   Feb 19, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_QUITWORKER_H_
-#define OPENBOOK_QUITWORKER_H_
-
-#include "Job.h"
+#include "jobs/NewVersion.h"
 
 namespace   openbook {
 namespace filesystem {
-
-class ClientHandler;
-
 namespace       jobs {
 
-/// pumped into the queue by the main thread after all the network
-/// threads have quit, forcing all the job workers to quit
-/**
- *  Since this job is handled specially in the job handler and deleted there,
- *  there is no need to specify the sink or the version
- */
-class QuitWorker:
-    public Job
+
+NewVersion::NewVersion(
+        ClientHandler*        sink,
+        unsigned int          sinkVersion,
+        Server*               server,
+        messages::NewVersion* msg )
+:
+    Job(sink,sinkVersion),
+    m_server(server)
 {
-    public:
-        QuitWorker():
-            Job()
-        {}
+    m_job_id        = msg->job_id();
+    m_path          = msg->path();
+    m_baseVersion   = msg->base_version();
+    m_clientVersion = msg->client_version();
+}
 
-        virtual void doJob()
-        {
-            throw QuitException();
-        }
+void NewVersion::doJob()
+{
+    std::cout << "Received a NewVersion message but "
+                 "implementation is incomplete" << std::endl;
+}
 
-        virtual void sendMessage( int fd[2], MessageBuffer& msg ){}
-};
+void NewVersion::sendMessage( int fd[2], MessageBuffer& msg )
+{
+
+}
+
 
 } // namespace jobs
 } // namespace filesystem
 } // namespace openbook
-
-
-
-
-
-
-#endif // QUITWORKER_H_

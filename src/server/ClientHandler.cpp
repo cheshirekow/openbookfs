@@ -43,6 +43,7 @@
 #include "messages.h"
 #include "messages.pb.h"
 #include "jobs/QuitShouter.h"
+#include "jobs/NewVersion.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -568,7 +569,7 @@ void* ClientHandler::listen()
         {
             // read one message from client, exception thrown on disconnect
             // or termination signal
-            char type = m_msg.read(m_fd,dec);
+            MessageId type = m_msg.read(m_fd,dec);
             dec.Resynchronize(m_iv.BytePtr(),m_iv.SizeInBytes());
 
             // generate a job from the message
@@ -576,6 +577,15 @@ void* ClientHandler::listen()
 
             switch(type)
             {
+                using namespace messages;
+                case MSG_NEW_VERSION:
+                {
+                    NewVersion* msg =
+                            static_cast<NewVersion*>(m_msg[MSG_NEW_VERSION]);
+                    job = new jobs::NewVersion(this,m_version,m_server,msg);
+                    break;
+                }
+
                 default:
                     std::cerr << "Handler " << (void*)this << " : "
                               << "Dont know what to do with a job request of "
@@ -625,7 +635,7 @@ void* ClientHandler::shout()
             try
             {
                 // send the job message
-                job->sendMessage(m_msg);
+                job->sendMessage(m_fd, m_msg);
                 delete job;
             }
             catch( const QuitException& ex )

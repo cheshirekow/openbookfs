@@ -59,6 +59,7 @@ if( (Boost_FOUND)
                     ../NotifyPipe.cpp
                     ../SelectSpec.cpp
                     ../TimeVal.cpp
+                    jobs/NewVersion.cpp
                     ${MESSAGES_PB_CC}
                              )
     add_dependencies(openbookfs_d proto_messages)

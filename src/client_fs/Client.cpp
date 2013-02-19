@@ -48,6 +48,7 @@ namespace filesystem {
 
 Client::Client()
 {
+    m_nextId = 0;
     m_mutex.init();
 }
 
@@ -137,8 +138,8 @@ void Client::initConfig(const std::string& configFile)
     using namespace soci;
 
     std::cout << "Initializing database" << std::endl;
-    fs::path dbFile = fs::path(m_dataDir) / "store.sqlite";
-    session sql(sqlite3,dbFile.string());
+    m_dbFile = fs::path(m_dataDir) / "store.sqlite";
+    session sql(sqlite3,m_dbFile.string());
 
     sql << "CREATE TABLE IF NOT EXISTS conflict_files ("
             "conflict_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
@@ -159,6 +160,12 @@ void Client::initConfig(const std::string& configFile)
             "msg BLOB)";
 }
 
+
+uint64_t Client::nextId()
+{
+    pthreads::ScopedLock lock(m_mutex);
+    return ++m_nextId;
+}
 
 
 

@@ -36,6 +36,7 @@ if( (FUSE_FOUND)
         ${Tclap_INCLUDE_DIR}
         ${YAMLCPP_INCLUDE_DIR}
         ${SOCI_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}
         )
     
     
@@ -69,6 +70,7 @@ if( (FUSE_FOUND)
                     OpenbookFS.cpp
                     ServerHandler.cpp          
                     ${MESSAGES_PB_CC}
+                    jobs/FileModified.cpp
                     )
                             
     set_target_properties( ${CMAKE_PROJECT_NAME} 

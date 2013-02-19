@@ -51,7 +51,7 @@ class QuitShouter:
 
         virtual void doJob(){}
 
-        virtual void sendMessage( MessageBuffer& msg )
+        virtual void sendMessage( int fd[2], MessageBuffer& msg )
         {
             throw QuitException();
         }

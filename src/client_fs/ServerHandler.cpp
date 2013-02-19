@@ -769,7 +769,7 @@ void* ServerHandler::shout()
             try
             {
                 // allow the job to send it's message, and then delete the job
-                job->sendMessage(m_msg);
+                job->sendMessage(m_fd, m_msg);
                 delete job;
             }
             catch( const QuitException& ex )

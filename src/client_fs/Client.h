@@ -47,8 +47,6 @@ struct Client
     private:
         pthreads::Mutex m_mutex;    ///< locks this data
 
-        boost::filesystem::path m_realRoot;
-                                    ///< real file system location
         std::string  m_dataDir;      ///< client data location
         std::string  m_rootDir;      ///< file system mount point
         std::string  m_pubKeyFile;   ///< public key file
@@ -59,6 +57,12 @@ struct Client
         std::string  m_iface;           ///< which interface to bind
         std::string  m_server;      ///< server address/hostname and port
         int          m_maxWorkers;  ///< number of worker threads to run
+        uint64_t     m_nextId;      ///< next id for a job message
+
+        boost::filesystem::path m_realRoot;
+                                    ///< real file system location
+        boost::filesystem::path m_dbFile;
+                                    ///< path to the database
 
     public:
         Client();
@@ -78,8 +82,10 @@ struct Client
         const std::string& server()         const{ return m_server;        }
 
         int maxWorkers() const { return m_maxWorkers; }
+        uint64_t nextId();
 
         const boost::filesystem::path realRoot() const{ return m_realRoot; }
+        const boost::filesystem::path dbFile()   const{ return m_dbFile;   }
 
 };
 

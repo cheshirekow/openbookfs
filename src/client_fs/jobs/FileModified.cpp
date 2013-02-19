@@ -17,75 +17,62 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/client_fs/jobs/FileModified.h
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/client_fs/jobs/FileModified.cpp
  *
  *  @date   Feb 19, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_FILEMODIFIED_H_
-#define OPENBOOK_FILEMODIFIED_H_
 
-#include "Job.h"
-#include "Client.h"
-#include "ServerHandler.h"
+#include "jobs/FileModified.h"
 
 namespace   openbook {
 namespace filesystem {
 namespace       jobs {
 
-/// when a file is modified through the FUSE interface
-class FileModified:
-    public Job
-{
-    private:
-        Client*      m_client;
-        std::string  m_path;
-        uint64_t     m_baseVersion;
-        uint64_t     m_clientVersion;
 
-    public:
-        /// simply sets the client handler so we know who to report to
-        /// when the job is done
-        FileModified(
+FileModified::FileModified(
             ServerHandler*        sink,
             Client*               client,
             const std::string&    path,
             uint64_t              baseVersion,
-            uint64_t              clientVersion);
+            uint64_t              clientVersion )
+:
+    Job(sink,0),
+    m_client(client),
+    m_path(path),
+    m_baseVersion(baseVersion),
+    m_clientVersion(clientVersion)
+{
 
-        /// jobs have a v-table
-        virtual ~FileModified(){}
+}
 
-        /// there is no real job, just a message sent to the server
-        virtual void doJob( );
+void FileModified::doJob()
+{
+    std::cout << "FileModified, NO-OP:"
+              << "\n    path: " << m_path
+              << "\n    base: " << m_baseVersion
+              << "\n  client: " << m_clientVersion
+              << std::endl;
+}
 
-        /// send a message to the server that the file has been modified
-        virtual void sendMessage( int fd[2], MessageBuffer& msg );
-};
+void FileModified::sendMessage(int fd[2], MessageBuffer& msg)
+{
+    std::cout << "Sending a 'New Version' message for created file "
+              << m_path
+              << std::endl;
+    messages::NewVersion* theMsg =
+            static_cast<messages::NewVersion*>( msg[MSG_NEW_VERSION] );
+    theMsg->set_job_id( m_client->nextId() );
+    theMsg->set_path(m_path);
+    theMsg->set_base_version(m_baseVersion);
+    theMsg->set_client_version(m_clientVersion);
 
+    msg.writeEnc(fd,MSG_NEW_VERSION);
+}
 
 
 } // namespace jobs
 } // namespace filesystem
 } // namespace openbook
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif // FILEMODIFIED_H_

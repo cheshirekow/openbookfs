@@ -310,6 +310,7 @@ int main(int argc, char** argv)
     // set the fields of the fs initialization structure
     OpenbookFS_Init fs_init;
     fs_init.client      = &client;
+    fs_init.comm        = &serverHandler;
     fs_init.jobQueue    = &jobQueue;
 
     // set the fuse_ops structure
