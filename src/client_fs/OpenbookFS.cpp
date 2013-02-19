@@ -103,20 +103,19 @@ int OpenbookFS::mknod (const char *path, mode_t mode, dev_t dev)
     if( result )
         return -errno;
 
-    int metaFd = ::creat( (wrapped/".obfsmeta").c_str(), S_IRUSR | S_IWUSR );
+    fs::path metaPath = m_realRoot / (std::string(path) + ".obfsmeta");
 
-    // make the file the correct size
-    ::ftruncate(metaFd,sizeof(MetaData));
+    try
+    {
+        MetaData metaData( metaPath );
+        metaData.create();
+    }
+    catch( std::exception& ex )
+    {
+        std::cerr << "Problem creating meta data: " << ex.what();
+    }
 
-    // map the file, initalize, and then unmap
-    MetaData* data = MetaData::map( metaFd );
-    data->init();
-    data->unmap();
-
-    // close the file
-    ::close( metaFd );
-
-    return result;
+    return 0;
 }
 
 
@@ -134,11 +133,19 @@ int OpenbookFS::mkdir (const char *pathname, mode_t mode)
 
 int OpenbookFS::unlink (const char *pathname)
 {
-    std::string wrapped = (m_realRoot / pathname).string();
+    namespace fs = boost::filesystem;
+    fs::path wrapped = (m_realRoot / pathname);
     std::cerr << "unlink: " << pathname
                 << "(" << wrapped << ")" << std::endl;
 
-    return result_or_errno( ::unlink(  wrapped.c_str()  ) );
+    int result = ::unlink( wrapped.c_str() );
+    if( result )
+        return -errno;
+
+    fs::path metaFile = m_realRoot / ( std::string(pathname) + ".obfsmeta" );
+    result = ::unlink ( metaFile.c_str() );
+
+    return 0;
 }
 
 
@@ -580,44 +587,15 @@ int OpenbookFS::create (const char *pathname,
 
     fs::path metaPath = m_realRoot / (std::string(pathname) + ".obfsmeta");
 
-    int metaFd = ::creat( metaPath.c_str(), S_IRUSR | S_IWUSR );
-    if( metaFd < 0 )
+    try
     {
-        std::cerr << "Failed to create meta file "
-                  << metaPath << std::endl;
-        return 0;
+        MetaData metaData( metaPath );
+        metaData.create();
     }
-    else
-        std::cout << "created meta file" << metaPath << std::endl;
-
-    // make the file the correct size
-    int result = ::ftruncate(metaFd,sizeof(MetaData));
-    if( result )
+    catch( std::exception& ex )
     {
-        std::cerr << "Failed to truncate meta data file (" << errno
-                  << ") " << strerror( errno ) << std::endl;
-        return 0;
+        std::cerr << "Problem creating meta data: " << ex.what();
     }
-    else
-        std::cout << "truncated meta file" << std::endl;
-
-    // map the file, initalize, and then unmap
-    MetaData* data = MetaData::map( metaFd );
-    if( !data )
-    {
-        std::cerr << "Failed to map meta data file (" << errno
-                  << ") " << strerror( errno ) << std::endl;
-        return 0;
-    }
-    else
-        std::cout << "mapped meta file" << std::endl;
-    data->init();
-    std::cout << "inititalized meta file" << std::endl;
-    data->unmap();
-    std::cout << "unmapped meta file" << std::endl;
-
-    // close the file
-    ::close( metaFd );
 
     return 0;
 }
