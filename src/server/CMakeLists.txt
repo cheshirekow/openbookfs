@@ -50,6 +50,7 @@ if( (Boost_FOUND)
     add_executable( openbookfs_d
                     main.cpp
                     ClientHandler.cpp
+                    ClientMessage.cpp
                     MessageHandler.cpp
                     Server.cpp
                     ../messages.cpp

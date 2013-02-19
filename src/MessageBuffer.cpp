@@ -867,6 +867,26 @@ TypedMessage MessageBuffer::readEnc( int fd[2] )
             break;
         }
 
+        case MSG_PING:
+        {
+            messages::Ping* msg = new messages::Ping();
+            if( !msg->ParseFromArray(&m_plain[1],m_plain.size()-1) )
+                ex()() << "Failed to parse message as "
+                       << messageIdToString(type);
+            out.msg = msg;
+            break;
+        }
+
+        case MSG_PONG:
+        {
+            messages::Pong* msg = new messages::Pong();
+            if( !msg->ParseFromArray(&m_plain[1],m_plain.size()-1) )
+                ex()() << "Failed to parse message as "
+                       << messageIdToString(type);
+            out.msg = msg;
+            break;
+        }
+
         default:
         {
             ex()() << "Unknown message type for allocated receive: "

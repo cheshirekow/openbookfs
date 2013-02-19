@@ -41,7 +41,8 @@ void* MessageHandler::main()
 {
     std::cout << "Message handler " << (void*)this << " starting up\n";
 
-    while(1)
+    bool shouldDie = false;
+    while(!shouldDie)
     {
         ClientMessage msg;
 
@@ -53,8 +54,39 @@ void* MessageHandler::main()
         {
             case MSG_QUIT:
             {
+                shouldDie = true;
                 std::cout << "Message handler " << (void*)this
                           << " shutting down \n";
+                break;
+            }
+
+            case MSG_PING:
+            {
+                std::cout << "Message handler " << (void*)this
+                          << " got a PING \n";
+                ClientMessage out = msg;
+                out.typed.type = MSG_PONG;
+
+                messages::Pong* pong= new messages::Pong();
+                pong->set_payload(0xb19b00b5);
+                out.typed.msg = pong;
+                sleep(1);
+                out.send();
+                break;
+            }
+
+            case MSG_PONG:
+            {
+                std::cout << "Message handler " << (void*)this
+                          << " got a PONG \n";
+                ClientMessage out = msg;
+                out.typed.type = MSG_PING;
+
+                messages::Ping* ping= new messages::Ping();
+                ping->set_payload(0xb19b00b5);
+                out.typed.msg = ping;
+                sleep(1);
+                out.send();
                 break;
             }
 
@@ -88,10 +120,14 @@ MessageHandler::~MessageHandler()
     m_mutex.destroy();
 }
 
-void MessageHandler::init( Pool_t* pool, MsgQueue_t* queue )
+void MessageHandler::init(
+        Pool_t*         pool,
+        MsgQueue_t*     queue,
+        Server*         server )
 {
     m_pool     = pool;
     m_msgQueue = queue;
+    m_server   = server;
 }
 
 void MessageHandler::start()

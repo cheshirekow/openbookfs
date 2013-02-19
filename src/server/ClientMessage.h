@@ -42,11 +42,9 @@ struct ClientMessage
     TypedMessage    typed;
 
     ClientMessage( ClientHandler* client=0, uint64_t client_id=0,
-                   MessageId id=INVALID_MESSAGE, Message* msg=0 ):
-       client(client),
-       client_id(client_id),
-       typed(id,msg)
-    {}
+                   MessageId id=INVALID_MESSAGE, Message* msg=0 );
+
+    void send();
 };
 
 

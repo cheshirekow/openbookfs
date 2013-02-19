@@ -17,46 +17,39 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/messages.cpp
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/server/ClientMessage.cpp
  *
- *  @date   Feb 11, 2013
+ *  @date   Feb 19, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#include "messages.h"
+
+#include "ClientMessage.h"
+#include "ClientHandler.h"
+
 
 namespace   openbook {
 namespace filesystem {
 
 
-const char* messageIdToString( char id )
-{
-    const char* str[] =
-    {
-        "QUIT",
-        "PING",
-        "PONG",
-        "DH_PARAMS",
-        "KEY_EXCHANGE",
-        "CEK",
-        "AUTH_REQ",
-        "AUTH_CHALLENGE",
-        "AUTH_SOLUTION",
-        "AUTH_RESULT",
-        "JOB_FINISHED",
-        "NEW_VERSION",
-        "INVALID_ID"
-    };
+ClientMessage::ClientMessage(
+        ClientHandler* client,
+        uint64_t       client_id,
+        MessageId      id,
+        Message*       msg):
+   client(client),
+   client_id(client_id),
+   typed(id,msg)
+{}
 
-    if( 0 < id && id < NUM_MSG )
-        return str[id];
-    else
-        return str[NUM_MSG];
+
+void ClientMessage::send()
+{
+    client->sendMessage(*this);
 }
 
 
 
 } // namespace filesystem
 } // namespace openbook
-

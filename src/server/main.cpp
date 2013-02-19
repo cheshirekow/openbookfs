@@ -297,7 +297,7 @@ int main(int argc, char** argv)
 
     for(int i=0; i < nJ; i++)
     {
-        workers[i].init(&workerPool,&inboundQueue);
+        workers[i].init(&workerPool,&inboundQueue,&server);
         workers[i].start();
     }
 

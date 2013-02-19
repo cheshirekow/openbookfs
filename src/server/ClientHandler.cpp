@@ -165,7 +165,7 @@ void ClientHandler::sendMessage( ClientMessage msg )
     pthreads::ScopedLock(m_mutex);
 
     // first check to make sure the handler hasn't cycled to a new client
-    if( msg.client_id == m_version )
+    if( msg.client_id != m_version )
         delete msg.typed.msg;
     else
         m_outboundMessages.insert(msg.typed);
@@ -194,6 +194,13 @@ void* ClientHandler::main()
             std::cout << "handler " << (void*)this
                       << " launching shout thread\n";
             m_shoutThread.launch( dispatch_shout, this );
+
+            // create a ping message for the client
+            TypedMessage msg(MSG_PING);
+            messages::Ping* ping = new messages::Ping();
+            ping->set_payload(0xb19b00b5);
+            msg.msg = ping;
+            m_outboundMessages.insert(msg);
         }
     }
     catch( std::exception& ex )

@@ -760,6 +760,12 @@ void* ServerHandler::shout()
                 break;
             }
 
+            // sanity
+            if( !msg.msg )
+                ex()() << "Can't send message (" << (int)msg.type << ") : "
+                       << messageIdToString(msg.type) << " because "
+                       << "message is empty ";
+
             // otherwise send the message
             m_msg.writeEnc(m_fd,msg);
             delete msg.msg;

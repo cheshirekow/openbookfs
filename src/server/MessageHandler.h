@@ -40,6 +40,7 @@
 #include "Queue.h"
 #include "messages.h"
 #include "ClientMessage.h"
+#include "Server.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -58,6 +59,7 @@ class MessageHandler
         pthreads::Thread    m_thread;           ///< the thread we're running in
         pthreads::Mutex     m_mutex;            ///< locks this data
 
+        Server*             m_server;
 
         /// main method of the job handler, waits for jobs in the queue and
         /// then does them
@@ -72,7 +74,7 @@ class MessageHandler
 
         /// set the parent pointer and start DH parameter generation in
         /// detached thread
-        void init( Pool_t*, MsgQueue_t* );
+        void init( Pool_t*, MsgQueue_t*, Server* );
 
         /// start the worker thread
         void start();

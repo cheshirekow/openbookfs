@@ -35,6 +35,8 @@ namespace filesystem {
 enum MessageId
 {
     MSG_QUIT=0,             ///< special message to quit
+    MSG_PING,
+    MSG_PONG,
     MSG_DH_PARAMS,
     MSG_KEY_EXCHANGE,
     MSG_CEK,

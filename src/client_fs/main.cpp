@@ -302,7 +302,7 @@ int main(int argc, char** argv)
 
     for(int i=0; i < client.maxWorkers(); i++)
     {
-        msgHandlers[i].init(&workerPool,&inboundQueue);
+        msgHandlers[i].init(&workerPool,&inboundQueue,&client,&serverHandler);
         msgHandlers[i].start();
     }
 
