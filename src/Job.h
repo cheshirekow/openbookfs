@@ -29,6 +29,7 @@
 
 #include "jobs.h"
 #include "JobSink.h"
+#include "MessageBuffer.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -69,6 +70,10 @@ class Job
 
         /// return the derived class
         JobClass derived() const;
+
+        /// send message associated with this job, it may be an ACK or it
+        /// may be an RPC
+        virtual void sendMessage( MessageBuffer& buf )=0;
 
 };
 

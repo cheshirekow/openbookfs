@@ -47,6 +47,7 @@ class QuitShouter:
         {}
 
         virtual void doJob(){}
+        virtual void sendMessage( MessageBuffer& msg ){}
 };
 
 } // namespace jobs
