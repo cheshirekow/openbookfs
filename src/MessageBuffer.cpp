@@ -45,6 +45,9 @@ MessageBuffer::MessageBuffer()
     m_cipher.reserve(BUFSIZE);
     m_plain.reserve(BUFSIZE);
 
+    /// zero out pointers for safety
+    memset(m_msgs,0,sizeof(m_msgs));
+
     m_msgs[MSG_DH_PARAMS]       = &m_dhParams;
     m_msgs[MSG_KEY_EXCHANGE]    = &m_keyExchange;
     m_msgs[MSG_CEK]             = &m_cek;
@@ -52,6 +55,8 @@ MessageBuffer::MessageBuffer()
     m_msgs[MSG_AUTH_CHALLENGE]  = &m_authChallenge;
     m_msgs[MSG_AUTH_SOLN]       = &m_authSoln;
     m_msgs[MSG_AUTH_RESULT]     = &m_authResult;
+    m_msgs[MSG_JOB_FINISHED]    = &m_jobFinished;
+    m_msgs[MSG_NEW_VERSION]     = &m_newVersion;
 }
 
 
@@ -85,7 +90,7 @@ void MessageBuffer::checkForDisconnect( int value )
 // message format
 // first 2 bytes:   size of message
 // size bytes:      message
-char MessageBuffer::read( int sockfd )
+MessageId MessageBuffer::read( int sockfd )
 {
     unsigned char header[2];     //< header bytes
     int           received;      //< result of recv
@@ -143,10 +148,10 @@ char MessageBuffer::read( int sockfd )
         ex()() << "Failed to parse message";
 
     std::cout << "   read done\n";
-    return type;
+    return (MessageId)type;
 }
 
-void MessageBuffer::write( int sockfd, char type )
+void MessageBuffer::write( int sockfd, MessageId type )
 {
     namespace io = google::protobuf::io;
 
@@ -193,7 +198,7 @@ void MessageBuffer::write( int sockfd, char type )
 // first bit:       encrypted
 // next  15 bits:   unsigned size (max 2^15)
 // after first two bytes: message data
-char MessageBuffer::read( int sockfd,
+MessageId MessageBuffer::read( int sockfd,
                             CryptoPP::GCM<CryptoPP::AES>::Decryption& dec)
 {
     unsigned char header[2];     //< header bytes
@@ -262,10 +267,10 @@ char MessageBuffer::read( int sockfd,
 
     std::cout << "   read done\n";
 
-    return type;
+    return (MessageId)type;
 }
 
-void MessageBuffer::write( int sockfd, char type,
+void MessageBuffer::write( int sockfd, MessageId type,
                             CryptoPP::GCM<CryptoPP::AES>::Encryption& enc )
 {
     namespace io = google::protobuf::io;
@@ -338,7 +343,7 @@ void MessageBuffer::write( int sockfd, char type,
 // message format
 // first 2 bytes:   size of message
 // size bytes:      message
-char MessageBuffer::read( int fd[2] )
+MessageId MessageBuffer::read( int fd[2] )
 {
     unsigned char header[2];        //< header bytes
     int           received;         //< result of recv
@@ -444,10 +449,10 @@ char MessageBuffer::read( int fd[2] )
                << " of size " << m_plain.size()-1;
 
     std::cout << "   read done\n";
-    return type;
+    return (MessageId)type;
 }
 
-void MessageBuffer::write( int fd[2], char type )
+void MessageBuffer::write( int fd[2], MessageId type )
 {
     namespace io = google::protobuf::io;
 
@@ -525,7 +530,7 @@ void MessageBuffer::write( int fd[2], char type )
 // first bit:       encrypted
 // next  15 bits:   unsigned size (max 2^15)
 // after first two bytes: message data
-char MessageBuffer::read( int fd[2],
+MessageId MessageBuffer::read( int fd[2],
                             CryptoPP::GCM<CryptoPP::AES>::Decryption& dec)
 {
     /// create the select spec
@@ -641,10 +646,10 @@ char MessageBuffer::read( int fd[2],
                << " of size " << m_plain.size()-1;
 
     std::cout << "   read done\n";
-    return type;
+    return (MessageId)type;
 }
 
-void MessageBuffer::write( int fd[2], char type,
+void MessageBuffer::write( int fd[2], MessageId type,
                             CryptoPP::GCM<CryptoPP::AES>::Encryption& enc )
 {
     namespace io = google::protobuf::io;
@@ -736,14 +741,14 @@ void MessageBuffer::write( int fd[2], char type,
 }
 
 
-char MessageBuffer::readEnc( int fd[2] )
+MessageId MessageBuffer::readEnc( int fd[2] )
 {
-    char type = read( fd, m_dec );
+    MessageId type = read( fd, m_dec );
     m_dec.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
     return type;
 }
 
-void MessageBuffer::writeEnc( int fd[2], char type )
+void MessageBuffer::writeEnc( int fd[2], MessageId type )
 {
     write( fd, type, m_enc );
     m_enc.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());

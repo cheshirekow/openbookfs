@@ -94,6 +94,9 @@ class MessageBuffer
         messages::AuthSolution  m_authSoln;
         messages::AuthResult    m_authResult;
 
+        messages::JobFinished   m_jobFinished;
+        messages::NewVersion    m_newVersion;
+
         /// array of generic message pointers
         google::protobuf::Message* m_msgs[NUM_MSG];
 
@@ -115,44 +118,44 @@ class MessageBuffer
                       const CryptoPP::SecByteBlock& iv );
 
         /// read an unencrypted message
-        char read( int sockfd);
+        MessageId read( int sockfd);
 
         /// write an unencrypted message
-        void write( int sockfd, char type);
+        void write( int sockfd, MessageId type);
 
         /// read an encrypted message from a socket, will throw a
         /// MessageException on any problems
-        char read( int sockfd,
+        MessageId read( int sockfd,
                     CryptoPP::GCM<CryptoPP::AES>::Decryption& );
 
         /// write an encryupted message to a socket, will throw a
         /// MessageException on any problems
-        void write( int sockfd, char type,
+        void write( int sockfd, MessageId type,
                     CryptoPP::GCM<CryptoPP::AES>::Encryption& );
 
         /// read an unencrypted message
-        char read( int fd[2] );
+        MessageId read( int fd[2] );
 
         /// write an unencrypted message
-        void write( int fd[2] , char type);
+        void write( int fd[2] , MessageId type);
 
         /// read an encrypted message from a socket, will throw a
         /// MessageException on any problems
-        char read( int fd[2] ,
+        MessageId read( int fd[2] ,
                     CryptoPP::GCM<CryptoPP::AES>::Decryption& );
 
         /// write an encryupted message to a socket, will throw a
         /// MessageException on any problems
-        void write( int fd[2] , char type,
+        void write( int fd[2] , MessageId type,
                     CryptoPP::GCM<CryptoPP::AES>::Encryption& );
 
         /// read an encrypted message from a socket, will throw a
         /// MessageException on any problems
-        char readEnc( int fd[2] );
+        MessageId readEnc( int fd[2] );
 
         /// write an encryupted message to a socket, will throw a
         /// MessageException on any problems
-        void writeEnc( int fd[2] , char type );
+        void writeEnc( int fd[2] , MessageId MessageId );
 
 
 };

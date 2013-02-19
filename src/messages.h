@@ -42,6 +42,7 @@ enum MessageId
     MSG_AUTH_SOLN,
     MSG_AUTH_RESULT,
     MSG_JOB_FINISHED,
+    MSG_NEW_VERSION,
     NUM_MSG
 };
 

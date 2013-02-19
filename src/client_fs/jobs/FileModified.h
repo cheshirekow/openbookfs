@@ -17,51 +17,54 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/client_fs/ClientJob.h
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/client_fs/jobs/FileModified.h
  *
  *  @date   Feb 19, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_CLIENTJOB_H_
-#define OPENBOOK_CLIENTJOB_H_
+#ifndef OPENBOOK_FILEMODIFIED_H_
+#define OPENBOOK_FILEMODIFIED_H_
 
-#include "Job.h"
-#include "Client.h"
-#include "ServerHandler.h"
+#include "ClientJob.h"
 
 namespace   openbook {
 namespace filesystem {
+namespace       jobs {
 
 /// base class for jobs
-class ClientJob:
-    public Job
+class FileModified:
+    public ClientJob
 {
-    protected:
-        Client*  m_client;  ///< stuff needed for the job
+    private:
+        std::string  m_path;
+        uint64_t     m_baseVersion;
+        uint64_t     m_clientVersion;
 
     public:
         /// simply sets the client handler so we know who to report to
         /// when the job is done
-        ClientJob(
-            ServerHandler*  sink,
-            Client*         client);
+        FileModified(
+            ServerHandler*        sink,
+            Client*               client,
+            const std::string&    path,
+            uint64_t              baseVersion,
+            uint64_t              clientVersion);
 
         /// jobs have a v-table
-        virtual ~ClientJob(){}
+        virtual ~FileModified(){}
 
-        /// do the actual job
-        virtual void doClientJob( Client* )=0;
+        /// there is no real job, just a message sent to the server
+        virtual void doClientJob( Client* );
 
-        /// does the actual job, modifies state rather than returning
-        /// anything
-        virtual void doJob();
+        /// send a message to the server that the file has been modified
+        virtual void sendMessage( MessageBuffer& msg );
 };
 
 
 
-
+} // namespace jobs
 } // namespace filesystem
 } // namespace openbook
 
@@ -78,4 +81,8 @@ class ClientJob:
 
 
 
-#endif // CLIENTJOB_H_
+
+
+
+
+#endif // FILEMODIFIED_H_
