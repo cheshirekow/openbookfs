@@ -31,11 +31,9 @@ namespace   openbook {
 namespace filesystem {
 
 ClientJob::ClientJob(
-        JobClass derived,
-        unsigned int   version,
         ServerHandler* sink,
         Client* client ):
-    Job( derived, version, sink ),
+    Job( sink, 0 ),
     m_client(client)
 {}
 

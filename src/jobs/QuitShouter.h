@@ -38,12 +38,16 @@ namespace       jobs {
 /// pumped into the finished queue by the listener when the client disconnects,
 /// causes the shouter to extract a job when no job is finished and kill
 /// itself
+/**
+ *  Since this job bypasses the normal job pool there is no need to store
+ *  the sink or it's version
+ */
 class QuitShouter:
     public Job
 {
     public:
-        QuitShouter(unsigned int version, JobSink* handler):
-            Job(QUIT_SHOUTER,version,handler)
+        QuitShouter():
+            Job(0,0)
         {}
 
         virtual void doJob(){}

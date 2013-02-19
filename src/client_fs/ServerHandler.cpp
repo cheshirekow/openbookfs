@@ -213,7 +213,7 @@ void* ServerHandler::main()
     while(!g_shouldDie)
     {
         std::cout << "Will start handler in 5 seconds" << std::endl;
-        sleep(30);
+        sleep(10);
 
         try
         {
@@ -742,7 +742,7 @@ void* ServerHandler::listen()
     }
 
     // put a dummy job into the queue so that the shouter can quit
-    m_finishedJobs.insert( new jobs::QuitShouter(0,this) );
+    m_finishedJobs.insert( new jobs::QuitShouter() );
 
     return 0;
 }

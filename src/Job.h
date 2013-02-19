@@ -47,17 +47,15 @@ class QuitException:
 class Job
 {
     protected:
-        JobClass       m_derived;       ///< enum specifying derived class
-        unsigned int   m_clientVersion; ///< the version of the client when
+        JobSink* m_sink; ///< who to sent the job to when done
+        unsigned int   m_sinkVersion;   ///< the version of the sink when
                                         ///  they created the job
-        JobSink* m_sink;   ///< who to send the job to when done
 
     public:
         /// simply sets the client handler so we know who to report to
         /// when the job is done
-        Job( JobClass derived,
-                unsigned int version,
-                JobSink* sink );
+        Job( JobSink* sink = 0,
+             unsigned int version=0 );
 
         /// jobs have a v-table
         virtual ~Job(){}
@@ -66,14 +64,12 @@ class Job
         /// anything
         virtual void doJob()=0;
 
-        /// returns the job to the client's queue of finished jobs
+        /// returns the job to the sinks's queue of finished jobs, or if there
+        /// is no sink, calls delete this
         void finish();
 
-        /// return the client version
+        /// return the sink version
         unsigned int version() const;
-
-        /// return the derived class
-        JobClass derived() const;
 
         /// send message associated with this job, it may be an ACK or it
         /// may be an RPC

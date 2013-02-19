@@ -45,8 +45,6 @@ class ClientJob:
         /// simply sets the client handler so we know who to report to
         /// when the job is done
         ClientJob(
-            JobClass        derived,
-            unsigned int    version,
             ServerHandler*  sink,
             Client*         client);
 

@@ -599,7 +599,7 @@ void* ClientHandler::listen()
     }
 
     // put a dummy job into the queue so that the shouter can quit
-    m_finishedJobs.insert( new jobs::QuitShouter(m_version,this) );
+    m_finishedJobs.insert( new jobs::QuitShouter() );
 
     return 0;
 }

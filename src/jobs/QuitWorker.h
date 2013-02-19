@@ -39,12 +39,16 @@ namespace       jobs {
 
 /// pumped into the queue by the main thread after all the network
 /// threads have quit, forcing all the job workers to quit
+/**
+ *  Since this job is handled specially in the job handler and deleted there,
+ *  there is no need to specify the sink or the version
+ */
 class QuitWorker:
     public Job
 {
     public:
         QuitWorker():
-            Job(QUIT_WORKER,0,0)
+            Job()
         {}
 
         virtual void doJob()
