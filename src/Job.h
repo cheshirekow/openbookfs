@@ -39,7 +39,6 @@ class Job
 {
     protected:
         JobClass       m_derived;       ///< enum specifying derived class
-        unsigned int   m_id;            ///< client specific job id
         unsigned int   m_clientVersion; ///< the version of the client when
                                         ///  they created the job
         JobSink* m_sink;   ///< who to send the job to when done
@@ -48,7 +47,6 @@ class Job
         /// simply sets the client handler so we know who to report to
         /// when the job is done
         Job( JobClass derived,
-                unsigned int id,
                 unsigned int version,
                 JobSink* sink );
 
@@ -61,9 +59,6 @@ class Job
 
         /// returns the job to the client's queue of finished jobs
         void finish();
-
-        /// returns the job-id
-        unsigned int id() const;
 
         /// return the client version
         unsigned int version() const;

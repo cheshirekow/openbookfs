@@ -37,8 +37,7 @@ enum JobClass
 {
     QUIT_SHOUTER=0,     ///< special job telling shouter to quit
     QUIT_WORKER,        ///< special job telling job handlers to quit
-    NEW_CLIENT_VERSION, ///< new version of a file on the client
-    NEW_SERVER_VERSION, ///< new version of a file on the server
+    NEW_VERSION,        ///< new version of a file
     NUM_JOB_CLASSES
 };
 

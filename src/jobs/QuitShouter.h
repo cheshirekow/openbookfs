@@ -43,7 +43,7 @@ class QuitShouter:
 {
     public:
         QuitShouter(unsigned int version, JobSink* handler):
-            Job(QUIT_SHOUTER,0,version,handler)
+            Job(QUIT_SHOUTER,version,handler)
         {}
 
         virtual void doJob(){}

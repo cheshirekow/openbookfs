@@ -44,7 +44,7 @@ class QuitWorker:
 {
     public:
         QuitWorker():
-            Job(QUIT_WORKER,0,0,0)
+            Job(QUIT_WORKER,0,0)
         {}
 
         virtual void doJob(){}

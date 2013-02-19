@@ -196,9 +196,10 @@ message ChunkReceived {
 
 // sent by the server to all subscribed clients when a file changes version
 message NewVersion {
-    optional int32  job_id      = 1;    // server specific request_id
-    optional int32  version     = 2;    // version number of the file
-    optional string path        = 3;    // path of the file 
+    optional int32  job_id         = 1;    // server specific request_id
+    optional int32  base_version   = 2;    // official version of original file
+    optional int32  client_version = 3;    // number of client changes
+    optional string path           = 4;    // path of the file 
 }
 
 

@@ -31,11 +31,9 @@ namespace   openbook {
 namespace filesystem {
 
 Job::Job( JobClass derived,
-            unsigned int id,
             unsigned int version,
             JobSink* sink ):
     m_derived(derived),
-    m_id(id),
     m_clientVersion(version),
     m_sink(sink)
 {}
@@ -44,11 +42,6 @@ Job::Job( JobClass derived,
 void Job::finish()
 {
     m_sink->jobFinished(this);
-}
-
-unsigned int Job::id() const
-{
-    return m_id;
 }
 
 unsigned int Job::version() const

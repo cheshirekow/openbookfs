@@ -631,14 +631,9 @@ void* ClientHandler::shout()
                 ex()() << "received QUIT_SHOUTER job";
             }
 
-            // create a "job finished message", and fill it with the details
-            messages::JobFinished* message =
-                    static_cast<messages::JobFinished*>(m_msg[MSG_JOB_FINISHED]);
-            message->set_job_id(job->id());
-
-            // send the message
-            m_msg.write(m_fd,MSG_JOB_FINISHED,enc);
-            enc.Resynchronize(m_iv.BytePtr(),m_iv.SizeInBytes());
+            // allow the job to send it's message
+            job->sendMessage(m_msg);
+            delete job;
         }
     }
     catch( std::exception& ex )
