@@ -766,17 +766,19 @@ void* ServerHandler::shout()
             // wait for a job to be finished from the queue
             m_finishedJobs.extract(job);
 
-            // if the job is a "quit shouter" job then we just delete it
-            // and break;
-            if( job->derived() == jobs::QUIT_SHOUTER )
+            try
             {
+                // allow the job to send it's message, and then delete the job
+                job->sendMessage(m_msg);
                 delete job;
-                ex()() << "received QUIT_SHOUTER job";
             }
-
-            // allow the job to send it's message, and then delete the job
-            job->sendMessage(m_msg);
-            delete job;
+            catch( const QuitException& ex )
+            {
+                std::cout << "Server Handler " << (void*)this << " received a "
+                             "QUIT_SHOUTER job, so quitting\n";
+                delete job;
+                break;
+            }
         }
     }
     catch( std::exception& ex )

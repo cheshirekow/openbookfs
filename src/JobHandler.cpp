@@ -50,20 +50,25 @@ void* JobHandler::main()
         // wait for a new job
         m_jobQueue->extract(job);
 
-        // check to see if it's a terminate job
-        if( job->derived() == jobs::QUIT_WORKER )
+        // otherwise do the job
+        try
+        {
+            job->doJob();   //< do the job
+            job->finish();  //< send the job to the message handlers
+        }
+        catch( const QuitException& ex )
         {
             std::cout << "Job handler " << (void*)this << " received a "
                          "QUIT_WORKER job, so quitting\n";
             delete job;
             break;
         }
-
-        // otherwise do the job
-        job->doJob();
-
-        // then send the job to the owning client's finished queue
-        job->finish();
+        catch( const std::exception& ex )
+        {
+            std::cerr << "Exception while handling a job: " << ex.what() << "\n";
+            std::cerr << "Job is being destroyed" << std::endl;
+            delete job;
+        }
     }
 
     m_pool->reassign(this);

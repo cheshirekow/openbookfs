@@ -17,44 +17,53 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/server/jobs/QuitShouter.h
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/client_fs/ClientJob.h
  *
- *  @date   Feb 15, 2013
+ *  @date   Feb 19, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_QUITSHOUTER_H_
-#define OPENBOOK_QUITSHOUTER_H_
+#ifndef OPENBOOK_CLIENTJOB_H_
+#define OPENBOOK_CLIENTJOB_H_
 
-#include "jobs.h"
 #include "Job.h"
+#include "Client.h"
+#include "ServerHandler.h"
 
 namespace   openbook {
 namespace filesystem {
 
-namespace       jobs {
-
-/// pumped into the finished queue by the listener when the client disconnects,
-/// causes the shouter to extract a job when no job is finished and kill
-/// itself
-class QuitShouter:
+/// base class for jobs
+class ClientJob:
     public Job
 {
+    private:
+        Client*  m_client;  ///< stuff needed for the job
+
     public:
-        QuitShouter(unsigned int version, JobSink* handler):
-            Job(QUIT_SHOUTER,version,handler)
-        {}
+        /// simply sets the client handler so we know who to report to
+        /// when the job is done
+        ClientJob(
+            JobClass        derived,
+            unsigned int    version,
+            ServerHandler*  sink,
+            Client*         client);
 
-        virtual void doJob(){}
+        /// jobs have a v-table
+        virtual ~ClientJob(){}
 
-        virtual void sendMessage( MessageBuffer& msg )
-        {
-            throw QuitException();
-        }
+        /// do the actual job
+        virtual void doClientJob( Client* )=0;
+
+        /// does the actual job, modifies state rather than returning
+        /// anything
+        virtual void doJob();
 };
 
-} // namespace jobs
+
+
+
 } // namespace filesystem
 } // namespace openbook
 
@@ -63,4 +72,12 @@ class QuitShouter:
 
 
 
-#endif // QUITSHOUTER_H_
+
+
+
+
+
+
+
+
+#endif // CLIENTJOB_H_

@@ -17,50 +17,34 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/server/jobs/QuitShouter.h
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/client_fs/ClientJob.cpp
  *
- *  @date   Feb 15, 2013
+ *  @date   Feb 19, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_QUITSHOUTER_H_
-#define OPENBOOK_QUITSHOUTER_H_
 
-#include "jobs.h"
-#include "Job.h"
+#include "ClientJob.h"
 
 namespace   openbook {
 namespace filesystem {
 
-namespace       jobs {
+ClientJob::ClientJob(
+        JobClass derived,
+        unsigned int   version,
+        ServerHandler* sink,
+        Client* client ):
+    Job( derived, version, sink ),
+    m_client(client)
+{}
 
-/// pumped into the finished queue by the listener when the client disconnects,
-/// causes the shouter to extract a job when no job is finished and kill
-/// itself
-class QuitShouter:
-    public Job
+
+void ClientJob::doJob()
 {
-    public:
-        QuitShouter(unsigned int version, JobSink* handler):
-            Job(QUIT_SHOUTER,version,handler)
-        {}
+    doClientJob(m_client);
+}
 
-        virtual void doJob(){}
 
-        virtual void sendMessage( MessageBuffer& msg )
-        {
-            throw QuitException();
-        }
-};
-
-} // namespace jobs
 } // namespace filesystem
 } // namespace openbook
-
-
-
-
-
-
-#endif // QUITSHOUTER_H_

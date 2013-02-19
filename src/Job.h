@@ -34,6 +34,15 @@
 namespace   openbook {
 namespace filesystem {
 
+/// thrown by special jobs to indicate that it's time to quit
+class QuitException:
+    public std::exception
+{
+    virtual const char* what() const throw()
+        { return "Quitting time!"; }
+};
+
+
 /// base class for jobs
 class Job
 {

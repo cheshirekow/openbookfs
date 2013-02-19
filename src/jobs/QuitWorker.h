@@ -47,7 +47,11 @@ class QuitWorker:
             Job(QUIT_WORKER,0,0)
         {}
 
-        virtual void doJob(){}
+        virtual void doJob()
+        {
+            throw QuitException();
+        }
+
         virtual void sendMessage( MessageBuffer& msg ){}
 };
 
