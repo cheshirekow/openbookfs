@@ -49,16 +49,14 @@
 
 #include "global.h"
 #include "ClientHandler.h"
-#include "Job.h"
-#include "JobHandler.h"
 #include "NotifyPipe.h"
 #include "Pool.h"
+#include "MessageHandler.h"
 #include "Queue.h"
 #include "Server.h"
 #include "SelectSpec.h"
 #include "Synchronized.h"
 
-#include "jobs/QuitWorker.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -281,25 +279,25 @@ int main(int argc, char** argv)
 
     /// handlers available for new client connections
     ClientHandler::Pool_t      handlerPool(nH);
-    JobHandler::Pool_t         workerPool(nJ);
+    MessageHandler::Pool_t     workerPool(nJ);
 
-    /// job queue
-    Queue<Job*>  jobQueue(100);
+    /// message queue
+    Queue<ClientMessage>    inboundQueue;
 
     /// allows us to store the client handler pointer in thread specific
     /// storage
     g_handlerKey.create();
 
     /// handler objects
-    ClientHandler* handlers = new ClientHandler[nH];
-    JobHandler*    workers  = new JobHandler[nJ];
+    ClientHandler*  handlers = new ClientHandler[nH];
+    MessageHandler* workers  = new MessageHandler[nJ];
 
     for(int i=0; i < nH; i++)
-        handlers[i].init(&handlerPool,&server,&jobQueue);
+        handlers[i].init(&handlerPool,&server,&inboundQueue);
 
     for(int i=0; i < nJ; i++)
     {
-        workers[i].init(&workerPool,&jobQueue);
+        workers[i].init(&workerPool,&inboundQueue);
         workers[i].start();
     }
 
@@ -405,8 +403,9 @@ int main(int argc, char** argv)
 
     // now we need to kill all the job workers
     std::cout << "Killing job workers" << std::endl;
+    ClientMessage quit(0,0,MSG_QUIT);
     for(int i=0; i < nJ; i++)
-        jobQueue.insert( new jobs::QuitWorker() );
+        inboundQueue.insert(quit);
 
     while( workerPool.size() < nJ )
     {
@@ -417,11 +416,12 @@ int main(int argc, char** argv)
 
     // now destroy any extra jobs that we created for the workers
     std::cout << "Destroying outstanding jobs" << std::endl;
-    while( !jobQueue.empty() )
+    while( !inboundQueue.empty() )
     {
-        Job* job;
-        jobQueue.extract(job);
-        delete job;
+        ClientMessage msg;
+        inboundQueue.extract(msg);
+        if(msg.typed.msg)
+            delete msg.typed.msg;
     }
 
     std::cout << "Final destructions" << std::endl;

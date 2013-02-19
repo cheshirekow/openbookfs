@@ -28,7 +28,6 @@
 #include <tclap/CmdLine.h>
 
 #include "MetaFile.h"
-#include "jobs/FileModified.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -47,13 +46,11 @@ int OpenbookFS::result_or_errno(int result)
 
 
 OpenbookFS::OpenbookFS(
-        Client* client,
-        ServerHandler* comm,
-        JobQueue_t* jobQueue)
+        Client*        client,
+        ServerHandler* comm)
 {
     m_client   = client;
     m_comm     = comm;
-    m_jobQueue = jobQueue;
     m_dataDir  = client->dataDir();
     m_realRoot = m_dataDir / "real_root";
 }
@@ -119,10 +116,6 @@ int OpenbookFS::mknod (const char *path, mode_t mode, dev_t dev)
     {
         std::cerr << "Problem creating meta data: " << ex.what();
     }
-
-    // create a job to send the server a message
-    jobs::FileModified* job = new jobs::FileModified(m_comm,m_client,path,0,0);
-    m_jobQueue->insert(job);
 
     return 0;
 }
@@ -605,11 +598,6 @@ int OpenbookFS::create (const char *pathname,
     {
         std::cerr << "Problem creating meta data: " << ex.what();
     }
-
-    // create a job to send the server a message
-    jobs::FileModified* job =
-            new jobs::FileModified(m_comm,m_client,pathname,0,0);
-    m_jobQueue->insert(job);
 
     return 0;
 }

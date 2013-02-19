@@ -34,6 +34,7 @@ const char* messageIdToString( char id )
 {
     const char* str[] =
     {
+        "QUIT",
         "DH_PARAMS",
         "KEY_EXCHANGE",
         "CEK",

@@ -17,83 +17,87 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/server/JobHandler.cpp
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/client_fs/MessageHandler.cpp
  *
- *  @date   Feb 15, 2013
+ *  @date   Feb 19, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
 
-#include "JobHandler.h"
-
-
-
+#include "MessageHandler.h"
 
 namespace   openbook {
 namespace filesystem {
 
-void* JobHandler::dispatch_main( void* vp_h )
+
+void* MessageHandler::dispatch_main( void* vp_h )
 {
-    JobHandler* h = static_cast<JobHandler*>(vp_h);
+    MessageHandler* h = static_cast<MessageHandler*>(vp_h);
     return h->main();
 }
 
-void* JobHandler::main()
+void* MessageHandler::main()
 {
-    std::cout << "Job handler " << (void*)this << " starting up\n";
-
-    Job* job = 0;
+    std::cout << "Message handler " << (void*)this << " starting up\n";
 
     while(1)
     {
-        // wait for a new job
-        m_jobQueue->extract(job);
+        TypedMessage msg;
 
-        // otherwise do the job
-        try
+        // wait for a new message
+        m_msgQueue->extract(msg);
+
+        // handle the message
+        switch( msg.type )
         {
-            job->doJob();   //< do the job
-            job->finish();  //< send the job to the message handlers
+            case MSG_QUIT:
+            {
+                std::cout << "Message handler " << (void*)this
+                          << " shutting down \n";
+                break;
+            }
+
+            default:
+            {
+                std::cerr << "Message handler for type (" << (int)msg.type
+                          << ") : " << messageIdToString(msg.type)
+                          << "isn't implemented";
+                break;
+            }
         }
-        catch( const QuitException& ex )
-        {
-            std::cout << "Job handler " << (void*)this << " received a "
-                         "QUIT_WORKER job, so quitting\n";
-            delete job;
-            break;
-        }
-        catch( const std::exception& ex )
-        {
-            std::cerr << "Exception while handling a job: " << ex.what() << "\n";
-            std::cerr << "Job is being destroyed" << std::endl;
-            delete job;
-        }
+
+        if(msg.msg)
+            delete msg.msg;
     }
 
     m_pool->reassign(this);
     return 0;
 }
 
-JobHandler::JobHandler()
+MessageHandler::MessageHandler():
+    m_pool(0),
+    m_msgQueue(0)
 {
     m_mutex.init();
 }
 
-JobHandler::~JobHandler()
+MessageHandler::~MessageHandler()
 {
     m_mutex.destroy();
 }
 
-void JobHandler::init( Pool_t* pool, JobQueue_t* queue )
+void MessageHandler::init( Pool_t* pool, MsgQueue_t* queue )
 {
     m_pool     = pool;
-    m_jobQueue = queue;
+    m_msgQueue = queue;
 }
 
-void JobHandler::start()
+void MessageHandler::start()
 {
     // lock scope
+    // the worker thread wont be able to start doing anything until
+    // we're done in here
     {
         using namespace pthreads;
         ScopedLock lock(m_mutex);
@@ -112,6 +116,8 @@ void JobHandler::start()
         }
     }
 }
+
+
 
 
 

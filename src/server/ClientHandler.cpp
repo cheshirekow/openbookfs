@@ -42,8 +42,6 @@
 #include "SelectSpec.h"
 #include "messages.h"
 #include "messages.pb.h"
-#include "jobs/QuitShouter.h"
-#include "jobs/NewVersion.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -89,12 +87,12 @@ ClientHandler::~ClientHandler()
 }
 
 void ClientHandler::init(
-        Pool_t* pool, Server* server, JobQueue_t* jobQueue )
+        Pool_t* pool, Server* server, InQueue_t* msgQueue )
 {
     using namespace pthreads;
     m_pool    = pool;
     m_server  = server;
-    m_newJobs = jobQueue;
+    m_inboundMessages   = msgQueue;
     m_version = 0;
 
     std::cout << "Initializing handler " << (void*)this << std::endl;
@@ -160,17 +158,17 @@ void ClientHandler::handleClient( int sockfd, int termfd )
     }
 }
 
-void ClientHandler::jobFinished(Job* job)
+void ClientHandler::sendMessage( ClientMessage msg )
 {
     // lock the handler so we know for a fact that the handler is in fact
     // running or not
     pthreads::ScopedLock(m_mutex);
 
-    // first check to see if the client has died during the job
-    if( job->version() == m_version )
-        delete job;
+    // first check to make sure the handler hasn't cycled to a new client
+    if( msg.client_id == m_version )
+        delete msg.typed.msg;
     else
-        m_finishedJobs.insert(job);
+        m_outboundMessages.insert(msg.typed);
 }
 
 
@@ -234,13 +232,13 @@ void* ClientHandler::main()
               << " finished re-generating DH and returning to pool\n";
 
     // clear out the finished queue
-    Job* job=0;
-    while( !m_finishedJobs.empty() )
+    TypedMessage msg;
+    while( !m_outboundMessages.empty() )
     {
         std::cout << "Handler " << (void*) this
-              << " removing unacked finished jobs\n";
-        m_finishedJobs.extract(job);
-        delete job;
+              << " removing unsent messages\n";
+        m_outboundMessages.extract(msg);
+        delete msg.msg;
     }
 
     // increment the version count so any jobs that finish after we die
@@ -569,35 +567,13 @@ void* ClientHandler::listen()
         {
             // read one message from client, exception thrown on disconnect
             // or termination signal
-            MessageId type = m_msg.read(m_fd,dec);
-            dec.Resynchronize(m_iv.BytePtr(),m_iv.SizeInBytes());
+            ClientMessage msg;
+            msg.client      = this;
+            msg.client_id   = m_version;
+            msg.typed       = m_msg.readEnc(m_fd);
 
-            // generate a job from the message
-            Job* job = 0;
-
-            switch(type)
-            {
-                using namespace messages;
-                case MSG_NEW_VERSION:
-                {
-                    NewVersion* msg =
-                            static_cast<NewVersion*>(m_msg[MSG_NEW_VERSION]);
-                    job = new jobs::NewVersion(this,m_version,m_server,msg);
-                    break;
-                }
-
-                default:
-                    std::cerr << "Handler " << (void*)this << " : "
-                              << "Dont know what to do with a job request of "
-                              << "message type (" << (int)type << ") : "
-                              << messageIdToString(type) << std::endl;
-                    break;
-            }
-
-            // put the job in the global queue, will block until queue has
-            // capacity
-            if(job)
-                m_newJobs->insert(job);
+            // put the message in the inbound queue
+            m_inboundMessages->insert(msg);
         }
     }
     catch( std::exception& ex )
@@ -608,7 +584,8 @@ void* ClientHandler::listen()
     }
 
     // put a dummy job into the queue so that the shouter can quit
-    m_finishedJobs.insert( new jobs::QuitShouter() );
+    TypedMessage quit(MSG_QUIT);
+    m_outboundMessages.insert( quit );
 
     return 0;
 }
@@ -625,26 +602,24 @@ void* ClientHandler::shout()
         GCM<AES>::Encryption enc;
         enc.SetKeyWithIV(m_cek.BytePtr(), m_cek.SizeInBytes(),
                           m_iv.BytePtr(),  m_iv.SizeInBytes());
-        Job* job = 0;
-
         while(1)
         {
-            // wait for a job to be finished from the queue
-            m_finishedJobs.extract(job);
+            TypedMessage msg;
 
-            try
-            {
-                // send the job message
-                job->sendMessage(m_fd, m_msg);
-                delete job;
-            }
-            catch( const QuitException& ex )
+            // wait for a job to be finished from the queue
+            m_outboundMessages.extract(msg);
+
+            // if it's a quit message then quit
+            if( msg.type == MSG_QUIT )
             {
                 std::cout << "Client Handler " << (void*)this << " received a "
                              "QUIT_SHOUTER job, so quitting\n";
-                delete job;
                 break;
             }
+
+            // otherwise send the message
+            m_msg.writeEnc(m_fd,msg);
+            delete msg.msg;
         }
     }
     catch( std::exception& ex )

@@ -47,11 +47,11 @@
 
 #include "ExceptionStream.h"
 #include "MessageBuffer.h"
-#include "Job.h"
 #include "Pool.h"
 #include "Queue.h"
 #include "Server.h"
 #include "Synchronized.h"
+#include "ClientMessage.h"
 
 
 namespace   openbook {
@@ -71,23 +71,25 @@ class ClientException :
 
 
 
-class ClientHandler:
-    public JobSink
+class ClientHandler
 {
     public:
         typedef ExceptionStream<ClientException> ex;
         typedef Pool<ClientHandler>              Pool_t;
-        typedef Queue<Job*>                      JobQueue_t;
+
+        typedef Queue<ClientMessage>            InQueue_t;
+        typedef Queue<TypedMessage>             OutQueue_t;
 
     private:
         static const unsigned int sm_bufsize = 256;
 
         unsigned int        m_version;          ///< incremented on reuse
         Pool_t*             m_pool;             ///< pool to which this belongs
-        JobQueue_t*         m_newJobs;          ///< global job queue
-        JobQueue_t          m_finishedJobs;     ///< finished jobs
         Server*             m_server;           ///< server configuration
         pthreads::Thread    m_thread;           ///< the thread we're running in
+
+        InQueue_t*          m_inboundMessages;  ///< received message queue
+        OutQueue_t          m_outboundMessages;    ///< messages to send
 
         pthreads::Thread    m_listenThread;     ///< child thread for listening
         pthreads::Thread    m_shoutThread;      ///< child thread for shouting
@@ -143,14 +145,14 @@ class ClientHandler:
 
         /// set the parent pointer and start DH parameter generation in
         /// detached thread
-        void init( Pool_t*, Server*, JobQueue_t* );
+        void init( Pool_t*, Server*, InQueue_t* );
 
         /// sec the client socket and start the handler interfacing with the
         /// client in a detached thread
         void handleClient( int sockfd, int termfd );
 
-        /// called by a job thread when a job finishes
-        virtual void jobFinished(Job*);
+        /// adds a message to the outgoing queue
+        void sendMessage( ClientMessage msg );
 
 
 

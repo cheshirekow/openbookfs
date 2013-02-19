@@ -17,48 +17,37 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/client_fs/ClientJob.h
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/server/ClientMessage.h
  *
  *  @date   Feb 19, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_CLIENTJOB_H_
-#define OPENBOOK_CLIENTJOB_H_
+#ifndef OPENBOOK_CLIENTMESSAGE_H_
+#define OPENBOOK_CLIENTMESSAGE_H_
 
-#include "Job.h"
-#include "Client.h"
-#include "ServerHandler.h"
+#include "messages.h"
+
 
 namespace   openbook {
 namespace filesystem {
 
-/// base class for jobs
-class ClientJob:
-    public Job
+class ClientHandler;
+
+struct ClientMessage
 {
-    protected:
-        Client*  m_client;  ///< stuff needed for the job
+    ClientHandler*  client;
+    uint64_t        client_id;
+    TypedMessage    typed;
 
-    public:
-        /// simply sets the client handler so we know who to report to
-        /// when the job is done
-        ClientJob(
-            ServerHandler*  sink,
-            Client*         client);
-
-        /// jobs have a v-table
-        virtual ~ClientJob(){}
-
-        /// do the actual job
-        virtual void doClientJob( Client* )=0;
-
-        /// does the actual job, modifies state rather than returning
-        /// anything
-        virtual void doJob();
+    ClientMessage( ClientHandler* client=0, uint64_t client_id=0,
+                   MessageId id=INVALID_MESSAGE, Message* msg=0 ):
+       client(client),
+       client_id(client_id),
+       typed(id,msg)
+    {}
 };
-
 
 
 
@@ -78,4 +67,6 @@ class ClientJob:
 
 
 
-#endif // CLIENTJOB_H_
+
+
+#endif // CLIENTMESSAGE_H_

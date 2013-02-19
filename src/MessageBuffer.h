@@ -149,13 +149,24 @@ class MessageBuffer
         void write( int fd[2] , MessageId type,
                     CryptoPP::GCM<CryptoPP::AES>::Encryption& );
 
-        /// read an encrypted message from a socket, will throw a
-        /// MessageException on any problems
-        MessageId readEnc( int fd[2] );
+        /// read an encrypted message from a socket,
+        /**
+         *  Allocates an appropriate message and returns it in the result. An
+         *  exception will be thrown on any errors. The message is allocated
+         *  on the heap instead of using the internal buffers. The
+         *  allocated message pointer is owned by the caller
+         */
+        TypedMessage readEnc( int fd[2] );
 
         /// write an encryupted message to a socket, will throw a
         /// MessageException on any problems
-        void writeEnc( int fd[2] , MessageId MessageId );
+        /**
+         *  Does not destroy the message, do the desctruction in the calling
+         *  method
+         */
+        void writeEnc( int fd[2] , TypedMessage msg );
+
+
 
 
 };

@@ -57,20 +57,17 @@ if( (FUSE_FOUND)
                     ../messages.cpp
                     ../MessageBuffer.cpp
                     ../FdSet.cpp
-                    ../Job.cpp
-                    ../JobHandler.cpp
                     ../SelectSpec.cpp
                     ../NotifyPipe.cpp
                     ../TimeVal.cpp   
                     main.cpp
                     fuse_operations.cpp
                     Client.cpp
-                    ClientJob.cpp
                     ExtendedAttributes.cpp
+                    MessageHandler.cpp
                     OpenbookFS.cpp
                     ServerHandler.cpp          
                     ${MESSAGES_PB_CC}
-                    jobs/FileModified.cpp
                     )
                             
     set_target_properties( ${CMAKE_PROJECT_NAME} 
@@ -124,101 +121,3 @@ endif()
 
 
 
-                             
-if( (Boost_FOUND)
-    AND (THREADS_FOUND)
-    AND (CPPThreads_FOUND)
-    AND (Protobuf_FOUND)
-    AND (Crypto++_FOUND)
-    AND (RE2_FOUND)
-    AND (Tclap_FOUND) 
-    AND (YAMLCPP_FOUND)
-    AND (SOCI_FOUND)
-    )
-                                                                    
-    include_directories( 
-        ${Boost_INCLUDE_DIRS}
-        ${THREADS_INCLUDE_DIRS}
-        ${CPPThreads_INCLUDE_DIR}
-        ${Protobuf_INCLUDE_DIR}
-        ${Crypto++_INCLUDE_DIR}
-        ${RE2_INCLUDE_DIR}
-        ${Tclap_INCLUDE_DIR}
-        ${YAMLCPP_INCLUDE_DIR}
-        ${SOCI_INCLUDE_DIRS}
-        )
-    
-    
-    set(LIBS ${LIBS} 
-        ${Boost_LIBRARIES}
-        ${Protobuf_LIBRARY}
-        ${CPPThreads_LIBRARY}
-        ${THREADS_LIBRARIES}
-        ${Crypto++_LIBRARY}
-        ${RE2_LIBRARY}
-        ${YAMLCPP_LIBRARY}
-        ${SOCI_LIBRARY}
-        ${SOCI_sqlite3_PLUGIN}
-        )
-        
-    set_source_files_properties( ${MESSAGES_PB_CC} GENERATED )      
-    
-    add_executable( client_protocol_test
-                    ../messages.cpp
-                    ../MessageBuffer.cpp
-                    ../FdSet.cpp
-                    ../Job.cpp
-                    ../JobHandler.cpp
-                    ../SelectSpec.cpp
-                    ../NotifyPipe.cpp
-                    ../TimeVal.cpp   
-                    Client.cpp       
-                    ServerHandler.cpp          
-                    protocol_test.cpp
-                    ${MESSAGES_PB_CC}
-                             )
-    add_dependencies(client_protocol_test proto_messages)
-                            
-    target_link_libraries( client_protocol_test ${LIBS})
-    
-else() 
-
-    set(MISSING, "")
-    
-    if( NOT (Boost_FOUND) )
-        set(MISSING "${MISSING} boost-filesystem,")
-    endif()
-    
-    if( NOT (THREADS_FOUND) )
-        set(MISSING "${MISSING} pthreads,")
-    endif()
-    
-    if( NOT (CPPThreads_FOUND) )
-        set(MISSING "${MISSING} cpp-pthreads,")
-    endif()
-    
-    if( NOT (Protobuf_FOUND) )
-        set(MISSING "${MISSING} protobuf,")
-    endif()
-    
-    if( NOT (Crypto++_FOUND) )
-        set(MISSING "${MISSING} crypto++,")
-    endif()
-    
-    if( NOT (RE2_FOUND) )
-        set(MISSING "${MISSING} re2,")
-    endif()
-    
-    if( NOT (Tclap_FOUND) )
-        set(MISSING "${MISSING} tclap,")
-    endif()
-    
-    if( NOT (Soci_FOUND) )
-        set(MISSING "${MISSING} soci,")
-    endif()
-    
-    
-    message( WARNING "Can't build openbookfs client protocol test, "
-                     "missing: ${MISSING}")
-
-endif()

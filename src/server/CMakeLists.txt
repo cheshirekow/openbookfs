@@ -50,16 +50,14 @@ if( (Boost_FOUND)
     add_executable( openbookfs_d
                     main.cpp
                     ClientHandler.cpp
+                    MessageHandler.cpp
                     Server.cpp
                     ../messages.cpp
                     ../FdSet.cpp
-                    ../Job.cpp
-                    ../JobHandler.cpp
                     ../MessageBuffer.cpp
                     ../NotifyPipe.cpp
                     ../SelectSpec.cpp
                     ../TimeVal.cpp
-                    jobs/NewVersion.cpp
                     ${MESSAGES_PB_CC}
                              )
     add_dependencies(openbookfs_d proto_messages)

@@ -17,15 +17,16 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/server/JobHandler.h
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/client_fs/MessageHandler.h
  *
- *  @date   Feb 15, 2013
+ *  @date   Feb 19, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_JOBHANDLER_H_
-#define OPENBOOK_JOBHANDLER_H_
+#ifndef OPENBOOK_MESSAGEHANDLER_H_
+#define OPENBOOK_MESSAGEHANDLER_H_
+
 
 #include <cstdio>
 #include <cstdlib>
@@ -35,40 +36,25 @@
 #include <cpp-pthreads.h>
 
 #include "ExceptionStream.h"
-#include "Job.h"
 #include "Pool.h"
 #include "Queue.h"
-
-
+#include "messages.h"
+#include "ClientMessage.h"
 
 namespace   openbook {
 namespace filesystem {
 
 
-
-class JobException :
-    public std::runtime_error
+/// reads a message and does whatever the message says to do
+class MessageHandler
 {
     public:
-        JobException( const std::string& msg ) throw():
-            std::runtime_error(msg)
-        {}
-
-        virtual ~JobException() throw(){}
-};
-
-
-
-class JobHandler
-{
-    public:
-        typedef ExceptionStream<JobException> ex;
-        typedef Pool<JobHandler>              Pool_t;
-        typedef Queue<Job*>                   JobQueue_t;
+        typedef Pool<MessageHandler>          Pool_t;
+        typedef Queue<ClientMessage>          MsgQueue_t;
 
     private:
         Pool_t*             m_pool;             ///< pool to which this belongs
-        JobQueue_t*         m_jobQueue;         ///< global job queue
+        MsgQueue_t*         m_msgQueue;         ///< global msg queue
         pthreads::Thread    m_thread;           ///< the thread we're running in
         pthreads::Mutex     m_mutex;            ///< locks this data
 
@@ -81,12 +67,12 @@ class JobHandler
         static void* dispatch_main( void* vp_h );
 
     public:
-        JobHandler();
-        ~JobHandler();
+        MessageHandler();
+        ~MessageHandler();
 
         /// set the parent pointer and start DH parameter generation in
         /// detached thread
-        void init( Pool_t*, JobQueue_t* );
+        void init( Pool_t*, MsgQueue_t* );
 
         /// start the worker thread
         void start();
@@ -99,4 +85,4 @@ class JobHandler
 } // namespace openbook
 
 
-#endif // JOBHANDLER_H_
+#endif // MESSAGEHANDLER_H_

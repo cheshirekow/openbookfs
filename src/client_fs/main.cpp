@@ -30,10 +30,9 @@
 #include "messages.pb.h"
 #include "ServerHandler.h"
 #include "Pool.h"
-#include "JobHandler.h"
+#include "MessageHandler.h"
 #include "Queue.h"
 #include "NotifyPipe.h"
-#include "jobs/QuitWorker.h"
 
 using namespace openbook::filesystem;
 
@@ -283,16 +282,16 @@ int main(int argc, char** argv)
     g_termNote = &termNote;
 
     // create server handler, job queue, and worker objects
-    ServerHandler serverHandler;
-    Queue<Job*>   jobQueue;
+    ServerHandler           serverHandler;
+    Queue<TypedMessage>     inboundQueue;
 
     // create job pool
-    JobHandler* jobHandlers = new JobHandler[ client.maxWorkers() ];
-    Pool<JobHandler> jobPool( client.maxWorkers() );
+    MessageHandler* msgHandlers = new MessageHandler[ client.maxWorkers() ];
+    Pool<MessageHandler> workerPool( client.maxWorkers() );
 
     try
     {
-        serverHandler.init(&client,&jobQueue,termNote.readFd());
+        serverHandler.init(&client,&inboundQueue,termNote.readFd());
         serverHandler.start();
     }
     catch( std::exception& ex )
@@ -303,15 +302,14 @@ int main(int argc, char** argv)
 
     for(int i=0; i < client.maxWorkers(); i++)
     {
-        jobHandlers[i].init(&jobPool,&jobQueue);
-        jobHandlers[i].start();
+        msgHandlers[i].init(&workerPool,&inboundQueue);
+        msgHandlers[i].start();
     }
 
     // set the fields of the fs initialization structure
     OpenbookFS_Init fs_init;
     fs_init.client      = &client;
     fs_init.comm        = &serverHandler;
-    fs_init.jobQueue    = &jobQueue;
 
     // set the fuse_ops structure
     fuse_operations fuse_ops;
@@ -328,16 +326,17 @@ int main(int argc, char** argv)
     serverHandler.join();
 
     // pump quit messages into job pool
+    TypedMessage quit(MSG_QUIT);
     for(int i=0; i < client.maxWorkers(); i++)
-        jobQueue.insert( new jobs::QuitWorker() );
+        inboundQueue.insert(quit);
 
     std::cout << "Shutting down worker threads\n";
 
     // wait for the workers to quit
-    while( jobPool.size() < client.maxWorkers() )
+    while( workerPool.size() < client.maxWorkers() )
     {
         std::cout << "Waiting for "
-                  << client.maxWorkers() - jobPool.size()
+                  << client.maxWorkers() - workerPool.size()
                   << " workers to quit\n";
         sleep(1);
     }
@@ -345,11 +344,12 @@ int main(int argc, char** argv)
     std::cout << "Emptying extra jobs\n";
 
     // empty out any extra jobs
-    while( !jobQueue.empty() )
+    while( !inboundQueue.empty() )
     {
-        Job* job;
-        jobQueue.extract(job);
-        delete job;
+        TypedMessage msg;
+        inboundQueue.extract(msg);
+        if(msg.msg)
+            delete msg.msg;
     }
 
     delete [] argv_buf;

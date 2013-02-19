@@ -48,7 +48,6 @@
 
 #include "Client.h"
 #include "ExceptionStream.h"
-#include "Job.h"
 #include "MessageBuffer.h"
 #include "Queue.h"
 
@@ -71,20 +70,20 @@ class ServerException :
 
 
 
-class ServerHandler:
-    public JobSink
+class ServerHandler
 {
     public:
         typedef ExceptionStream<ServerException> ex;
-        typedef Queue<Job*>                      JobQueue_t;
+        typedef Queue<TypedMessage>              MsgQueue_t;
 
     private:
         static const unsigned int sm_bufsize = 256;
 
         Client*             m_client;           ///< server configuration
         pthreads::Thread    m_thread;           ///< the thread we're running in
-        JobQueue_t*         m_newJobs;          ///< global job queue
-        JobQueue_t          m_finishedJobs;     ///< finished jobs
+
+        MsgQueue_t*         m_inboundMessages;  ///< received message queue
+        MsgQueue_t          m_outboundMessages;    ///< messages to send
 
         pthreads::Thread    m_listenThread;     ///< child thread for listening
         pthreads::Thread    m_shoutThread;      ///< child thread for shouting
@@ -140,7 +139,7 @@ class ServerHandler:
         ~ServerHandler();
 
         /// set the parent pointer and terminator pipe fd
-        void init( Client*, JobQueue_t*, int termfd );
+        void init( Client*, MsgQueue_t*, int termfd );
 
         /// start the handler
         void start();
@@ -149,7 +148,8 @@ class ServerHandler:
         void join();
 
         /// job sink
-        virtual void jobFinished( Job* );
+        void sendMessage( TypedMessage msg );
+
 };
 
 

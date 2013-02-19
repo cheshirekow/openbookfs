@@ -34,7 +34,8 @@ namespace filesystem {
 
 enum MessageId
 {
-    MSG_DH_PARAMS=0,
+    MSG_QUIT=0,             ///< special message to quit
+    MSG_DH_PARAMS,
     MSG_KEY_EXCHANGE,
     MSG_CEK,
     MSG_AUTH_REQ,
@@ -43,11 +44,28 @@ enum MessageId
     MSG_AUTH_RESULT,
     MSG_JOB_FINISHED,
     MSG_NEW_VERSION,
-    NUM_MSG
+    INVALID_MESSAGE,
+    NUM_MSG = INVALID_MESSAGE,
 };
 
 
 const char* messageIdToString( char id );
+
+typedef google::protobuf::Message Message;
+
+struct TypedMessage
+{
+    MessageId   type;   ///< tells us how to cast the message
+    Message*    msg;    ///< base class pointer to the message
+
+    /// fill constructor with defaults
+    TypedMessage( MessageId type=INVALID_MESSAGE, Message* msg=0):
+        type(type),
+        msg(msg)
+    {}
+
+
+};
 
 
 

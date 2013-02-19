@@ -62,7 +62,6 @@
 #include "global.h"
 #include "messages.h"
 #include "messages.pb.h"
-#include "jobs/QuitShouter.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -100,13 +99,13 @@ ServerHandler::~ServerHandler()
 }
 
 void ServerHandler::init(
-        Client* client, JobQueue_t* jobQueue, int termfd )
+        Client* client, MsgQueue_t* msgQueue, int termfd )
 {
     using namespace pthreads;
     namespace cryp = CryptoPP;
 
-    m_client    = client;
-    m_newJobs   = jobQueue;
+    m_client            = client;
+    m_inboundMessages   = msgQueue;
     m_fd[0]     = 0;
     m_fd[1]     = termfd;
     m_shouldDie = false;
@@ -264,13 +263,13 @@ void* ServerHandler::main()
 
     // now it's time to terminate
     // clear out the finished queue
-    Job* job=0;
-    while( !m_finishedJobs.empty() )
+    while( !m_outboundMessages.empty() )
     {
+        TypedMessage msg;
         std::cout << "Handler " << (void*) this
-              << " removing unacked finished jobs\n";
-        m_finishedJobs.extract(job);
-        delete job;
+              << " removing unsent messages\n";
+        m_outboundMessages.extract(msg);
+        delete msg.msg;
     }
 
     std::cout.flush();
@@ -712,26 +711,11 @@ void* ServerHandler::listen()
         {
             // read one message from server, exception thrown on disconnect
             // or termination signal
-            char type = m_msg.read(m_fd,dec);
-            dec.Resynchronize(m_iv.BytePtr(),m_iv.SizeInBytes());
+            TypedMessage msg = m_msg.readEnc(m_fd);
 
-            // generate a job from the message
-            Job* job = 0;
-
-            switch(type)
-            {
-                default:
-                    std::cerr << "Handler " << (void*)this << " : "
-                              << "Dont know what to do with a job request of "
-                              << "message type (" << (int)type << ") : "
-                              << messageIdToString(type) << std::endl;
-                    break;
-            }
-
-            // put the job in the global queue, will block until queue has
+            // put the message in the global queue, will block until queue has
             // capacity
-             if(job)
-                m_newJobs->insert(job);
+            m_inboundMessages->insert(msg);
         }
     }
     catch( std::exception& ex )
@@ -742,7 +726,8 @@ void* ServerHandler::listen()
     }
 
     // put a dummy job into the queue so that the shouter can quit
-    m_finishedJobs.insert( new jobs::QuitShouter() );
+    TypedMessage quit(MSG_QUIT);
+    m_outboundMessages.insert(quit);
 
     return 0;
 }
@@ -759,26 +744,25 @@ void* ServerHandler::shout()
         GCM<AES>::Encryption enc;
         enc.SetKeyWithIV(m_cek.BytePtr(), m_cek.SizeInBytes(),
                           m_iv.BytePtr(),  m_iv.SizeInBytes());
-        Job* job = 0;
 
         while(1)
         {
-            // wait for a job to be finished from the queue
-            m_finishedJobs.extract(job);
+            TypedMessage msg;
 
-            try
-            {
-                // allow the job to send it's message, and then delete the job
-                job->sendMessage(m_fd, m_msg);
-                delete job;
-            }
-            catch( const QuitException& ex )
+            // wait for a job to be finished from the queue
+            m_outboundMessages.extract(msg);
+
+            // check for a quit message
+            if( msg.type == MSG_QUIT )
             {
                 std::cout << "Server Handler " << (void*)this << " received a "
                              "QUIT_SHOUTER job, so quitting\n";
-                delete job;
                 break;
             }
+
+            // otherwise send the message
+            m_msg.writeEnc(m_fd,msg);
+            delete msg.msg;
         }
     }
     catch( std::exception& ex )
@@ -791,15 +775,10 @@ void* ServerHandler::shout()
     return 0;
 }
 
-void ServerHandler::jobFinished(Job* job)
+void ServerHandler::sendMessage( TypedMessage msg )
 {
     pthreads::ScopedLock lock(m_mutex);
-
-     // first check to see if the client has died during the job
-    if( job->version() == 0 )
-        delete job;
-    else
-        m_finishedJobs.insert(job);
+    m_outboundMessages.insert(msg);
 }
 
 
