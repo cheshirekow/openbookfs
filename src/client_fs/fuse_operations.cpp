@@ -381,6 +381,7 @@ int fsyncdir (const char *path, int datasync,
 
 void *init (struct fuse_conn_info *conn)
 {
+    std::cout << "INIT!!\n\n";
     fuse_context*       ctx  = fuse_get_context();
     OpenbookFS_Init*    init = static_cast<OpenbookFS_Init*>(ctx->private_data);
     return init ? init->create() : 0;

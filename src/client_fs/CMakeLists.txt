@@ -64,6 +64,7 @@ if( (FUSE_FOUND)
                     fuse_operations.cpp
                     Client.cpp
                     ExtendedAttributes.cpp
+                    FileDescriptor.cpp
                     MessageHandler.cpp
                     OpenbookFS.cpp
                     ServerHandler.cpp          

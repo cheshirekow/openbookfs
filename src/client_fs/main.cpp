@@ -33,6 +33,7 @@
 #include "MessageHandler.h"
 #include "Queue.h"
 #include "NotifyPipe.h"
+#include "FileDescriptor.h"
 
 using namespace openbook::filesystem;
 
@@ -306,10 +307,14 @@ int main(int argc, char** argv)
         msgHandlers[i].start();
     }
 
+    // extra info for opend file descriptors
+    FileDescriptorArrayImpl<1024>   fdArray;
+
     // set the fields of the fs initialization structure
     OpenbookFS_Init fs_init;
     fs_init.client      = &client;
     fs_init.comm        = &serverHandler;
+    fs_init.fd          = &fdArray;
 
     // set the fuse_ops structure
     fuse_operations fuse_ops;

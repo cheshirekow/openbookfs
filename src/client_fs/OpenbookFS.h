@@ -20,6 +20,7 @@
 #include "Client.h"
 #include "Queue.h"
 #include "ServerHandler.h"
+#include "FileDescriptor.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -30,13 +31,14 @@ class OpenbookFS
     private:
         Client*                     m_client;
         ServerHandler*              m_comm;
+        FileDescriptorArray*        m_fd;
         boost::filesystem::path     m_dataDir;
         boost::filesystem::path     m_realRoot;
 
         int  result_or_errno(int result);
 
     public:
-        OpenbookFS(Client*, ServerHandler*);
+        OpenbookFS(Client*, ServerHandler*, FileDescriptorArray*);
 
         ~OpenbookFS();
 
@@ -87,6 +89,65 @@ class OpenbookFS
          */
         int open (const char *, struct fuse_file_info *);
 
+        /// Read data from an open file
+        /**
+         * Read should return exactly the number of bytes requested except
+         * on EOF or error, otherwise the rest of the data will be
+         * substituted with zeroes.  An exception to this is when the
+         * 'direct_io' mount option is specified, in which case the return
+         * value of the read system call will reflect the return value of
+         * this operation.
+         *
+         * Changed in version 2.2
+         */
+        int read (const char *, char *, size_t, off_t,
+                 struct fuse_file_info *);
+
+        /// Write data to an open file
+        /**
+         * Write should return exactly the number of bytes requested
+         * except on error.  An exception to this is when the 'direct_io'
+         * mount option is specified (see read operation).
+         *
+         * Changed in version 2.2
+         *
+         * this is one method which marks an open fd as changed, initiating
+         * a version increment
+         */
+        int write (const char *, const char *, size_t, off_t,
+                  struct fuse_file_info *);
+
+        /// Change the size of a file
+        int truncate (const char *, off_t);
+
+        /// Change the size of an open file
+        /**
+         * This method is called instead of the truncate() method if the
+         * truncation was invoked from an ftruncate() system call.
+         *
+         * If this method is not implemented or under Linux kernel
+         * versions earlier than 2.6.15, the truncate() method will be
+         * called instead.
+         *
+         * Introduced in version 2.5
+         */
+        int ftruncate (const char *, off_t, struct fuse_file_info *);
+
+        /// Release an open file
+        /**
+         * Release is called when there are no more references to an open
+         * file: all file descriptors are closed and all memory mappings
+         * are unmapped.
+         *
+         * For every open() call there will be exactly one release() call
+         * with the same flags and file descriptor.  It is possible to
+         * have a file opened more than once, in which case only the last
+         * release will mean, that no more reads/writes will happen on the
+         * file.  The return value of release is ignored.
+         *
+         * Changed in version 2.2
+         */
+        int release (const char *, struct fuse_file_info *);
 
 
 
@@ -148,9 +209,6 @@ class OpenbookFS
         /** Change the owner and group of a file */
         int chown (const char *, uid_t, gid_t);
 
-        /** Change the size of a file */
-        int truncate (const char *, off_t);
-
         /** Change the access and/or modification times of a file
          *
          * Deprecated, use utimens() instead.
@@ -159,30 +217,7 @@ class OpenbookFS
 
 
 
-        /** Read data from an open file
-         *
-         * Read should return exactly the number of bytes requested except
-         * on EOF or error, otherwise the rest of the data will be
-         * substituted with zeroes.  An exception to this is when the
-         * 'direct_io' mount option is specified, in which case the return
-         * value of the read system call will reflect the return value of
-         * this operation.
-         *
-         * Changed in version 2.2
-         */
-        int read (const char *, char *, size_t, off_t,
-                 struct fuse_file_info *);
 
-        /** Write data to an open file
-         *
-         * Write should return exactly the number of bytes requested
-         * except on error.  An exception to this is when the 'direct_io'
-         * mount option is specified (see read operation).
-         *
-         * Changed in version 2.2
-         */
-        int write (const char *, const char *, size_t, off_t,
-                  struct fuse_file_info *);
 
         /** Get file system statistics
          *
@@ -217,22 +252,6 @@ class OpenbookFS
          * Changed in version 2.2
          */
         int flush (const char *, struct fuse_file_info *);
-
-        /** Release an open file
-         *
-         * Release is called when there are no more references to an open
-         * file: all file descriptors are closed and all memory mappings
-         * are unmapped.
-         *
-         * For every open() call there will be exactly one release() call
-         * with the same flags and file descriptor.  It is possible to
-         * have a file opened more than once, in which case only the last
-         * release will mean, that no more reads/writes will happen on the
-         * file.  The return value of release is ignored.
-         *
-         * Changed in version 2.2
-         */
-        int release (const char *, struct fuse_file_info *);
 
         /** Synchronize file contents
          *
@@ -307,27 +326,6 @@ class OpenbookFS
         int fsyncdir (const char *, int, struct fuse_file_info *);
 
         /**
-         * Initialize filesystem
-         *
-         * The return value will passed in the private_data field of
-         * fuse_context to all file operations and as a parameter to the
-         * destroy() method.
-         *
-         * Introduced in version 2.3
-         * Changed in version 2.6
-         */
-        void *init (struct fuse_conn_info *conn);
-
-        /**
-         * Clean up filesystem
-         *
-         * Called on filesystem exit.
-         *
-         * Introduced in version 2.3
-         */
-        void destroy (void *);
-
-        /**
          * Check file access permissions
          *
          * This will be called for the access() system call.  If the
@@ -342,19 +340,7 @@ class OpenbookFS
 
 
 
-        /**
-         * Change the size of an open file
-         *
-         * This method is called instead of the truncate() method if the
-         * truncation was invoked from an ftruncate() system call.
-         *
-         * If this method is not implemented or under Linux kernel
-         * versions earlier than 2.6.15, the truncate() method will be
-         * called instead.
-         *
-         * Introduced in version 2.5
-         */
-        int ftruncate (const char *, off_t, struct fuse_file_info *);
+
 
         /**
          * Get attributes from an open file
@@ -463,12 +449,13 @@ class OpenbookFS
 /// simply stores initializer options for the OpenbookFS object
 struct OpenbookFS_Init
 {
-    Client*         client;
-    ServerHandler*  comm;
+    Client*              client;
+    ServerHandler*       comm;
+    FileDescriptorArray* fd;
 
     OpenbookFS* create()
     {
-        return new OpenbookFS(client,comm);
+        return new OpenbookFS(client,comm,fd);
     }
 };
 

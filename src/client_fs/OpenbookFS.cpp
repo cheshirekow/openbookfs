@@ -46,11 +46,13 @@ int OpenbookFS::result_or_errno(int result)
 
 
 OpenbookFS::OpenbookFS(
-        Client*        client,
-        ServerHandler* comm)
+        Client*              client,
+        ServerHandler*       comm,
+        FileDescriptorArray* fd)
 {
     m_client   = client;
     m_comm     = comm;
+    m_fd       = fd;
     m_dataDir  = client->dataDir();
     m_realRoot = m_dataDir / "real_root";
 }
@@ -160,13 +162,267 @@ int OpenbookFS::open (const char *path, struct fuse_file_info *fi)
               "\n        : " << wrapped <<
               std::endl;
 
+    // oen the file and get a file handle
     int fh = ::open( wrapped.c_str(), fi->flags );
-    fi->fh = fh;
     if( fh < 0 )
         return -errno;
 
+    // mark the file descriptor as opened
+    FileDescriptor* fd = (*m_fd)[fh];
+
+    // check to make sure we dont have too many files open already
+    if(!fd)
+    {
+        std::cerr << "Not enough file descriptors available to open " << path;
+        ::close(fh);
+        return EMFILE;
+    }
+
+    fd->open();
+    fi->fh = fh;
+
     return 0;
 }
+
+
+
+
+
+int OpenbookFS::read (const char *path,
+                        char *buf,
+                        size_t bufsize,
+                        off_t offset,
+                        struct fuse_file_info *fi)
+{
+    std::string wrapped = (m_realRoot / path).string();
+
+    std::cerr << "read: "
+              "\n    path: " << path  <<
+              "\n        : " << wrapped   <<
+              "\n    size: " << bufsize   <<
+              "\n     off: " << offset    <<
+              "\n      fh: " << fi->fh    <<
+              std::endl;
+
+    if(fi->fh)
+    {
+        int result = ::pread(fi->fh,buf,bufsize,offset);
+        if( result < 0 )
+            return -errno;
+        else
+            return result;
+    }
+    else
+        return -EBADF;
+}
+
+
+
+int OpenbookFS::write (const char *path,
+                        const char *buf,
+                        size_t bufsize,
+                        off_t offset,
+                      struct fuse_file_info *fi)
+{
+    std::cerr << "write: "
+              "\n    path: " << path                <<
+              "\n        : " << (m_realRoot/path)    <<
+              "\n      fh: " << fi->fh                  <<
+              std::endl;
+
+    if(fi->fh)
+    {
+        // get the file descriptor
+        FileDescriptor* fd = (*m_fd)[fi->fh];
+
+        if(!fd)
+            return -EBADF;
+
+        /// lock during the write
+        pthreads::ScopedLock lock(fd->mutex());
+
+        int result = ::pwrite(fi->fh,buf,bufsize,offset);
+        if( result < 0 )
+            return -errno;
+
+        // mark the file as changed
+        fd->flag(fd::FLAG_CHANGED,true);
+
+        // return the result of the write
+        return result;
+    }
+    else
+        return -EBADF;
+}
+
+
+
+
+int OpenbookFS::truncate (const char *path, off_t length)
+{
+    namespace fs = boost::filesystem;
+
+    std::string wrapped = (m_realRoot / path).string();
+    std::cerr << "truncate: "
+              "\n      path: " << path    <<
+              "\n          : " << wrapped <<
+              "\n    length: " << length  <<
+              std::endl;
+
+    int result = ::truncate( wrapped.c_str(), length  );
+    if( result <  0 )
+        return -errno;
+
+    // load the meta data file
+    fs::path metaPath = m_realRoot / (std::string(path) + ".obfsmeta");
+
+    // send message to server
+    messages::NewVersion* msg = new messages::NewVersion();
+    msg->set_job_id( m_client->nextId() );
+    msg->set_path(path);
+
+    try
+    {
+        MetaData metaData( metaPath );
+        metaData.open();
+        // increment client version
+        metaData.set_clientVersion( metaData.clientVersion() + 1 );
+        msg->set_base_version(metaData.baseVersion());
+        msg->set_client_version(metaData.clientVersion());
+        metaData.close();
+
+        // send the message
+        TypedMessage tm(MSG_NEW_VERSION,msg);
+        m_comm->sendMessage(tm);
+    }
+    catch( std::exception& ex )
+    {
+        std::cerr << "Problem creating updating meta data: "
+                  << ex.what() << std::endl;
+        delete msg;
+    }
+
+    return result;
+}
+
+
+
+
+int OpenbookFS::ftruncate (const char *path,
+                            off_t length,
+                            struct fuse_file_info *fi)
+{
+    std::cerr << "ftruncate: "
+             "\n   path: " << path <<
+             "\n       : " << (m_realRoot / path) <<
+             "\n    len: " << length <<
+             "\n     fh: " << fi->fh <<
+             std::endl;
+
+    if(fi->fh)
+    {
+        // get the file descriptor
+        FileDescriptor* fd = (*m_fd)[fi->fh];
+
+        if(!fd)
+            return -EBADF;
+
+        /// lock during the write
+        pthreads::ScopedLock lock(fd->mutex());
+
+        int result = ::ftruncate(fi->fh, length);
+        if( result < 0 )
+            return -errno;
+
+        // mark the file as changed
+        fd->flag(fd::FLAG_CHANGED,true);
+
+        // return the result of the write
+        return result;
+    }
+    else
+        return -EBADF;
+}
+
+
+
+
+
+int OpenbookFS::release (const char *path, struct fuse_file_info *fi)
+{
+    namespace fs = boost::filesystem;
+
+    std::cerr << "release: "
+                 "\n   path: " << path <<
+                 "\n       : " << (m_realRoot / path) <<
+                 "\n     fh: " << fi->fh;
+
+    if(fi->fh)
+    {
+        // get the file descriptor
+        FileDescriptor* fd = (*m_fd)[fi->fh];
+
+        if(!fd)
+            return -EBADF;
+
+        /// lock during the write
+        pthreads::ScopedLock lock(fd->mutex());
+
+        int result = ::close(fi->fh);
+        if( result < 0 )
+            return -errno;
+
+        // if the file has changed then send update to the server
+        if( fd->flag(fd::FLAG_CHANGED) )
+        {
+            fs::path metaPath = m_realRoot / (std::string(path) + ".obfsmeta");
+
+            messages::NewVersion* msg = new messages::NewVersion();
+            msg->set_job_id( m_client->nextId() );
+            msg->set_path(path);
+
+            try
+            {
+                MetaData metaData( metaPath );
+                metaData.open();
+                // increment client version
+                metaData.set_clientVersion( metaData.clientVersion() + 1 );
+                msg->set_base_version(metaData.baseVersion());
+                msg->set_client_version(metaData.clientVersion());
+                metaData.close();
+
+                // send the message
+                TypedMessage tm(MSG_NEW_VERSION,msg);
+                m_comm->sendMessage(tm);
+            }
+            catch( std::exception& ex )
+            {
+                std::cerr << "Problem updating meta data: "
+                          << ex.what() << std::endl;
+                delete msg;
+            }
+        }
+
+        // mark the fd as closed
+        fd->flag(fd::FLAG_OPENED, false);
+
+        // return the result of the write
+        return result;
+    }
+    else
+        return -EBADF;
+}
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -326,17 +582,7 @@ int OpenbookFS::chown (const char *path, uid_t owner, gid_t group)
 
 
 
-int OpenbookFS::truncate (const char *path, off_t length)
-{
-    std::string wrapped = (m_realRoot / path).string();
-    std::cerr << "truncate: "
-              "\n      path: " << path    <<
-              "\n          : " << wrapped <<
-              "\n    length: " << length  <<
-              std::endl;
 
-    return  result_or_errno( ::truncate( wrapped.c_str(), length  ) );
-}
 
 
 
@@ -350,51 +596,6 @@ int OpenbookFS::truncate (const char *path, off_t length)
 
 
 
-
-int OpenbookFS::read (const char *path,
-                        char *buf,
-                        size_t bufsize,
-                        off_t offset,
-                        struct fuse_file_info *fi)
-{
-    std::string wrapped = (m_realRoot / path).string();
-
-    std::cerr << "read: "
-              "\n    path: " << path  <<
-              "\n        : " << wrapped   <<
-              "\n    size: " << bufsize   <<
-              "\n     off: " << offset    <<
-              "\n      fh: " << fi->fh    <<
-              std::endl;
-
-    if(fi->fh)
-    {
-        int result = result_or_errno( ::pread(fi->fh,buf,bufsize,offset) );
-        return result;
-    }
-    else
-        return -EBADF;
-}
-
-
-
-int OpenbookFS::write (const char *path,
-                        const char *buf,
-                        size_t bufsize,
-                        off_t offset,
-                      struct fuse_file_info *fi)
-{
-    std::cerr << "write: "
-              "\n    path: " << path                <<
-              "\n        : " << (m_realRoot/path)    <<
-              "\n      fh: " << fi->fh                  <<
-              std::endl;
-
-    if(fi->fh)
-        return result_or_errno( ::pwrite(fi->fh,buf,bufsize,offset) );
-    else
-        return -EBADF;
-}
 
 
 
@@ -425,21 +626,7 @@ int OpenbookFS::flush (const char *path, struct fuse_file_info *fi)
 
 
 
-int OpenbookFS::release (const char *path, struct fuse_file_info *fi)
-{
-    std::cerr << "release: "
-                 "\n   path: " << path <<
-                 "\n       : " << (m_realRoot / path) <<
-                 "\n     fh: " << fi->fh;
 
-    if(fi->fh)
-    {
-        int result = result_or_errno( ::close(fi->fh) );
-        return result;
-    }
-    else
-        return -EBADF;
-}
 
 
 
@@ -610,20 +797,6 @@ int OpenbookFS::fsyncdir (const char *path,
 
 
 
-void *OpenbookFS::init (struct fuse_conn_info *conn)
-{
-    std::cerr << "init: " << std::endl;
-    return this;
-}
-
-
-
-void OpenbookFS::destroy (void *)
-{
-    std::cerr << "destroy: " << std::endl;
-    return;
-}
-
 
 
 int OpenbookFS::access (const char *path, int mode)
@@ -641,26 +814,7 @@ int OpenbookFS::access (const char *path, int mode)
 
 
 
-int OpenbookFS::ftruncate (const char *path,
-                            off_t length,
-                            struct fuse_file_info *fi)
-{
-    std::cerr << "ftruncate: "
-             "\n   path: " << path <<
-             "\n       : " << (m_realRoot / path) <<
-             "\n    len: " << length <<
-             "\n     fh: " << fi->fh <<
-             std::endl;
 
-    if(fi->fh)
-    {
-        return result_or_errno(
-                ::ftruncate(fi->fh, length)
-                 );
-    }
-    else
-        return -EBADF;
-}
 
 
 
