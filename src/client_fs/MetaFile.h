@@ -91,7 +91,7 @@ class Data
                        << " (" << errno << "): " << strerror(errno);
 
 
-            void* ptr = mmap( 0, sizeof(File), PROT_WRITE, MAP_SHARED, m_fd, 0 );
+            void* ptr = mmap( 0, sizeof(File), PROT_READ | PROT_WRITE, MAP_SHARED, m_fd, 0 );
             if( ptr == MAP_FAILED )
                 ex()() << "Failed to map meta file " << m_path.string();
 
@@ -118,7 +118,7 @@ class Data
                        << " ("<< errno << "): " << strerror(errno);
 
 
-            void* ptr = mmap( 0, sizeof(File), PROT_WRITE, MAP_SHARED, m_fd, 0 );
+            void* ptr = mmap( 0, sizeof(File), PROT_READ | PROT_WRITE, MAP_SHARED, m_fd, 0 );
             if( ptr == MAP_FAILED )
                 ex()() << "Failed to map meta file " << m_path.string();
 

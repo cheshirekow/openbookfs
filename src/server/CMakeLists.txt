@@ -52,6 +52,7 @@ if( (Boost_FOUND)
                     ClientHandler.cpp
                     ClientMessage.cpp
                     MessageHandler.cpp
+                    MetaFile.cpp
                     Server.cpp
                     ../messages.cpp
                     ../FdSet.cpp

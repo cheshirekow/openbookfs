@@ -65,10 +65,23 @@ struct TypedMessage
         type(type),
         msg(msg)
     {}
-
-
 };
 
+/// mappes MessageId to the message type
+template < MessageId ID >
+struct MessageType;
+
+template <> struct MessageType<MSG_PING>       { typedef messages::Ping       type; };
+template <> struct MessageType<MSG_PONG>       { typedef messages::Pong       type; };
+template <> struct MessageType<MSG_NEW_VERSION>{ typedef messages::NewVersion type; };
+
+/// upcasts a generic message pointer
+template < MessageId ID >
+typename MessageType<ID>::type* message_cast( Message* msg )
+{
+    typedef typename MessageType<ID>::type  UpType;
+    return static_cast< UpType* >( msg );
+}
 
 
 } // namespace filesystem

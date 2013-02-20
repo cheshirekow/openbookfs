@@ -68,6 +68,11 @@ class MessageHandler
         /// static method for pthreads, calls main()
         static void* dispatch_main( void* vp_h );
 
+        /// typed message  handler
+        void handleMessage( ClientMessage msg, messages::Ping*       upcast );
+        void handleMessage( ClientMessage msg, messages::Pong*       upcast );
+        void handleMessage( ClientMessage msg, messages::NewVersion* upcast );
+
     public:
         MessageHandler();
         ~MessageHandler();
