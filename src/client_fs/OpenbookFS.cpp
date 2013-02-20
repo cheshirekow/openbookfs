@@ -152,6 +152,25 @@ int OpenbookFS::create (const char *path,
 
 
 
+int OpenbookFS::open (const char *path, struct fuse_file_info *fi)
+{
+    std::string wrapped = (m_realRoot / path).string();
+    std::cerr << "open: "
+              "\n    path: " << path    <<
+              "\n        : " << wrapped <<
+              std::endl;
+
+    int fh = ::open( wrapped.c_str(), fi->flags );
+    fi->fh = fh;
+    if( fh < 0 )
+        return -errno;
+
+    return 0;
+}
+
+
+
+
 int OpenbookFS::getattr (const char *path, struct stat *out)
 {
     std::string wrapped = (m_realRoot / path).string();
@@ -328,19 +347,7 @@ int OpenbookFS::truncate (const char *path, off_t length)
 
 
 
-int OpenbookFS::open (const char *path, struct fuse_file_info *fi)
-{
-    std::string wrapped = (m_realRoot / path).string();
-    std::cerr << "open: "
-              "\n    path: " << path    <<
-              "\n        : " << wrapped <<
-              std::endl;
 
-    int fh = ::open( wrapped.c_str(), fi->flags );
-    fi->fh = fh;
-
-    return result_or_errno(( fh > 0 ) ? 0 : fh);
-}
 
 
 

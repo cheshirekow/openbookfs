@@ -40,9 +40,8 @@ class OpenbookFS
 
         ~OpenbookFS();
 
-
-        /** Create a file node
-         *
+        /// Create a file node
+        /**
          * This is called for creation of all non-directory, non-symlink
          * nodes.  If the filesystem defines a create() method, then for
          * regular files that will be called instead.
@@ -52,9 +51,8 @@ class OpenbookFS
          */
         int mknod (const char *, mode_t, dev_t);
 
+        /// Create and open a file
         /**
-         * Create and open a file
-         *
          * If the file does not exist, first create it with the specified
          * mode, and then open it.
          *
@@ -65,6 +63,37 @@ class OpenbookFS
          * Introduced in version 2.5
          */
         int create (const char *, mode_t, struct fuse_file_info *);
+
+        /// File open operation
+        /**
+         * No creation (O_CREAT, O_EXCL) and by default also no
+         * truncation (O_TRUNC) flags will be passed to open(). If an
+         * application specifies O_TRUNC, fuse first calls truncate()
+         * and then open(). Only if 'atomic_o_trunc' has been
+         * specified and kernel version is 2.6.24 or later, O_TRUNC is
+         * passed on to open.
+         *
+         * Unless the 'default_permissions' mount option is given,
+         * open should check if the operation is permitted for the
+         * given flags. Optionally open may also return an arbitrary
+         * filehandle in the fuse_file_info structure, which will be
+         * passed to all file operations.
+         *
+         * Changed in version 2.2
+         *
+         * OpenbookFS simply calls open and returns the actual file handle in
+         * the @p fi->fh field. We do not mark the file as dirty, even if it's
+         * opened for read write, unless an actual write is performed
+         */
+        int open (const char *, struct fuse_file_info *);
+
+
+
+
+
+
+
+
 
 
         /** Get file attributes.
@@ -128,24 +157,7 @@ class OpenbookFS
          */
         //int utime (const char *, struct utimbuf *);
 
-        /** File open operation
-         *
-         * No creation (O_CREAT, O_EXCL) and by default also no
-         * truncation (O_TRUNC) flags will be passed to open(). If an
-         * application specifies O_TRUNC, fuse first calls truncate()
-         * and then open(). Only if 'atomic_o_trunc' has been
-         * specified and kernel version is 2.6.24 or later, O_TRUNC is
-         * passed on to open.
-         *
-         * Unless the 'default_permissions' mount option is given,
-         * open should check if the operation is permitted for the
-         * given flags. Optionally open may also return an arbitrary
-         * filehandle in the fuse_file_info structure, which will be
-         * passed to all file operations.
-         *
-         * Changed in version 2.2
-         */
-        int open (const char *, struct fuse_file_info *);
+
 
         /** Read data from an open file
          *

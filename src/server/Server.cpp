@@ -151,8 +151,8 @@ void Server::initConfig(const std::string& configFile)
     using namespace soci;
 
     std::cout << "Initializing database" << std::endl;
-    fs::path dbFile = fs::path(m_dataDir) / "store.sqlite";
-    session sql(sqlite3,dbFile.string());
+    m_dbFile = (fs::path(m_dataDir) / "store.sqlite").string();
+    session sql(sqlite3,m_dbFile);
 
     sql << "CREATE TABLE IF NOT EXISTS conflict_files ("
             "conflict_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
@@ -174,7 +174,7 @@ void Server::initConfig(const std::string& configFile)
 
     sql << "CREATE TABLE IF NOT EXISTS known_clients ("
             "client_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
-            "client_key TEXT NOT NULL) ";
+            "client_key TEXT NOT NULL UNIQUE) ";
 }
 
 

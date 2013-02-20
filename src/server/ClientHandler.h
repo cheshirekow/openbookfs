@@ -45,6 +45,9 @@
 #include <crypto++/dh.h>
 #include <crypto++/dh2.h>
 
+#include <soci/soci.h>
+#include <soci/sqlite3/soci-sqlite3.h>
+
 #include "ExceptionStream.h"
 #include "MessageBuffer.h"
 #include "Pool.h"

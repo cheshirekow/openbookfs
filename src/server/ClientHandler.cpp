@@ -36,6 +36,8 @@
 #include <crypto++/aes.h>
 #include <crypto++/modes.h>
 #include <crypto++/gcm.h>
+#include <crypto++/base64.h>
+
 
 #include "global.h"
 #include "ClientHandler.h"
@@ -98,6 +100,7 @@ void ClientHandler::init(
     std::cout << "Initializing handler " << (void*)this << std::endl;
     ScopedLock lock(m_mutex);
 
+    // start DH parameter builder in thread
     Attr<Thread> attr;
     attr.init();
     attr << DETACHED;
@@ -248,9 +251,9 @@ void* ClientHandler::main()
         delete msg.msg;
     }
 
-    // increment the version count so any jobs that finish after we die
+    // invalidate version count so any jobs that finish after we die
     // don't go into the queue
-    m_version++;
+    m_version=0;
 
     // put ourselves back int the available pool
     m_pool->reassign(this);
@@ -554,6 +557,30 @@ void ClientHandler::handshake()
 
     // otherwise, authed
     std::cout << "Client is authorized" << std::endl;
+
+    // create sqlite connection
+    soci::session sql(soci::sqlite3,m_server->dbFile());
+
+    // base64 encode the clients public key
+    queue.Clear();
+    CryptoPP::Base64Encoder encoder;
+    clientKey.Save(queue);
+    queue.CopyTo(encoder);
+    encoder.MessageEnd();
+    std::string base64;
+    base64.resize( encoder.MaxRetrievable(), '\0' );
+    encoder.Get( (byte*)&base64[0], base64.size() );
+
+    std::cout << "Putting base64 client key into db: " << base64 << std::endl;
+
+    // insert the key into the database if it isn't already there
+    sql << "INSERT OR IGNORE INTO known_clients (client_key) VALUES ('"
+        << base64 << "')";
+
+    // now select out the id
+    sql << "SELECT client_id FROM known_clients WHERE client_key='"
+        << base64 << "'",
+            soci::into(m_version);
 }
 
 void* ClientHandler::listen()

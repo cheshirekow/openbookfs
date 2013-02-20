@@ -58,6 +58,7 @@ struct Server
         std::string  m_rootDir;      ///< file system root
         std::string  m_pubKeyFile;   ///< public key file
         std::string  m_privKeyFile;  ///< private key file
+        std::string  m_dbFile;       ///< database file
 
         AuthOpt      m_auth;     ///< set of authorization methods we'll allow
         std::string  m_password; ///< for authorizing clients
@@ -83,6 +84,7 @@ struct Server
         const std::string& addressFamily()  const{ return m_addressFamily; }
         const std::string& iface()          const{ return m_iface;         }
         const std::string& port()           const{ return m_port;          }
+        const std::string& dbFile()         const{ return m_dbFile;        }
 
         int maxConn()    const { return m_maxConn;    }
         int maxWorkers() const { return m_maxWorkers; }
