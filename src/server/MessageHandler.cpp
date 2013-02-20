@@ -215,11 +215,13 @@ MessageHandler::~MessageHandler()
 void MessageHandler::init(
         Pool_t*         pool,
         MsgQueue_t*     queue,
-        Server*         server )
+        Server*         server,
+        ClientMap*      clientMap)
 {
     m_pool     = pool;
     m_msgQueue = queue;
     m_server   = server;
+    m_clientMap= clientMap;
 }
 
 void MessageHandler::start()

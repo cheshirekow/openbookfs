@@ -40,6 +40,7 @@
 #include "Queue.h"
 #include "messages.h"
 #include "ClientMessage.h"
+#include "ClientMap.h"
 #include "Server.h"
 
 namespace   openbook {
@@ -57,6 +58,7 @@ class MessageHandler
     private:
         Pool_t*             m_pool;             ///< pool to which this belongs
         MsgQueue_t*         m_msgQueue;         ///< global msg queue
+        ClientMap*          m_clientMap;        ///< maps client ids to handlers
         pthreads::Thread    m_thread;           ///< the thread we're running in
         pthreads::Mutex     m_mutex;            ///< locks this data
 
@@ -80,7 +82,7 @@ class MessageHandler
 
         /// set the parent pointer and start DH parameter generation in
         /// detached thread
-        void init( Pool_t*, MsgQueue_t*, Server* );
+        void init( Pool_t*, MsgQueue_t*, Server*, ClientMap* );
 
         /// start the worker thread
         void start();

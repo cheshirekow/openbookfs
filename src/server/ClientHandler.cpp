@@ -90,13 +90,14 @@ ClientHandler::~ClientHandler()
 }
 
 void ClientHandler::init(
-        Pool_t* pool, Server* server, InQueue_t* msgQueue )
+        Pool_t* pool, Server* server, InQueue_t* msgQueue, ClientMap* clientMap )
 {
     using namespace pthreads;
-    m_pool    = pool;
-    m_server  = server;
+    m_pool      = pool;
+    m_server    = server;
+    m_clientMap = clientMap;
     m_inboundMessages   = msgQueue;
-    m_version = 0;
+    m_clientId = 0;
 
     std::cout << "Initializing handler " << (void*)this << std::endl;
     ScopedLock lock(m_mutex);
@@ -169,7 +170,7 @@ void ClientHandler::sendMessage( ClientMessage msg )
     pthreads::ScopedLock(m_mutex);
 
     // first check to make sure the handler hasn't cycled to a new client
-    if( msg.client_id != m_version )
+    if( msg.client_id != m_clientId )
         delete msg.typed.msg;
     else
         m_outboundMessages.insert(msg.typed);
@@ -217,6 +218,16 @@ void* ClientHandler::main()
     // to modify us while we're doing this
     pthreads::ScopedLock(m_mutex);
 
+    // remove ourselves from the client map
+    {
+        pthreads::ScopedLock lock(m_clientMap->mutex());
+        m_clientMap->subvert()->erase(m_clientId);
+    }
+
+    // invalidate client id so any jobs that finish after we die
+    // don't get sent when this handler is reused later
+    m_clientId=0;
+
     m_listenThread.join();
     std::cout << "handler " << (void*)this
               << " listen thread quit\n";
@@ -252,9 +263,7 @@ void* ClientHandler::main()
         delete msg.msg;
     }
 
-    // invalidate version count so any jobs that finish after we die
-    // don't go into the queue
-    m_version=0;
+
 
     // put ourselves back int the available pool
     m_pool->reassign(this);
@@ -559,9 +568,6 @@ void ClientHandler::handshake()
     // otherwise, authed
     std::cout << "Client is authorized" << std::endl;
 
-    // create sqlite connection
-    soci::session sql(soci::sqlite3,m_server->dbFile());
-
     // base64 encode the clients public key
     queue.Clear();
     CryptoPP::Base64Encoder encoder;
@@ -574,6 +580,9 @@ void ClientHandler::handshake()
 
     std::cout << "Putting base64 client key into db: " << base64 << std::endl;
 
+    // create sqlite connection
+    soci::session sql(soci::sqlite3,m_server->dbFile());
+
     // insert the key into the database if it isn't already there
     sql << "INSERT OR IGNORE INTO known_clients (client_key) VALUES ('"
         << base64 << "')";
@@ -581,7 +590,14 @@ void ClientHandler::handshake()
     // now select out the id
     sql << "SELECT client_id FROM known_clients WHERE client_key='"
         << base64 << "'",
-            soci::into(m_version);
+            soci::into(m_clientId);
+
+    // now map the client id to this object
+    // lock scope
+    {
+        pthreads::ScopedLock lock(m_clientMap->mutex());
+        (*(m_clientMap->subvert()))[m_clientId] = this;
+    }
 }
 
 void* ClientHandler::listen()
@@ -604,7 +620,7 @@ void* ClientHandler::listen()
             // or termination signal
             ClientMessage msg;
             msg.client      = this;
-            msg.client_id   = m_version;
+            msg.client_id   = m_clientId;
             msg.typed       = m_msg.readEnc(m_fd);
 
             // put the message in the inbound queue

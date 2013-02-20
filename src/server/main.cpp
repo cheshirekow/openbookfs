@@ -49,6 +49,7 @@
 
 #include "global.h"
 #include "ClientHandler.h"
+#include "ClientMap.h"
 #include "NotifyPipe.h"
 #include "Pool.h"
 #include "MessageHandler.h"
@@ -280,27 +281,30 @@ int main(int argc, char** argv)
     std::cout << "Initializing handler pool (" << nH << "," << nJ << ")"
               << std::endl;
 
-    /// handlers available for new client connections
+    // maps client ids to the handler object
+    ClientMap   clientMap;
+
+    // handlers available for new client connections
     ClientHandler::Pool_t      handlerPool(nH);
     MessageHandler::Pool_t     workerPool(nJ);
 
-    /// message queue
+    // message queue
     Queue<ClientMessage>    inboundQueue;
 
-    /// allows us to store the client handler pointer in thread specific
-    /// storage
+    // allows us to store the client handler pointer in thread specific
+    // storage
     g_handlerKey.create();
 
-    /// handler objects
+    // handler objects
     ClientHandler*  handlers = new ClientHandler[nH];
     MessageHandler* workers  = new MessageHandler[nJ];
 
     for(int i=0; i < nH; i++)
-        handlers[i].init(&handlerPool,&server,&inboundQueue);
+        handlers[i].init(&handlerPool,&server,&inboundQueue,&clientMap);
 
     for(int i=0; i < nJ; i++)
     {
-        workers[i].init(&workerPool,&inboundQueue,&server);
+        workers[i].init(&workerPool,&inboundQueue,&server,&clientMap);
         workers[i].start();
     }
 

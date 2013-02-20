@@ -55,7 +55,7 @@
 #include "Server.h"
 #include "Synchronized.h"
 #include "ClientMessage.h"
-
+#include "ClientMap.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -87,9 +87,10 @@ class ClientHandler
     private:
         static const unsigned int sm_bufsize = 256;
 
-        unsigned int        m_version;          ///< incremented on reuse
+        unsigned int        m_clientId;         ///< incremented on reuse
         Pool_t*             m_pool;             ///< pool to which this belongs
         Server*             m_server;           ///< server configuration
+        ClientMap*          m_clientMap;        ///< maps client ids to handlers
         pthreads::Thread    m_thread;           ///< the thread we're running in
 
         InQueue_t*          m_inboundMessages;  ///< received message queue
@@ -149,7 +150,7 @@ class ClientHandler
 
         /// set the parent pointer and start DH parameter generation in
         /// detached thread
-        void init( Pool_t*, Server*, InQueue_t* );
+        void init( Pool_t*, Server*, InQueue_t*, ClientMap* );
 
         /// sec the client socket and start the handler interfacing with the
         /// client in a detached thread
