@@ -599,6 +599,7 @@ void ServerHandler::handshake()
     msgs::AuthRequest* authReq =
             static_cast<msgs::AuthRequest*>(m_msg[MSG_AUTH_REQ]);
     authReq->set_public_key(m_rsaPubStr);
+    authReq->set_display_name(m_client->displayName());
 
     m_msg.write(sockfd,MSG_AUTH_REQ,enc);
     enc.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());

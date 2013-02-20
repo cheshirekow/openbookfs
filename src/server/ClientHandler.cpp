@@ -425,6 +425,7 @@ void ClientHandler::handshake()
 
     msgs::AuthRequest* authReq =
             static_cast<msgs::AuthRequest*>( m_msg[MSG_AUTH_REQ] );
+    std::string displayName = authReq->display_name();
     std::stringstream  inkey( authReq->public_key() );
     FileSource keyFile(inkey,true);
     ByteQueue  queue;
@@ -584,8 +585,8 @@ void ClientHandler::handshake()
     soci::session sql(soci::sqlite3,m_server->dbFile());
 
     // insert the key into the database if it isn't already there
-    sql << "INSERT OR IGNORE INTO known_clients (client_key) VALUES ('"
-        << base64 << "')";
+    sql << "INSERT OR REPLACE INTO known_clients (client_key, client_name) "
+           "VALUES ('"<< base64 << "','" << displayName << "')";
 
     // now select out the id
     sql << "SELECT client_id FROM known_clients WHERE client_key='"

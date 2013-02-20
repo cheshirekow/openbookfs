@@ -3,6 +3,11 @@
 #    This is a YAML document. See www.yaml.org for more information
 #    about the document format
 
+# this is the name which will be displayed on the server and other clients to
+# identify this client. If you only mount one file system, consider using
+# the machine hostname for this field
+displayName : "Nadie"
+
 # if passworth authentication is used, this is the password to use when
 # being authorized by with server
 password : "fabulous"

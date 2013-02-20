@@ -175,7 +175,8 @@ void Server::initConfig(const std::string& configFile)
 
     sql << "CREATE TABLE IF NOT EXISTS known_clients ("
             "client_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
-            "client_key TEXT NOT NULL UNIQUE) ";
+            "client_key TEXT NOT NULL UNIQUE, "
+            "client_name TEXT NOT NULL) ";
 }
 
 

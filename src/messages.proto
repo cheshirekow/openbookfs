@@ -33,6 +33,7 @@ message ContentKey
 // sent by the client to authenticate
 message AuthRequest {
     optional bytes  public_key   = 1; // client's public key
+    optional string display_name = 2; // client's display name
 }
 
 // challenge sent by the server 

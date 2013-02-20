@@ -76,6 +76,7 @@ void Client::initConfig(const std::string& configFile)
 
     std::string serverStr;
 
+    config["displayName"]   >> m_displayName;
     config["password"]      >> m_password;
     config["dataDir"]       >> m_dataDir;
     config["rootDir"]       >> m_rootDir;

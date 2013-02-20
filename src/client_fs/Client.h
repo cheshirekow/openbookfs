@@ -52,7 +52,8 @@ struct Client
         std::string  m_pubKeyFile;   ///< public key file
         std::string  m_privKeyFile;  ///< private key file
 
-        std::string  m_password; ///< for authorizing clients
+        std::string  m_displayName;     ///< human readible name for this
+        std::string  m_password;        ///< for authorizing clients
         std::string  m_addressFamily;   ///< address family of iface
         std::string  m_iface;           ///< which interface to bind
         std::string  m_server;      ///< server address/hostname and port
@@ -72,8 +73,9 @@ struct Client
         /// errors)
         void initConfig( const std::string& configFile );
 
-        const std::string& dataDir()        const{ return m_dataDir; }
-        const std::string& rootDir()        const{ return m_rootDir; }
+        const std::string& displayName()    const{ return m_displayName;   }
+        const std::string& dataDir()        const{ return m_dataDir;       }
+        const std::string& rootDir()        const{ return m_rootDir;       }
         const std::string& pubKeyFile()     const{ return m_pubKeyFile;    }
         const std::string& privKeyFile()    const{ return m_privKeyFile;   }
         const std::string& password()       const{ return m_password;      }
