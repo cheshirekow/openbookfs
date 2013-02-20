@@ -235,7 +235,7 @@ void MessageHandler::handleMessage(
 {
     namespace fs = boost::filesystem;
 
-    std::cout << "Handling commit of file" << std::endl;
+    std::cout << "Handling commit of file " << upcast->path() << std::endl;
 
     fs::path filePath = fs::path(m_client->realRoot()) / (upcast->path());
     fs::path metaPath = fs::path(m_client->realRoot()) / (upcast->path() + ".obfsmeta");
@@ -261,6 +261,11 @@ void MessageHandler::handleMessage(
         meta.set_baseVersion(upcast->new_version());
         meta.set_clientVersion( meta.clientVersion()
                                 - upcast->client_version() );
+
+        std::cout << "Updating meta data for " << filePath
+                  << "\n     base: " << meta.baseVersion()
+                  << "\n   client: " << meta.clientVersion()
+                  << std::endl;
         meta.flush();
     }
     catch( std::exception& ex )

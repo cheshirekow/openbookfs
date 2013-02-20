@@ -139,6 +139,11 @@ void MessageHandler::handleMessage(
 
     try
     {
+        // open the meta file. This will create it if it doesn't already
+        // exist
+        MetaData meta(metaPath.string());
+        meta.load();
+
         // if the file doesn't exist, create it (create message may have
         // been reordered to come after an update message and we dont
         // want to fail on the update)
@@ -146,21 +151,14 @@ void MessageHandler::handleMessage(
         {
             ::close(::open( filePath.c_str(),
                             O_RDWR | O_CREAT, S_IRUSR | S_IWUSR ));
-            MetaData meta(metaPath.string());
-            meta.subscribe(msg.client_id);
-            meta.create();
-
-            // if this is a creation message, then we can quit
-            if(upcast->size()==0)
-            {
-                // todo: ack the message
-                return;
-            }
         }
 
-        // load the meta file
-        MetaData meta(metaPath.string());
-        meta.load();
+        // if this is the create message we are finished
+        if( upcast->size() == 0 )
+        {
+            meta.flush();
+            return;
+        }
 
         // if the file is synced then we can make the sender the owner
         // and start downloading it
@@ -262,7 +260,8 @@ void MessageHandler::handleMessage(
               << "\n    path: " << upcast->path()
               << "\n version: " << upcast->client_version()
               << "\n  offset: " << upcast->offset()
-              << "\n    size: " << upcast->data().size();
+              << "\n    size: " << upcast->data().size()
+              << std::endl;
 
     uint64_t fileSize = 0;
     // open lock and load the meta file

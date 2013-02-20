@@ -86,7 +86,7 @@ int OpenbookFS::mknod (const char *path, mode_t mode, dev_t dev)
     try
     {
         MetaData metaData( metaPath );
-        metaData.create();
+        metaData.load();
         metaData.flush();
     }
     catch( std::exception& ex )
@@ -133,7 +133,7 @@ int OpenbookFS::create (const char *path,
     try
     {
         MetaData metaData( metaPath );
-        metaData.create();
+        metaData.load();
         metaData.flush();
     }
     catch( std::exception& ex )

@@ -68,7 +68,6 @@ class Data
 
     public:
         Data(const boost::filesystem::path& path);
-        void create( );
         void load(  );
         void flush();
 

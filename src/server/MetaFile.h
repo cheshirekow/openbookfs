@@ -66,11 +66,15 @@ struct File
     uint64_t        owner;            ///< client who created the file
     State           state;            ///< state of the file
     unsigned int    nSubscribed;      ///< number of subscriptions
-    uint64_t        subs;             ///< subscription array, first element
+
+    uint64_t&   operator[](int i)
+    {
+        return ( (uint64_t*) (((char*) this) + sizeof(File)) )[i];
+    }
 };
 
 /// meta data file structure, note: locks the file until destroyed
-struct Data
+class Data
 {
     std::string     m_path;             ///< path to the meta file
     uint64_t        m_baseVersion;      ///< official version number
@@ -80,29 +84,29 @@ struct Data
     int             m_fd;               ///< file descriptor
     std::set<uint64_t> subs;       ///< subscription array
 
-    Data(const std::string& path );
+    off_t expectedSize( int nSubscribed );
 
-    /// writes the initial meta file
-    void create();
+    public:
+        Data(const std::string& path );
 
-    /// locks and loads the file
-    void load();
+        /// locks and loads the file
+        void load();
 
-    /// releases and flushes the meta data
-    void flush();
+        /// releases and flushes the meta data
+        void flush();
 
-    uint64_t    baseVersion()   { return m_baseVersion;   }
-    uint64_t    clientVersion() { return m_clientVersion; }
-    uint64_t    owner()         { return m_owner;   }
-    State       state()         { return m_state;   }
+        uint64_t    baseVersion()   { return m_baseVersion;   }
+        uint64_t    clientVersion() { return m_clientVersion; }
+        uint64_t    owner()         { return m_owner;   }
+        State       state()         { return m_state;   }
 
-    void set_baseVersion    ( uint64_t version ){ m_baseVersion   = version; }
-    void set_clientVersion  ( uint64_t version ){ m_clientVersion = version; }
-    void set_owner          ( uint64_t owner   ){ m_owner         = owner;   }
-    void set_state          ( State    state   ){ m_state         = state;   }
+        void set_baseVersion    ( uint64_t version ){ m_baseVersion   = version; }
+        void set_clientVersion  ( uint64_t version ){ m_clientVersion = version; }
+        void set_owner          ( uint64_t owner   ){ m_owner         = owner;   }
+        void set_state          ( State    state   ){ m_state         = state;   }
 
-    void subscribe( uint64_t id );
-    void unsubscribe( uint64_t id );
+        void subscribe( uint64_t id );
+        void unsubscribe( uint64_t id );
 
 };
 

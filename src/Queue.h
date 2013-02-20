@@ -244,7 +244,7 @@ class Queue
 
             // if there is nothing available, then wait for something
             // to become available
-            if(!m_first)
+            while(!m_first)
             {
                 // when we start waiting we release the mutex, but when this
                 // call blocks it will not return until someone signals a new

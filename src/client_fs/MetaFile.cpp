@@ -26,9 +26,11 @@
 
 #include <sys/file.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 
 #include "MetaFile.h"
 #include "ExceptionStream.h"
+
 
 namespace   openbook {
 namespace filesystem {
@@ -41,7 +43,8 @@ Data::Data( const boost::filesystem::path& path ):
     m_path(path)
 {}
 
-void Data::create( )
+
+void Data::load(  )
 {
     // open the file
     m_fd = ::open( m_path.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR );
@@ -49,48 +52,51 @@ void Data::create( )
         ex()() << "Failed to open meta file " << m_path.string()
                << " (" << errno << "): " << strerror(errno);
 
-    // truncate the file
-    if( ftruncate( m_fd, sizeof(File) ) )
-        ex()() << "Failed to truncate meta file " << m_path.string()
-               << " (" << errno << "): " << strerror(errno);
-
-    // optain an exclusive lock
-    if( flock(m_fd, LOCK_EX ) )
-        ex()() << "Failed to lock meta file " << m_path.string()
-               << " (" << errno << "): " << strerror(errno);
-
-
-    void* ptr = mmap( 0, sizeof(File), PROT_READ | PROT_WRITE, MAP_SHARED, m_fd, 0 );
-    if( ptr == MAP_FAILED )
-        ex()() << "Failed to map meta file " << m_path.string();
-
-    m_meta = static_cast<File*>(ptr);
-
-    m_meta->baseVersion   = 0;
-    m_meta->clientVersion = 0;
-    m_meta->state         = SYNCED;
-}
-
-void Data::load(  )
-{
-    // open the file
-    m_fd = ::open( m_path.c_str(), O_RDWR, S_IRUSR | S_IWUSR );
-    if( m_fd < 0 )
-        ex()() << "Failed to open meta file " << m_path.string()
-               << " (" << errno << "): " << strerror(errno);
-
     // optain an exclusive lock
     int result = flock(m_fd, LOCK_EX );
     if( result )
+    {
+        ::close(m_fd);
         ex()() << "Failed to lock meta file " << m_path.string()
                << " ("<< errno << "): " << strerror(errno);
+    }
 
+    // if the file size is too small then we should resize it
+    struct stat fs;
+    result = fstat(m_fd,&fs);
+    if( result )
+    {
+        ::close(m_fd);
+        ex()() << "Failed to stat meta file "
+               << m_path.string()
+               << " ("<< errno << "): " << strerror(errno);
+    }
+
+    bool isNew = fs.st_size < sizeof(File);
+    if( isNew )
+    {
+        result = ftruncate(m_fd,sizeof(File));
+        if( result )
+        {
+            ::close(m_fd);
+            ex()() << "Failed to truncate meta file "
+                   << m_path.string()
+                   << " ("<< errno << "): " << strerror(errno);
+        }
+    }
 
     void* ptr = mmap( 0, sizeof(File), PROT_READ | PROT_WRITE, MAP_SHARED, m_fd, 0 );
     if( ptr == MAP_FAILED )
         ex()() << "Failed to map meta file " << m_path.string();
 
     m_meta = static_cast<File*>(ptr);
+
+    if(isNew)
+    {
+        m_meta->baseVersion   = 0;
+        m_meta->clientVersion = 0;
+        m_meta->state         = SYNCED;
+    }
 }
 
 void Data::flush()
