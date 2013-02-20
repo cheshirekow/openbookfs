@@ -87,7 +87,7 @@ int OpenbookFS::mknod (const char *path, mode_t mode, dev_t dev)
     {
         MetaData metaData( metaPath );
         metaData.create();
-        metaData.close();
+        metaData.flush();
     }
     catch( std::exception& ex )
     {
@@ -133,7 +133,7 @@ int OpenbookFS::create (const char *path,
     {
         MetaData metaData( metaPath );
         metaData.create();
-        metaData.close();
+        metaData.flush();
     }
     catch( std::exception& ex )
     {
@@ -286,12 +286,12 @@ int OpenbookFS::truncate (const char *path, off_t length)
     try
     {
         MetaData metaData( metaPath );
-        metaData.open();
+        metaData.load();
         // increment client version
         metaData.set_clientVersion( metaData.clientVersion() + 1 );
         msg->set_base_version(metaData.baseVersion());
         msg->set_client_version(metaData.clientVersion());
-        metaData.close();
+        metaData.flush();
 
         // send the message
         TypedMessage tm(MSG_NEW_VERSION,msg);
@@ -386,12 +386,12 @@ int OpenbookFS::release (const char *path, struct fuse_file_info *fi)
             try
             {
                 MetaData metaData( metaPath );
-                metaData.open();
+                metaData.load();
                 // increment client version
                 metaData.set_clientVersion( metaData.clientVersion() + 1 );
                 msg->set_base_version(metaData.baseVersion());
                 msg->set_client_version(metaData.clientVersion());
-                metaData.close();
+                metaData.flush();
 
                 // send the message
                 TypedMessage tm(MSG_NEW_VERSION,msg);

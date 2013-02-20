@@ -66,6 +66,7 @@ if( (FUSE_FOUND)
                     ExtendedAttributes.cpp
                     FileDescriptor.cpp
                     MessageHandler.cpp
+                    MetaFile.cpp
                     OpenbookFS.cpp
                     ServerHandler.cpp          
                     ${MESSAGES_PB_CC}
