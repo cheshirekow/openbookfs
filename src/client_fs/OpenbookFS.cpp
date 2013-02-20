@@ -31,6 +31,8 @@
 
 namespace   openbook {
 namespace filesystem {
+namespace     client {
+
 
 
 int OpenbookFS::result_or_errno(int result)
@@ -913,6 +915,7 @@ int OpenbookFS::poll ( const char *, struct fuse_file_info *,
 
 
 
+} // namespace client
 } // namespace filesystem
 } // namespace openbook
 

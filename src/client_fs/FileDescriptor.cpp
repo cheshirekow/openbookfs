@@ -30,6 +30,8 @@
 
 namespace   openbook {
 namespace filesystem {
+namespace     client {
+
 
 FileDescriptor::FileDescriptor()
 {
@@ -64,6 +66,7 @@ void FileDescriptor::flag( fd::Flags flag, bool state)
     m_flags[flag] = state;
 }
 
+} // namespace client
 } // namespace filesystem
 } // namespace openbook
 

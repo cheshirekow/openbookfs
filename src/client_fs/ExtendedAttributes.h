@@ -32,6 +32,8 @@
 
 namespace   openbook {
 namespace filesystem {
+namespace     client {
+
 
 struct CStr
 {
@@ -76,6 +78,7 @@ State strToState( const std::string& );
 
 
 } // namespace xattr
+} // namespace client
 } // namespace filesystem
 } // namespace openbook
 

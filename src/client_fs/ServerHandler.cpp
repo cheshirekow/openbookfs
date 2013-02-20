@@ -65,6 +65,8 @@
 
 namespace   openbook {
 namespace filesystem {
+namespace     client {
+
 
 
 void* ServerHandler::dispatch_main( void* vp_handler )
@@ -790,6 +792,7 @@ void ServerHandler::sendMessage( TypedMessage msg )
 
 
 
+} // namespace client
 } // namespace filesystem
 } // namespace openbook
 

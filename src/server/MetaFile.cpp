@@ -30,6 +30,7 @@
 
 namespace   openbook {
 namespace filesystem {
+ namespace    server {
 namespace       meta {
 
 Data::Data(const std::string& path ):
@@ -197,6 +198,7 @@ void Data::unsubscribe( uint64_t id )
 
 
 } // namespace meta
+} // namespace server 
 } // namespace filesystem
 } // namespace openbook
 

@@ -34,6 +34,7 @@
 
 namespace   openbook {
 namespace filesystem {
+ namespace    server {
 
 extern
 pthreads::Key g_handlerKey;  ///< associates the ClientHandler* pointer with
@@ -42,6 +43,7 @@ extern
 NotifyPipe* g_termNote;      ///< pipe used to break out of select statements
 
 
+} // namespace server 
 } // namespace filesystem
 } // namespace openbook
 

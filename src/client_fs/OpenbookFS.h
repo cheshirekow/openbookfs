@@ -24,6 +24,8 @@
 
 namespace   openbook {
 namespace filesystem {
+namespace     client {
+
 
 
 class OpenbookFS
@@ -460,6 +462,7 @@ struct OpenbookFS_Init
 };
 
 
+} // namespace client
 } // namespace filesystem
 } // namespace openbook
 

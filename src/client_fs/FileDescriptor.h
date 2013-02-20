@@ -33,6 +33,8 @@
 
 namespace   openbook {
 namespace filesystem {
+namespace     client {
+
 
 /// flags for FileDescriptor
 namespace fd
@@ -118,6 +120,7 @@ class FileDescriptorArrayImpl:
 
 
 
+} // namespace client
 } // namespace filesystem
 } // namespace openbook
 

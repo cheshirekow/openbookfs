@@ -55,6 +55,8 @@
 
 namespace   openbook {
 namespace filesystem {
+namespace     client {
+
 
 
 class ServerException :
@@ -154,6 +156,7 @@ class ServerHandler
 
 
 
+} // namespace client
 } // namespace filesystem
 } // namespace openbook
 

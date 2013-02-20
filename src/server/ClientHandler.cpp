@@ -47,6 +47,7 @@
 
 namespace   openbook {
 namespace filesystem {
+ namespace    server {
 
 
 // calls ClientHandler::init
@@ -672,5 +673,6 @@ void* ClientHandler::shout()
 
 
 
+} // namespace server 
 } // namespace filesystem
 } // namespace openbook

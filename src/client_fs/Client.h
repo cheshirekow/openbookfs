@@ -39,7 +39,7 @@
 
 namespace   openbook {
 namespace filesystem {
-
+namespace     client {
 
 /// encapsulates details about the client and it's configuration
 struct Client
@@ -91,7 +91,7 @@ struct Client
 
 
 
-
+} // namespace client
 } // namespace filesystem
 } // namespace openbook
 

@@ -44,7 +44,7 @@
 
 namespace   openbook {
 namespace filesystem {
-
+namespace     client {
 
 Client::Client()
 {
@@ -169,6 +169,6 @@ uint64_t Client::nextId()
 
 
 
-
+} // namespace client
 } // namespace filesystem
 } // namespace openbook

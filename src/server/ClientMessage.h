@@ -32,6 +32,7 @@
 
 namespace   openbook {
 namespace filesystem {
+ namespace    server {
 
 class ClientHandler;
 
@@ -49,6 +50,7 @@ struct ClientMessage
 
 
 
+} // namespace server 
 } // namespace filesystem
 } // namespace openbook
 

@@ -32,6 +32,8 @@
 
 namespace   openbook {
 namespace filesystem {
+namespace     client {
+
 
 
 void setFuseOps( fuse_operations& fuse_ops )
@@ -83,6 +85,7 @@ void setFuseOps( fuse_operations& fuse_ops )
 }
 
 
+} // namespace client
 } // namespace filesystem
 } // namespace openbook
 
@@ -93,6 +96,8 @@ void setFuseOps( fuse_operations& fuse_ops )
 
 namespace   openbook {
 namespace filesystem {
+namespace     client {
+
 namespace   fuse_ops {
 
 
@@ -478,6 +483,7 @@ int poll ( const char *, struct fuse_file_info *,
 
 
 } // namespace fuseops
+} // namespace client
 } // namespace filesystem
 } // namespace openbook
 

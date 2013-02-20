@@ -32,6 +32,8 @@
 
 namespace   openbook {
 namespace filesystem {
+namespace     client {
+
 
 /// private stuff for meta data file
 namespace       meta {
@@ -156,6 +158,7 @@ class Data
 
 
 } // namespace meta
+} // namespace client
 } // namespace filesystem
 } // namespace openbook
 
@@ -163,9 +166,12 @@ class Data
 
 namespace   openbook {
 namespace filesystem {
+namespace     client {
+
 
 typedef meta::Data MetaData;
 
+} // namespace client
 } // namespace filesystem
 } // namespace openbook
 

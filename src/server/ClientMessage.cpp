@@ -31,6 +31,7 @@
 
 namespace   openbook {
 namespace filesystem {
+ namespace    server {
 
 
 ClientMessage::ClientMessage(
@@ -51,5 +52,6 @@ void ClientMessage::send()
 
 
 
+} // namespace server 
 } // namespace filesystem
 } // namespace openbook

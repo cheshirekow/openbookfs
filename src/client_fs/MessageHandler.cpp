@@ -29,6 +29,8 @@
 
 namespace   openbook {
 namespace filesystem {
+namespace     client {
+
 
 
 void* MessageHandler::dispatch_main( void* vp_h )
@@ -161,5 +163,6 @@ void MessageHandler::start()
 
 
 
+} // namespace client
 } // namespace filesystem
 } // namespace openbook

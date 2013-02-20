@@ -43,6 +43,7 @@
 
 namespace   openbook {
 namespace filesystem {
+ namespace    server {
 
 
 Server::Server()
@@ -181,5 +182,6 @@ void Server::initConfig(const std::string& configFile)
 
 
 
+} // namespace server 
 } // namespace filesystem
 } // namespace openbook

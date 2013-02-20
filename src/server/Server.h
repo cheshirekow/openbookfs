@@ -36,6 +36,7 @@
 
 namespace   openbook {
 namespace filesystem {
+ namespace    server {
 
 
 /// encapsulates details about the server and it's configuration
@@ -94,6 +95,7 @@ struct Server
 
 
 
+} // namespace server 
 } // namespace filesystem
 } // namespace openbook
 

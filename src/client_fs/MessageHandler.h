@@ -44,6 +44,8 @@
 
 namespace   openbook {
 namespace filesystem {
+namespace     client {
+
 
 
 /// reads a message and does whatever the message says to do
@@ -85,6 +87,7 @@ class MessageHandler
 
 
 
+} // namespace client
 } // namespace filesystem
 } // namespace openbook
 

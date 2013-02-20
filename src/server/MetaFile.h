@@ -44,6 +44,7 @@
 
 namespace   openbook {
 namespace filesystem {
+ namespace    server {
 
 /// private stuff for meta data file
 namespace       meta {
@@ -109,6 +110,7 @@ struct Data
 
 
 } // namespace meta
+} // namespace server 
 } // namespace filesystem
 } // namespace openbook
 
@@ -116,9 +118,11 @@ struct Data
 
 namespace   openbook {
 namespace filesystem {
+ namespace    server {
 
 typedef meta::Data MetaData;
 
+} // namespace server 
 } // namespace filesystem
 } // namespace openbook
 

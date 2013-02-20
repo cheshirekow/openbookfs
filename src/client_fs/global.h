@@ -30,11 +30,14 @@
 
 namespace   openbook {
 namespace filesystem {
+namespace     client {
+
 
 extern volatile bool        g_shouldDie;
 
-}
-}
+} // namespace client
+} // namespace filesystem
+} // namespace openbook
 
 
 

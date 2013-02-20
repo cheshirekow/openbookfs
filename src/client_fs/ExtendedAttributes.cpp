@@ -32,6 +32,8 @@
 
 namespace   openbook {
 namespace filesystem {
+namespace     client {
+
 namespace      xattr {
 
 CStr g_keyStr[NUM_KEYS] =
@@ -91,6 +93,7 @@ State strToState( const std::string& str )
 
 
 } // namespace xattr
+} // namespace client
 } // namespace filesystem
 } // namespace openbook
 

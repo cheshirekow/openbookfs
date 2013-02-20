@@ -35,16 +35,20 @@
 #include "NotifyPipe.h"
 #include "FileDescriptor.h"
 
-using namespace openbook::filesystem;
-
 namespace   openbook {
 namespace filesystem {
+namespace     client {
+
 
 volatile bool   g_shouldDie = false;
 NotifyPipe*     g_termNote;
 
-}
-}
+} // namespace client
+} // namespace filesystem
+} // namespace openbook
+
+using namespace openbook::filesystem;
+using namespace client;
 
 int main(int argc, char** argv)
 {

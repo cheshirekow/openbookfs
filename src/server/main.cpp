@@ -60,16 +60,19 @@
 
 namespace   openbook {
 namespace filesystem {
+ namespace    server {
 
 // declarted in globa.h
 pthreads::Key g_handlerKey;
 NotifyPipe* g_termNote;
 
-}
-}
+} // namespace server
+} // namespace filesystem
+} // namespace openbook
 
 
 using namespace openbook::filesystem;
+using namespace server;
 
 void signal_callback( int signum )
 {
