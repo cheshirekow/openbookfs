@@ -104,6 +104,9 @@ class MessageBuffer
         Encrypt_t   m_enc;  ///< AES encryptor
         Decrypt_t   m_dec;  ///< AES decryptor
 
+        /// parse a message according to type
+        template <MessageId ID>
+        Message* parse( const char* ptr, unsigned int size );
 
         /// throws a MessageException if value is 0
         void checkForDisconnect( int value );

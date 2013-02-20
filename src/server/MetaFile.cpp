@@ -149,9 +149,8 @@ void Data::load()
 void Data::flush()
 {
     // truncate the file to the new size
-    size_t size = (subs.size()-1)*sizeof(uint64_t);
-    int result =
-        ftruncate(m_fd,sizeof(File) + size);
+    size_t size = sizeof(File) + (subs.size()-1)*sizeof(uint64_t);
+    int result = ftruncate(m_fd,size);
     if( result < 0 )
     {
         ::close(m_fd);

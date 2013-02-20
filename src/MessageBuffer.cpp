@@ -35,9 +35,28 @@
 #include "MessageBuffer.h"
 #include "SelectSpec.h"
 
+/// macro used only by MES
+#define DECODE_MSG(x)   \
+    case x:         \
+    {               \
+        out.msg = parse<x>(&m_plain[1],m_plain.size()-1);   \
+        break;      \
+    }               \
 
 namespace   openbook {
 namespace filesystem {
+
+
+template <MessageId ID>
+Message* MessageBuffer::parse( const char* ptr, unsigned int size )
+{
+    typedef typename MessageType<ID>::type UpType;
+    UpType* msg = new UpType();
+    if( !msg->ParseFromArray(ptr, size) )
+        ex()() << "Failed to parse message as " << messageIdToString(ID);
+
+    return msg;
+}
 
 
 MessageBuffer::MessageBuffer()
@@ -857,35 +876,12 @@ TypedMessage MessageBuffer::readEnc( int fd[2] )
 
     switch(out.type)
     {
-        case MSG_NEW_VERSION:
-        {
-            messages::NewVersion* msg = new messages::NewVersion();
-            if( !msg->ParseFromArray(&m_plain[1],m_plain.size()-1) )
-                ex()() << "Failed to parse message as "
-                       << messageIdToString(type);
-            out.msg = msg;
-            break;
-        }
-
-        case MSG_PING:
-        {
-            messages::Ping* msg = new messages::Ping();
-            if( !msg->ParseFromArray(&m_plain[1],m_plain.size()-1) )
-                ex()() << "Failed to parse message as "
-                       << messageIdToString(type);
-            out.msg = msg;
-            break;
-        }
-
-        case MSG_PONG:
-        {
-            messages::Pong* msg = new messages::Pong();
-            if( !msg->ParseFromArray(&m_plain[1],m_plain.size()-1) )
-                ex()() << "Failed to parse message as "
-                       << messageIdToString(type);
-            out.msg = msg;
-            break;
-        }
+        DECODE_MSG(MSG_NEW_VERSION)
+        DECODE_MSG(MSG_PING)
+        DECODE_MSG(MSG_PONG)
+        DECODE_MSG(MSG_REQUEST_CHUNK)
+        DECODE_MSG(MSG_FILE_CHUNK)
+        DECODE_MSG(MSG_COMMIT)
 
         default:
         {

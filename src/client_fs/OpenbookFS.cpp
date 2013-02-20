@@ -100,6 +100,7 @@ int OpenbookFS::mknod (const char *path, mode_t mode, dev_t dev)
     msg->set_base_version(0);
     msg->set_client_version(0);
     msg->set_path(path);
+    msg->set_size(0);
 
     TypedMessage tm(MSG_NEW_VERSION,msg);
     m_comm->sendMessage(tm);
@@ -146,6 +147,7 @@ int OpenbookFS::create (const char *path,
     msg->set_base_version(0);
     msg->set_client_version(0);
     msg->set_path(path);
+    msg->set_size(0);
 
     TypedMessage tm(MSG_NEW_VERSION,msg);
     m_comm->sendMessage(tm);
@@ -282,6 +284,7 @@ int OpenbookFS::truncate (const char *path, off_t length)
     messages::NewVersion* msg = new messages::NewVersion();
     msg->set_job_id( m_client->nextId() );
     msg->set_path(path);
+    msg->set_size(length);
 
     try
     {
@@ -370,10 +373,6 @@ int OpenbookFS::release (const char *path, struct fuse_file_info *fi)
         /// lock during the write
         pthreads::ScopedLock lock(fd->mutex());
 
-        int result = ::close(fi->fh);
-        if( result < 0 )
-            return -errno;
-
         // if the file has changed then send update to the server
         if( fd->flag(fd::FLAG_CHANGED) )
         {
@@ -385,6 +384,14 @@ int OpenbookFS::release (const char *path, struct fuse_file_info *fi)
 
             try
             {
+                // stat the file to get the size
+                struct stat fs;
+                int result = ::fstat(fi->fh,&fs);
+                if( result < 0 )
+                    ex()() << "Failed to stat file " << path
+                           << " after changes " ;
+                msg->set_size(fs.st_size);
+
                 MetaData metaData( metaPath );
                 metaData.load();
                 // increment client version
@@ -405,8 +412,11 @@ int OpenbookFS::release (const char *path, struct fuse_file_info *fi)
             }
         }
 
-        // mark the fd as closed
+        // close the file and mark it as closed mark the fd as closed
         fd->flag(fd::FLAG_OPENED, false);
+        int result = ::close(fi->fh);
+        if( result < 0 )
+            return -errno;
 
         // return the result of the write
         return result;

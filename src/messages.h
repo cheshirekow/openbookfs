@@ -46,6 +46,9 @@ enum MessageId
     MSG_AUTH_RESULT,
     MSG_JOB_FINISHED,
     MSG_NEW_VERSION,
+    MSG_REQUEST_CHUNK,
+    MSG_FILE_CHUNK,
+    MSG_COMMIT,
     INVALID_MESSAGE,
     NUM_MSG = INVALID_MESSAGE,
 };
@@ -71,9 +74,12 @@ struct TypedMessage
 template < MessageId ID >
 struct MessageType;
 
-template <> struct MessageType<MSG_PING>       { typedef messages::Ping       type; };
-template <> struct MessageType<MSG_PONG>       { typedef messages::Pong       type; };
-template <> struct MessageType<MSG_NEW_VERSION>{ typedef messages::NewVersion type; };
+template <> struct MessageType<MSG_PING>         { typedef messages::Ping         type; };
+template <> struct MessageType<MSG_PONG>         { typedef messages::Pong         type; };
+template <> struct MessageType<MSG_NEW_VERSION>  { typedef messages::NewVersion   type; };
+template <> struct MessageType<MSG_REQUEST_CHUNK>{ typedef messages::RequestChunk type; };
+template <> struct MessageType<MSG_FILE_CHUNK>   { typedef messages::FileChunk    type; };
+template <> struct MessageType<MSG_COMMIT>       { typedef messages::Commit       type; };
 
 /// upcasts a generic message pointer
 template < MessageId ID >

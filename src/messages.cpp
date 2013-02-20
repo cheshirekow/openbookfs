@@ -46,6 +46,9 @@ const char* messageIdToString( char id )
         "AUTH_RESULT",
         "JOB_FINISHED",
         "NEW_VERSION",
+        "REQUEST_CHUNK",
+        "FILE_CHUNK",
+        "COMMIT",
         "INVALID_ID"
     };
 

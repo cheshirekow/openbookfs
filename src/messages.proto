@@ -88,25 +88,55 @@ message Pong {
 //                      File System Notifications and Jobs
 // ----------------------------------------------------------------------------
 
+// sent by the client when the user writes to a file on the file system or by
+// the server when it finishes downloading a new version
+message NewVersion {
+    optional int32  job_id         = 1;    // server specific request_id
+    optional int32  base_version   = 2;    // official version of original file
+    optional int32  client_version = 3;    // number of client changes
+    optional int64  size           = 4;    // file size
+    optional string path           = 5;    // path of the file 
+}
+
+// Sent by the client or server requesting a chunk of data from the specified
+// file. This message is always acked.
+message RequestChunk {
+    optional int32  msg_id          = 1;    // message id for acking
+    optional int32  base_version    = 2;    // used to verify file is ok
+    optional int32  client_version  = 3;    // used to verify file is ok
+    optional int64  offset          = 4;    // offset of chunk
+    optional int64  size            = 5;    // size of chunk
+    optional string path            = 6;    // path of the file
+}
+
+// Message containinga  chunk of a file
+message FileChunk {
+    optional int32  msg_id          = 1;    // message id of response
+    optional int32  base_version    = 2;    // used to verify file is ok
+    optional int32  client_version  = 3;    // used to verify file is ok
+    optional int64  offset          = 4;    // offset of chunk
+    optional string path            = 5;    // path of the file
+    optional bytes  data            = 6;    // actual data chunk
+}
+ 
+// Sent by the server after a download telling a client that his version
+// is now official
+message Commit {
+    optional int32  msg_id           = 1; // message id for acking
+    optional int32  base_version     = 2; // old base version
+    optional int32  client_version   = 3; // version committed
+    optional int32  new_version      = 4; // new base version
+    optional string path             = 5; // the file committed
+}
+
+
+
 // acknowledges a job completion
 message JobComplete {
     optional int32   job_id = 1;    
 }
 
 
-// a new file has been created
-message Create {
-    optional int32   job_id = 1;    // client specific request id
-    optional int64   time   = 2;    // creation time of the file
-    optional string  path   = 3;    // path of the file (including file name)
-}
-
-// a file has been deleted
-message Delete {
-    optional int32   job_id = 1;    // client specific request id
-    optional int64   time   = 2;    // creation time of the file
-    optional string  path   = 3;    // path of the file (including file name)
-}
 
 
 // sent when a subscription is created
@@ -121,95 +151,6 @@ message Unsubscribe {
     optional int32   job_id     = 1;    // client specific request id
     optional int32   client_id  = 2;    // which client get's the subscription
     optional string  path       = 3;    // path to the file
-}
-
-// sent when a client wants to upload a new version
-message RequestUpload {
-    optional int32   job_id     = 1;    // client specific request id
-    optional int32   version    = 2;    // previous file version
-    optional int64   size       = 3;    // new file size
-    optional int32   path       = 4;    // path of the file
-}
-
-// sent by server when it grants an upload request
-message GrantUpload {
-    enum Status
-    {
-        GRANTED  = 0;    // ditto
-        CONFLICT = 1;    // some is writing or has written a new version 
-                         // already
-    }
-
-    optional int32   job_id     = 1;    // request to which the server is 
-                                        // responding
-    optional Status  status     = 2;    // whether or not it was granted
-    optional int32   up_id      = 3;    // numeric identifier for this
-                                        // transaction
-}
-
-// sent by a client containing one segment of a file upload
-message UploadChunk {
-    optional int32  job_id  = 1;    // used for ack
-    optional int32  up_id   = 2;    // upload session
-    optional int64  offset  = 3;    // where to write the chunk in the file
-    optional bytes  data    = 4;    // actual chunk of data
-}
-
-
-
-// sent when a client wants to download a new version
-message RequestDownload {
-    optional int32   job_id     = 1;    // client specific request id
-    optional int32   path       = 2;    // path of the file
-}
-
-// sent by the server when it grants a client download priviledges (locks file)
-message GrantDownload {
-    enum Status 
-    {
-        GRANTED = 0;    // ditto
-        LOCKED  = 1;    // someone is writing a new version
-    }
-
-    optional int32   job_id     = 1;    // client specific request id
-    optional Status  status     = 2;    // whether or not download was granted
-    optional int32   version    = 3;    // version being downloaded
-    optional int64   size       = 4;    // file size
-    optional int32   down_id    = 5;    // numeric identifier for this 
-                                        // transaction
-}
-
-// sent by the client when he's ready to receive data
-message DownloadReady{
-    optional int32 down_id = 1; // id of the download job
-}
-
-// sent by the server containing one segment of a file to download
-message DownloadChunk {
-    optional int32  job_id  = 1;    // used for ack
-    optional int32  down_id = 2;    // upload session
-    optional int64  offset  = 3;    // where to write the chunk in the file
-    optional bytes  data    = 4;    // actual chunk of data
-}
-
-// sent by the server to ack receipt of an upload chunk or by the client to
-// ack receipt of a download chunk
-// note: this is *almost* unnecessary b/c TCP offers guarentee but the problem
-// is that if we send a chunk and it gets to the network stack buffer of the
-// OS it *appears* to the software that the send was sucessful, even if the
-// connection is terminated before the data is actually sent. This ensures that
-// the server *knows* for a fact when chunks are sent
-message ChunkReceived {
-    optional int32  job_id   = 1;   // the id of the upload/download job
-}
-
-
-// sent by the server to all subscribed clients when a file changes version
-message NewVersion {
-    optional int32  job_id         = 1;    // server specific request_id
-    optional int32  base_version   = 2;    // official version of original file
-    optional int32  client_version = 3;    // number of client changes
-    optional string path           = 4;    // path of the file 
 }
 
 

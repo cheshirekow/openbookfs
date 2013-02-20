@@ -64,13 +64,18 @@ class MessageHandler
         Client*         m_client;
         ServerHandler*  m_server;
 
+        /// static method for pthreads, calls main()
+        static void* dispatch_main( void* vp_h );
 
         /// main method of the job handler, waits for jobs in the queue and
         /// then does them
         void* main();
 
-        /// static method for pthreads, calls main()
-        static void* dispatch_main( void* vp_h );
+        /// typed message  handlers
+        void handleMessage( TypedMessage msg, messages::Ping*         upcast );
+        void handleMessage( TypedMessage msg, messages::Pong*         upcast );
+        void handleMessage( TypedMessage msg, messages::RequestChunk* upcast );
+        void handleMessage( TypedMessage msg, messages::Commit*       upcast );
 
     public:
         MessageHandler();

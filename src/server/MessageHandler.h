@@ -75,6 +75,7 @@ class MessageHandler
         void handleMessage( ClientMessage msg, messages::Ping*       upcast );
         void handleMessage( ClientMessage msg, messages::Pong*       upcast );
         void handleMessage( ClientMessage msg, messages::NewVersion* upcast );
+        void handleMessage( ClientMessage msg, messages::FileChunk*  upcast );
 
     public:
         MessageHandler();

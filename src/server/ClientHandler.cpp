@@ -201,11 +201,16 @@ void* ClientHandler::main()
             m_shoutThread.launch( dispatch_shout, this );
 
             // create a ping message for the client
-            TypedMessage msg(MSG_PING);
             messages::Ping* ping = new messages::Ping();
             ping->set_payload(0xb19b00b5);
-            msg.msg = ping;
-            m_outboundMessages.insert(msg);
+            TypedMessage pingMsg(MSG_PING,ping);
+            m_outboundMessages.insert(pingMsg);
+
+            sleep(2);
+            messages::Pong* pong = new messages::Pong();
+            pong->set_payload(0xb19b00b5);
+            TypedMessage pongMsg(MSG_PONG,pong);
+            m_outboundMessages.insert(pongMsg);
         }
     }
     catch( std::exception& ex )
@@ -214,9 +219,11 @@ void* ClientHandler::main()
                   << ex.what();
     }
 
-    // now we do our cleanup, but first lock the object so that no one tries
-    // to modify us while we're doing this
-    pthreads::ScopedLock(m_mutex);
+    m_listenThread.join();
+    std::cout << "handler " << (void*)this << " listen thread quit\n";
+
+    m_shoutThread.join();
+    std::cout << "handler " << (void*)this << " shout thread quit\n";
 
     // remove ourselves from the client map
     {
@@ -224,17 +231,13 @@ void* ClientHandler::main()
         m_clientMap->subvert()->erase(m_clientId);
     }
 
+    // now we do our cleanup, but first lock the object so that no one tries
+    // to modify us while we're doing this
+    pthreads::ScopedLock lock(m_mutex);
+
     // invalidate client id so any jobs that finish after we die
     // don't get sent when this handler is reused later
     m_clientId=0;
-
-    m_listenThread.join();
-    std::cout << "handler " << (void*)this
-              << " listen thread quit\n";
-
-    m_shoutThread.join();
-    std::cout << "handler " << (void*)this
-              << " shout thread quit\n";
 
     // close the file descriptor
     close(m_fd[0]);
@@ -585,13 +588,17 @@ void ClientHandler::handshake()
     soci::session sql(soci::sqlite3,m_server->dbFile());
 
     // insert the key into the database if it isn't already there
-    sql << "INSERT OR REPLACE INTO known_clients (client_key, client_name) "
+    sql << "INSERT OR IGNORE INTO known_clients (client_key, client_name) "
            "VALUES ('"<< base64 << "','" << displayName << "')";
 
     // now select out the id
     sql << "SELECT client_id FROM known_clients WHERE client_key='"
         << base64 << "'",
             soci::into(m_clientId);
+
+    // update the client name
+    sql << "UPDATE known_clients SET client_name='" << displayName
+        << "' WHERE client_id=" << m_clientId;
 
     // now map the client id to this object
     // lock scope
