@@ -398,6 +398,12 @@ int OpenbookFS::release (const char *path, struct fuse_file_info *fi)
                 metaData.set_clientVersion( metaData.clientVersion() + 1 );
                 msg->set_base_version(metaData.baseVersion());
                 msg->set_client_version(metaData.clientVersion());
+
+                std::cout << "Sending new version message for " << path
+                          << "\n     base: " << metaData.baseVersion()
+                          << "\n   client: " << metaData.clientVersion()
+                          << std::endl;
+
                 metaData.flush();
 
                 // send the message

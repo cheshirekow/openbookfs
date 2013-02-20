@@ -186,7 +186,8 @@ void MessageHandler::handleMessage(
                 req->set_path( upcast->path() );
                 req->set_offset(0);
                 req->set_size(size);
-                req->set_client_version(upcast->client_version());
+                req->set_base_version(meta.baseVersion());
+                req->set_client_version(meta.clientVersion());
                 req->set_msg_id(0); // todo: set message id
 
                 ClientMessage out = msg;
@@ -223,7 +224,8 @@ void MessageHandler::handleMessage(
                 req->set_path( upcast->path() );
                 req->set_offset(0);
                 req->set_size(size);
-                req->set_client_version(upcast->client_version());
+                req->set_base_version(meta.baseVersion());
+                req->set_client_version(meta.clientVersion());
                 req->set_msg_id(0); // todo: set message id
 
                 ClientMessage out = msg;

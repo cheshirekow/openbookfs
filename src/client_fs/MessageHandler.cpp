@@ -172,10 +172,12 @@ void MessageHandler::handleMessage(
         MetaData meta(metaPath);
         meta.load();
         chunk->set_client_version(meta.clientVersion());
+        chunk->set_base_version(meta.baseVersion());
 
         // if the current version is higher than the requested version then
         // we need to reply without data
-        if( upcast->client_version() == meta.clientVersion() )
+        if( upcast->base_version() == meta.baseVersion() &&
+                upcast->client_version() == meta.clientVersion() )
         {
             int fd = ::open( filePath.c_str(), O_RDWR );
             if( fd < 0 )
