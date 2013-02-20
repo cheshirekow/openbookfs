@@ -41,6 +41,32 @@ class OpenbookFS
         ~OpenbookFS();
 
 
+        /** Create a file node
+         *
+         * This is called for creation of all non-directory, non-symlink
+         * nodes.  If the filesystem defines a create() method, then for
+         * regular files that will be called instead.
+         *
+         * The openbookfs also creates the file path.obfsmeta, which is where
+         * meta data is stored
+         */
+        int mknod (const char *, mode_t, dev_t);
+
+        /**
+         * Create and open a file
+         *
+         * If the file does not exist, first create it with the specified
+         * mode, and then open it.
+         *
+         * If this method is not implemented or under Linux kernel
+         * versions earlier than 2.6.15, the mknod() and open() methods
+         * will be called instead.
+         *
+         * Introduced in version 2.5
+         */
+        int create (const char *, mode_t, struct fuse_file_info *);
+
+
         /** Get file attributes.
          *
          * Similar to stat().  The 'st_dev' and 'st_blksize' fields are
@@ -62,16 +88,7 @@ class OpenbookFS
         /* Deprecated, use readdir() instead */
         // int getdir (const char *, fuse_dirh_t, fuse_dirfil_t);
 
-        /** Create a file node
-         *
-         * This is called for creation of all non-directory, non-symlink
-         * nodes.  If the filesystem defines a create() method, then for
-         * regular files that will be called instead.
-         *
-         * The openbookfs also creates the file path.obfsmeta, which is where
-         * meta data is stored
-         */
-        int mknod (const char *, mode_t, dev_t);
+
 
         /** Create a directory
          *
@@ -311,19 +328,7 @@ class OpenbookFS
          */
         int access (const char *, int);
 
-        /**
-         * Create and open a file
-         *
-         * If the file does not exist, first create it with the specified
-         * mode, and then open it.
-         *
-         * If this method is not implemented or under Linux kernel
-         * versions earlier than 2.6.15, the mknod() and open() methods
-         * will be called instead.
-         *
-         * Introduced in version 2.5
-         */
-        int create (const char *, mode_t, struct fuse_file_info *);
+
 
         /**
          * Change the size of an open file

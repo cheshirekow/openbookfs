@@ -129,6 +129,8 @@ class Data
         {
             if(m_meta)
                 munmap(m_meta,sizeof(File));
+
+            // note: will also unlock
             if(m_fd)
                 ::close(m_fd);
 

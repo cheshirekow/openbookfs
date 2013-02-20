@@ -65,6 +65,93 @@ OpenbookFS::~OpenbookFS()
 
 
 
+int OpenbookFS::mknod (const char *path, mode_t mode, dev_t dev)
+{
+    namespace fs = boost::filesystem;
+    fs::path wrapped = (m_realRoot / path);
+    std::cerr << "mknod: " << path
+                << " (" << (m_realRoot / path) << ")" << std::endl;
+
+    int result = ::mknod( wrapped.c_str(), mode, dev );
+    if( result )
+        return -errno;
+
+    // create meta data file
+    fs::path metaPath = m_realRoot / (std::string(path) + ".obfsmeta");
+
+    try
+    {
+        MetaData metaData( metaPath );
+        metaData.create();
+        metaData.close();
+    }
+    catch( std::exception& ex )
+    {
+        std::cerr << "Problem creating meta data: " << ex.what();
+    }
+
+    // send message to server
+    messages::NewVersion* msg = new messages::NewVersion();
+    msg->set_job_id( m_client->nextId() );
+    msg->set_base_version(0);
+    msg->set_client_version(0);
+    msg->set_path(path);
+
+    TypedMessage tm(MSG_NEW_VERSION,msg);
+    m_comm->sendMessage(tm);
+
+    return 0;
+}
+
+
+
+
+int OpenbookFS::create (const char *path,
+                            mode_t mode,
+                            struct fuse_file_info *fi)
+{
+    namespace fs = boost::filesystem;
+
+    std::cerr << "create: "
+             "\n   path: " << path <<
+             "\n       : " << (m_realRoot / path) <<
+             "\n   mode: " << mode <<
+             std::endl;
+
+    fs::path wrapped = (m_realRoot / path).string();
+    fi->fh = ::creat( wrapped.c_str() , mode );
+    if( fi->fh < 0 )
+        return -errno;
+
+    fs::path metaPath = m_realRoot / (std::string(path) + ".obfsmeta");
+
+    try
+    {
+        MetaData metaData( metaPath );
+        metaData.create();
+        metaData.close();
+    }
+    catch( std::exception& ex )
+    {
+        std::cerr << "Problem creating meta data: " << ex.what();
+    }
+
+    // send message to server
+    messages::NewVersion* msg = new messages::NewVersion();
+    msg->set_job_id( m_client->nextId() );
+    msg->set_base_version(0);
+    msg->set_client_version(0);
+    msg->set_path(path);
+
+    TypedMessage tm(MSG_NEW_VERSION,msg);
+    m_comm->sendMessage(tm);
+
+    return 0;
+}
+
+
+
+
 int OpenbookFS::getattr (const char *path, struct stat *out)
 {
     std::string wrapped = (m_realRoot / path).string();
@@ -94,57 +181,33 @@ int OpenbookFS::readlink (const char *path, char *buf, size_t bufsize)
 
 
 
-int OpenbookFS::mknod (const char *path, mode_t mode, dev_t dev)
+
+
+
+
+int OpenbookFS::mkdir (const char *path, mode_t mode)
 {
-    namespace fs = boost::filesystem;
-    fs::path wrapped = (m_realRoot / path);
-    std::cerr << "mknod: " << path
-                << " (" << (m_realRoot / path) << ")" << std::endl;
+    std::string wrapped = (m_realRoot / path).string();
 
-    int result = ::mknod( wrapped.c_str(), mode, dev );
-    if( result )
-        return -errno;
-
-    fs::path metaPath = m_realRoot / (std::string(path) + ".obfsmeta");
-
-    try
-    {
-        MetaData metaData( metaPath );
-        metaData.create();
-    }
-    catch( std::exception& ex )
-    {
-        std::cerr << "Problem creating meta data: " << ex.what();
-    }
-
-    return 0;
-}
-
-
-
-int OpenbookFS::mkdir (const char *pathname, mode_t mode)
-{
-    std::string wrapped = (m_realRoot / pathname).string();
-
-    std::cerr << "mkdir: " << pathname
+    std::cerr << "mkdir: " << path
                 << "(" << wrapped << ")" << std::endl;
     return ::mkdir(  wrapped.c_str() , mode|S_IFDIR ) ? -errno : 0;
 }
 
 
 
-int OpenbookFS::unlink (const char *pathname)
+int OpenbookFS::unlink (const char *path)
 {
     namespace fs = boost::filesystem;
-    fs::path wrapped = (m_realRoot / pathname);
-    std::cerr << "unlink: " << pathname
+    fs::path wrapped = (m_realRoot / path);
+    std::cerr << "unlink: " << path
                 << "(" << wrapped << ")" << std::endl;
 
     int result = ::unlink( wrapped.c_str() );
     if( result )
         return -errno;
 
-    fs::path metaFile = m_realRoot / ( std::string(pathname) + ".obfsmeta" );
+    fs::path metaFile = m_realRoot / ( std::string(path) + ".obfsmeta" );
     result = ::unlink ( metaFile.c_str() );
 
     return 0;
@@ -152,11 +215,11 @@ int OpenbookFS::unlink (const char *pathname)
 
 
 
-int OpenbookFS::rmdir (const char *pathname)
+int OpenbookFS::rmdir (const char *path)
 {
-    std::string wrapped = (m_realRoot / pathname).string();
+    std::string wrapped = (m_realRoot / path).string();
 
-    std::cerr << "rmdir: " << pathname
+    std::cerr << "rmdir: " << path
                 << "(" << wrapped << ")" << std::endl;
 
     return result_or_errno( ::rmdir(  wrapped.c_str()  ) );
@@ -281,16 +344,16 @@ int OpenbookFS::open (const char *path, struct fuse_file_info *fi)
 
 
 
-int OpenbookFS::read (const char *pathname,
+int OpenbookFS::read (const char *path,
                         char *buf,
                         size_t bufsize,
                         off_t offset,
                         struct fuse_file_info *fi)
 {
-    std::string wrapped = (m_realRoot / pathname).string();
+    std::string wrapped = (m_realRoot / path).string();
 
     std::cerr << "read: "
-              "\n    path: " << pathname  <<
+              "\n    path: " << path  <<
               "\n        : " << wrapped   <<
               "\n    size: " << bufsize   <<
               "\n     off: " << offset    <<
@@ -308,15 +371,15 @@ int OpenbookFS::read (const char *pathname,
 
 
 
-int OpenbookFS::write (const char *pathname,
+int OpenbookFS::write (const char *path,
                         const char *buf,
                         size_t bufsize,
                         off_t offset,
                       struct fuse_file_info *fi)
 {
     std::cerr << "write: "
-              "\n    path: " << pathname                <<
-              "\n        : " << (m_realRoot/pathname)    <<
+              "\n    path: " << path                <<
+              "\n        : " << (m_realRoot/path)    <<
               "\n      fh: " << fi->fh                  <<
               std::endl;
 
@@ -556,51 +619,18 @@ void OpenbookFS::destroy (void *)
 
 
 
-int OpenbookFS::access (const char *pathname, int mode)
+int OpenbookFS::access (const char *path, int mode)
 {
     std::cerr << "access: "
-             "\n   path: " << pathname <<
-             "\n       : " << (m_realRoot / pathname) <<
+             "\n   path: " << path <<
+             "\n       : " << (m_realRoot / path) <<
              "\n   mode: " << mode <<
              std::endl;
 
-    std::string wrapped = (m_realRoot / pathname).string();
+    std::string wrapped = (m_realRoot / path).string();
     return result_or_errno( ::access( wrapped.c_str(), mode ) );
 }
 
-
-
-int OpenbookFS::create (const char *pathname,
-                            mode_t mode,
-                            struct fuse_file_info *fi)
-{
-    namespace fs = boost::filesystem;
-
-    std::cerr << "create: "
-             "\n   path: " << pathname <<
-             "\n       : " << (m_realRoot / pathname) <<
-             "\n   mode: " << mode <<
-             std::endl;
-
-    fs::path wrapped = (m_realRoot / pathname).string();
-    fi->fh = ::creat( wrapped.c_str() , mode );
-    if( fi->fh < 0 )
-        return -errno;
-
-    fs::path metaPath = m_realRoot / (std::string(pathname) + ".obfsmeta");
-
-    try
-    {
-        MetaData metaData( metaPath );
-        metaData.create();
-    }
-    catch( std::exception& ex )
-    {
-        std::cerr << "Problem creating meta data: " << ex.what();
-    }
-
-    return 0;
-}
 
 
 
