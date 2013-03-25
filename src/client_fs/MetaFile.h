@@ -68,7 +68,7 @@ class Data
 
     public:
         Data(const boost::filesystem::path& path);
-        void load(  );
+        void load();
         void flush();
 
         uint64_t baseVersion(){ return m_meta->baseVersion; }
