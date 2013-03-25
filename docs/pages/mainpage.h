@@ -16,21 +16,21 @@
  *  Install the following packages from the repositories:
  *  1.  build-essential
  *  2.  cmake
- *  3.  doxygen
+ *  3.  doxygen (optional)
  *  4.  git-core
  *  5.  mercurial
- *  6.  libcrypto++-dev
- *  7.  libtclap-dev
- *  8.  libyaml-dev
- *  9.  libboost-all-dev
+ *  6.  sqlite3
+ *  7.  libcrypto++-dev
+ *  8.  libtclap-dev
+ *  9.  libyaml-dev
  *  10. libboost-filesystem-dev
- *  11. sqlite3
+ *  11. libfuse-dev
  *  12. libsqlite3-dev
  *
  *  @verbatim
      $ sudo apt-get install build-essential cmake doxygen mercurial \
-         libcrypto++-dev libtclap-dev libyaml-dev libboost-all-dev  \
-         libboost-filesystem-dev sqlite3 libsqlite3-dev
+         sqlite3 libcrypto++-dev libtclap-dev libyaml-dev \
+         libboost-filesystem-dev  libfuse-dev libsqlite3-dev
  @endverbatim
  *
  *  @subsection Build_protobuf Google Protocol Buffers
