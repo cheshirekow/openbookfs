@@ -365,7 +365,7 @@ void MessageHandler::handleMessage(
         {
             uint64_t newOff = upcast->offset() + upcast->data().size();
             uint64_t left   = fileSize - newOff;
-            uint64_t size   = std::min( left, 102400UL );
+            uint64_t size   = std::min( left, (uint64_t)102400UL );
 
             messages::RequestChunk* req = new messages::RequestChunk();
             req->set_base_version(meta.baseVersion());
