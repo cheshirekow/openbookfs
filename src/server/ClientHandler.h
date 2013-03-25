@@ -17,7 +17,7 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/server/ClientHandler.h
+ *  @file   src/server/ClientHandler.h
  *
  *  @date   Feb 8, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
@@ -61,7 +61,7 @@ namespace   openbook {
 namespace filesystem {
  namespace    server {
 
-
+/// runtime error thrown by the client handler
 class ClientException :
     public std::runtime_error
 {
@@ -74,7 +74,8 @@ class ClientException :
 };
 
 
-
+/// dedicated RPC handler for a single client, manages both inbound and
+/// outbound protocol buffer messages
 class ClientHandler
 {
     public:

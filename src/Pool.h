@@ -17,7 +17,7 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/server/Pool.h
+ *  @file   src/server/Pool.h
  *
  *  @date   Feb 8, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)

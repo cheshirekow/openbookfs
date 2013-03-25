@@ -17,7 +17,7 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/client_fs/fuse_operations.h
+ *  @file   src/client_fs/fuse_operations.h
  *
  *  @date   Feb 17, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
@@ -45,6 +45,8 @@ namespace   openbook {
 namespace filesystem {
 namespace     client {
 
+/// encapsulates global functions which simply extract the fuse context
+/// and then call the corresponding fuction of OpenbookFS
 namespace   fuse_ops {
 
 

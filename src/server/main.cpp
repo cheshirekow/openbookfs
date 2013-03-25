@@ -21,7 +21,7 @@
  *
  *  @date   Feb 8, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
- *  @brief  
+ *  @brief  The main() entry point for the server program
  */
 
 
@@ -61,7 +61,8 @@
 
 namespace   openbook {
 namespace filesystem {
- namespace    server {
+/// encapsulates classes specific to the client program
+namespace     server {
 
 // declarted in globa.h
 pthreads::Key g_handlerKey;

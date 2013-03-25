@@ -17,7 +17,7 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/server/ClientMessage.h
+ *  @file   src/server/ClientMessage.h
  *
  *  @date   Feb 19, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
@@ -36,6 +36,8 @@ namespace filesystem {
 
 class ClientHandler;
 
+/// encapsulates a message with a pointer to and version number for the
+/// ClientHandler object which recieved/will send the message
 struct ClientMessage
 {
     ClientHandler*  client;

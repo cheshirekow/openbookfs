@@ -17,7 +17,7 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/client_fs/base64.cpp
+ *  @file   src/client_fs/base64.cpp
  *
  *  @date   Feb 11, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)

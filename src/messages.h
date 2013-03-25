@@ -17,7 +17,7 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/messages.h
+ *  @file   src/messages.h
  *
  *  @date   Feb 8, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
@@ -32,6 +32,7 @@
 namespace   openbook {
 namespace filesystem {
 
+/// unique numeric identifiers for each message type
 enum MessageId
 {
     MSG_QUIT=0,             ///< special message to quit
@@ -53,11 +54,14 @@ enum MessageId
     NUM_MSG = INVALID_MESSAGE,
 };
 
-
+/// returns a string corresponding to the specified message id
 const char* messageIdToString( char id );
 
+/// all messages are subclasses of googles protocol buffer messages
 typedef google::protobuf::Message Message;
 
+/// Encapsulates a generic message pointer with it's MessageId so that it
+/// can later be cast to the right type
 struct TypedMessage
 {
     MessageId   type;   ///< tells us how to cast the message
@@ -70,18 +74,19 @@ struct TypedMessage
     {}
 };
 
-/// mappes MessageId to the message type
-template < MessageId ID >
-struct MessageType;
+/// maps MessageId to the message type
+template < MessageId ID > struct MessageType;
 
+/// @cond MessageTypeTemplateInstantiations
 template <> struct MessageType<MSG_PING>         { typedef messages::Ping         type; };
 template <> struct MessageType<MSG_PONG>         { typedef messages::Pong         type; };
 template <> struct MessageType<MSG_NEW_VERSION>  { typedef messages::NewVersion   type; };
 template <> struct MessageType<MSG_REQUEST_CHUNK>{ typedef messages::RequestChunk type; };
 template <> struct MessageType<MSG_FILE_CHUNK>   { typedef messages::FileChunk    type; };
 template <> struct MessageType<MSG_COMMIT>       { typedef messages::Commit       type; };
+/// @endcond MessageTypeTemplateInstantiations
 
-/// upcasts a generic message pointer
+/// upcasts a generic message pointer to it's derived type
 template < MessageId ID >
 typename MessageType<ID>::type* message_cast( Message* msg )
 {

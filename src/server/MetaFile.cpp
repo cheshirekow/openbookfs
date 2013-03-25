@@ -17,7 +17,7 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/server/MetaFile.cpp
+ *  @file   src/server/MetaFile.cpp
  *
  *  @date   Feb 20, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)

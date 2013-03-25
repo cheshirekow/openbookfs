@@ -17,7 +17,7 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/client_fs/fuse_operations.cpp
+ *  @file   src/client_fs/fuse_operations.cpp
  *
  *  @date   Feb 17, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)

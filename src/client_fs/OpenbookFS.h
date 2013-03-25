@@ -27,7 +27,12 @@ namespace filesystem {
 namespace     client {
 
 
-
+/// Main fuse context for the openbook filesystem
+/**
+ *  This is the object that is stored in the private data structure of the
+ *  fuse context, and manages the interaction between fuse operations and
+ *  communication with the server
+ */
 class OpenbookFS
 {
     private:

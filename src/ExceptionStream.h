@@ -17,7 +17,7 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/ExceptionStream.h
+ *  @file   src/ExceptionStream.h
  *
  *  @date   Feb 11, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)

@@ -17,7 +17,7 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/client_fs/MessageHandler.cpp
+ *  @file   src/client_fs/MessageHandler.cpp
  *
  *  @date   Feb 19, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
