@@ -94,7 +94,7 @@ class ClientHandler
         pthreads::Thread    m_thread;           ///< the thread we're running in
 
         InQueue_t*          m_inboundMessages;  ///< received message queue
-        OutQueue_t          m_outboundMessages;    ///< messages to send
+        OutQueue_t          m_outboundMessages; ///< messages to send
 
         pthreads::Thread    m_listenThread;     ///< child thread for listening
         pthreads::Thread    m_shoutThread;      ///< child thread for shouting

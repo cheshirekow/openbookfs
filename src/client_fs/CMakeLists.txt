@@ -63,7 +63,6 @@ if( (FUSE_FOUND)
                     main.cpp
                     fuse_operations.cpp
                     Client.cpp
-                    ExtendedAttributes.cpp
                     FileDescriptor.cpp
                     MessageHandler.cpp
                     MetaFile.cpp
