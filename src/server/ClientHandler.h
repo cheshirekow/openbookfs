@@ -55,7 +55,6 @@
 #include "Queue.h"
 #include "Server.h"
 #include "Synchronized.h"
-#include "ClientMessage.h"
 #include "ClientMap.h"
 
 
@@ -83,21 +82,19 @@ class ClientHandler
     public:
         typedef ExceptionStream<ClientException> ex;
         typedef Pool<ClientHandler>              Pool_t;
-
-        typedef Queue<ClientMessage>            InQueue_t;
-        typedef Queue<TypedMessage>             OutQueue_t;
+        typedef Queue<TypedMessage>             MsgQueue_t;
 
     private:
         static const unsigned int sm_bufsize = 256;
 
-        unsigned int        m_clientId;         ///< incremented on reuse
+        uint32_t            m_clientId;         ///< incremented on reuse
         Pool_t*             m_pool;             ///< pool to which this belongs
         Server*             m_server;           ///< server configuration
         ClientMap*          m_clientMap;        ///< maps client ids to handlers
         pthreads::Thread    m_thread;           ///< the thread we're running in
 
-        InQueue_t           m_inboundMessages;  ///< received message queue
-        OutQueue_t          m_outboundMessages; ///< queue for messages to send
+        MsgQueue_t          m_inboundMessages;  ///< received message queue
+        MsgQueue_t          m_outboundMessages; ///< queue for messages to send
         MessageHandler      m_worker;           ///< worker for this client
 
         pthreads::Thread    m_listenThread;     ///< child thread for listening
@@ -160,12 +157,6 @@ class ClientHandler
         /// sec the client socket and start the handler interfacing with the
         /// client in a detached thread
         void handleClient( int sockfd, int termfd );
-
-        /// adds a message to the outgoing queue
-        void sendMessage( ClientMessage msg );
-
-        /// retrieves a pointer to the inbound message queue for the handler
-        InQueue_t* inboundQueue();
 
 
 

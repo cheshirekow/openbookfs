@@ -39,7 +39,6 @@
 #include "Pool.h"
 #include "Queue.h"
 #include "messages.h"
-#include "ClientMessage.h"
 #include "ClientMap.h"
 #include "Server.h"
 
@@ -47,19 +46,19 @@ namespace   openbook {
 namespace filesystem {
 namespace     server {
 
-class ClientHandler;
-
 
 /// reads a message and does whatever the message says to do
 class MessageHandler
 {
     public:
-        typedef Pool<MessageHandler>          Pool_t;
-        typedef Queue<ClientMessage>          MsgQueue_t;
+        typedef Pool<MessageHandler>    Pool_t;
+        typedef Queue<TypedMessage>     MsgQueue_t;
 
     private:
+        uint32_t            m_clientId; ///< numeric identifier of client
         Server*             m_server;   ///< server configuration
-        ClientHandler*      m_client;   ///< RPC middleman
+        MsgQueue_t*         m_inboundQueue; ///< messages to process
+        MsgQueue_t*         m_outboundQueue;///< replies to send
         pthreads::Thread    m_thread;   ///< the thread we're running in
         pthreads::Mutex     m_mutex;    ///< locks this data
 
@@ -77,14 +76,16 @@ class MessageHandler
 
         /// set the parent pointer and start DH parameter generation in
         /// detached thread
-        void init( Server*, ClientHandler* );
+        void init( Server*, MsgQueue_t* inQueue, MsgQueue_t* outQueue );
+
+        void setClientId(uint32_t id);
 
     private:
         /// typed message  handler
-        void handleMessage( ClientMessage msg, messages::Ping*       upcast );
-        void handleMessage( ClientMessage msg, messages::Pong*       upcast );
-        void handleMessage( ClientMessage msg, messages::NewVersion* upcast );
-        void handleMessage( ClientMessage msg, messages::FileChunk*  upcast );
+        void handleMessage( TypedMessage msg, messages::Ping*       upcast );
+        void handleMessage( TypedMessage msg, messages::Pong*       upcast );
+        void handleMessage( TypedMessage msg, messages::NewVersion* upcast );
+        void handleMessage( TypedMessage msg, messages::FileChunk*  upcast );
 
 
 

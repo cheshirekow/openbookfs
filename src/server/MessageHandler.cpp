@@ -29,7 +29,6 @@
 
 #include <boost/filesystem.hpp>
 
-#include "ClientHandler.h"
 #include "MessageHandler.h"
 #include "MetaFile.h"
 
@@ -39,7 +38,7 @@
 #define MSG_HANDLE(x)   \
     case x:             \
     {                   \
-        handleMessage(msg, message_cast<x>(msg.typed.msg)); \
+        handleMessage(msg, message_cast<x>(msg.msg)); \
         break;          \
     }
 
@@ -59,18 +58,17 @@ void* MessageHandler::main()
     std::cout << "Message handler " << (void*)this << " starting up\n";
 
     pthreads::ScopedLock lock(m_mutex);
-    MsgQueue_t* msgQueue = m_client->inboundQueue();
 
     bool shouldDie = false;
     while(!shouldDie)
     {
-        ClientMessage msg;
+        TypedMessage msg;
 
         // wait for a new message
-        msgQueue->extract(msg);
+        m_inboundQueue->extract(msg);
 
         // handle the message
-        switch( msg.typed.type )
+        switch( msg.type )
         {
             case MSG_QUIT:
             {
@@ -88,51 +86,49 @@ void* MessageHandler::main()
             default:
             {
                 std::cerr << "Message handler for type ("
-                          << (int)msg.typed.type
-                          << ") : " << messageIdToString(msg.typed.type)
+                          << (int)msg.type
+                          << ") : " << messageIdToString(msg.type)
                           << "isn't implemented";
                 break;
             }
         }
 
-        if(msg.typed.msg)
-            delete msg.typed.msg;
+        if(msg.msg)
+            delete msg.msg;
     }
 
     return 0;
 }
 
 void MessageHandler::handleMessage(
-        ClientMessage msg, messages::Ping* upcast )
+        TypedMessage msg, messages::Ping* upcast )
 {
     std::cout << "Message handler " << (void*)this << " got a PING \n";
-    ClientMessage out = msg;
-    out.typed.type = MSG_PONG;
+    TypedMessage out(MSG_PONG);
 
     messages::Pong* pong= new messages::Pong();
     pong->set_payload(0xdeadf00d);
-    out.typed.msg = pong;
+    out.msg = pong;
+    m_outboundQueue->insert(out);
     sleep(5);
-    out.send();
 }
 
 void MessageHandler::handleMessage(
-        ClientMessage msg, messages::Pong* upcast )
+        TypedMessage msg, messages::Pong* upcast )
 {
     std::cout << "Message handler " << (void*)this
               << " got a PONG \n";
-    ClientMessage out = msg;
-    out.typed.type = MSG_PING;
+    TypedMessage out(MSG_PING);
 
     messages::Ping* ping= new messages::Ping();
     ping->set_payload(0xdeadf00d);
-    out.typed.msg = ping;
+    out.msg = ping;
+    m_outboundQueue->insert(out);
     sleep(5);
-    out.send();
 }
 
 void MessageHandler::handleMessage(
-        ClientMessage msg, messages::NewVersion* upcast )
+        TypedMessage msg, messages::NewVersion* upcast )
 {
     namespace fs = boost::filesystem;
 
@@ -172,7 +168,7 @@ void MessageHandler::handleMessage(
             if( upcast->base_version() == meta.baseVersion() )
             {
                 meta.set_state( meta::INCOMPLETE );
-                meta.set_owner( msg.client_id );
+                meta.set_owner( m_clientId );
                 meta.set_clientVersion( upcast->client_version() );
 
                 // truncate the file to prepare for download
@@ -193,10 +189,8 @@ void MessageHandler::handleMessage(
                 req->set_client_version(meta.clientVersion());
                 req->set_msg_id(0); // todo: set message id
 
-                ClientMessage out = msg;
-                out.typed.type = MSG_REQUEST_CHUNK;
-                out.typed.msg  = req;
-                out.send();
+                TypedMessage out(MSG_REQUEST_CHUNK,req);
+                m_outboundQueue->insert(out);
             }
             else
             {
@@ -209,7 +203,7 @@ void MessageHandler::handleMessage(
         // sent this message then we can start downloading a new version
         else
         {
-            if( meta.owner() == msg.client_id )
+            if( meta.owner() == m_clientId )
             {
                 meta.set_clientVersion(upcast->client_version());
 
@@ -231,10 +225,8 @@ void MessageHandler::handleMessage(
                 req->set_client_version(meta.clientVersion());
                 req->set_msg_id(0); // todo: set message id
 
-                ClientMessage out = msg;
-                out.typed.type = MSG_REQUEST_CHUNK;
-                out.typed.msg  = req;
-                out.send();
+                TypedMessage out(MSG_REQUEST_CHUNK,req);
+                m_outboundQueue->insert(out);
             }
             else
             {
@@ -253,7 +245,7 @@ void MessageHandler::handleMessage(
 }
 
 void MessageHandler::handleMessage(
-        ClientMessage msg, messages::FileChunk* upcast )
+        TypedMessage msg, messages::FileChunk* upcast )
 {
     namespace fs = boost::filesystem;
 
@@ -276,10 +268,10 @@ void MessageHandler::handleMessage(
         meta.load();
 
         // check to make sure that the transfer hasn't been pre-empted
-        if( msg.client_id != meta.owner() )
+        if( m_clientId != meta.owner() )
         {
             meta.flush();
-            ex()() << "It's an old message from client " << msg.client_id
+            ex()() << "It's an old message from client " << m_clientId
                    << " because current owner is " << meta.owner();
         }
 
@@ -356,10 +348,8 @@ void MessageHandler::handleMessage(
             commit->set_new_version(meta.baseVersion());
             commit->set_path( upcast->path() );
 
-            ClientMessage out = msg;
-            out.typed.type = MSG_COMMIT;
-            out.typed.msg  = commit;
-            out.send();
+            TypedMessage out(MSG_COMMIT,commit);
+            m_outboundQueue->insert(out);
 
             // todo: send notification to subscribed clients
         }
@@ -378,10 +368,8 @@ void MessageHandler::handleMessage(
             req->set_size( size );
             req->set_path( upcast->path() );
 
-            ClientMessage out = msg;
-            out.typed.type = MSG_REQUEST_CHUNK;
-            out.typed.msg  = req;
-            out.send();
+            TypedMessage out(MSG_REQUEST_CHUNK,req);
+            m_outboundQueue->insert(out);
         }
 
         // flush meta data and release the lock
@@ -393,8 +381,7 @@ void MessageHandler::handleMessage(
     }
 }
 
-MessageHandler::MessageHandler():
-    m_client(0)
+MessageHandler::MessageHandler()
 {
     m_mutex.init();
 }
@@ -406,14 +393,20 @@ MessageHandler::~MessageHandler()
 
 void MessageHandler::init(
         Server*         server,
-        ClientHandler*  client)
+        MsgQueue_t*     inQueue,
+        MsgQueue_t*     outQueue)
 {
-    m_server   = server;
-    m_client   = client;
+    m_clientId      = 0;
+    m_server        = server;
+    m_inboundQueue  = inQueue;
+    m_outboundQueue = outQueue;
 }
 
 
-
+void MessageHandler::setClientId(uint32_t id)
+{
+    m_clientId = id;
+}
 
 
 

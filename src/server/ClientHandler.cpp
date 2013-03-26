@@ -97,7 +97,7 @@ void ClientHandler::init(
     m_server    = server;
     m_clientMap = clientMap;
     m_clientId  = 0;
-    m_worker.init(server,this);
+    m_worker.init(server,&m_inboundMessages,&m_outboundMessages);
 
     std::cout << "Initializing handler " << (void*)this << std::endl;
     ScopedLock lock(m_mutex);
@@ -163,18 +163,6 @@ void ClientHandler::handleClient( int sockfd, int termfd )
     }
 }
 
-void ClientHandler::sendMessage( ClientMessage msg )
-{
-    // lock the handler so we know for a fact that the handler is in fact
-    // running or not
-    pthreads::ScopedLock(m_mutex);
-
-    // first check to make sure the handler hasn't cycled to a new client
-    if( msg.client_id != m_clientId )
-        delete msg.typed.msg;
-    else
-        m_outboundMessages.insert(msg.typed);
-}
 
 
 
@@ -203,6 +191,7 @@ void* ClientHandler::main()
             // start the worker
             std::cout << "handler " << (void*)this
                       << " launching worker thread\n";
+            m_worker.setClientId(m_clientId);
             m_workerThread.launch( MessageHandler::dispatch_main, &m_worker );
 
             // create a ping message for the client
@@ -227,12 +216,16 @@ void* ClientHandler::main()
     m_listenThread.join();
     std::cout << "handler " << (void*)this << " listen thread quit\n";
 
+    // put a quet message into the outgoing queue so that the shouter
+    // knows its time to quit
+    TypedMessage quit(MSG_QUIT);
+    m_outboundMessages.insert( quit );
+
     m_shoutThread.join();
     std::cout << "handler " << (void*)this << " shout thread quit\n";
 
-    // put a quit message into the inbound queue so that the handler knows
-    // to quit
-    ClientMessage quit(this,m_clientId,MSG_QUIT);
+    // put a quit message into the inbound queue so that the worker knows
+    // it's time to quit
     m_inboundMessages.insert( quit );
 
     m_workerThread.join();
@@ -630,19 +623,12 @@ void* ClientHandler::listen()
 
     try
     {
-        GCM<AES>::Decryption dec;
-        dec.SetKeyWithIV(m_cek.BytePtr(), m_cek.SizeInBytes(),
-                         m_iv.BytePtr(),  m_iv.SizeInBytes());
-
         // infinite loop until exception is thrown
         while(1)
         {
             // read one message from client, exception thrown on disconnect
             // or termination signal
-            ClientMessage msg;
-            msg.client      = this;
-            msg.client_id   = m_clientId;
-            msg.typed       = m_msg.readEnc(m_fd);  //< throws on disconnect
+            TypedMessage msg = m_msg.readEnc(m_fd);
 
             // put the message in the inbound queue
             m_inboundMessages.insert(msg);
@@ -654,10 +640,6 @@ void* ClientHandler::listen()
                   << " listener is terminating on exception: "
                   << ex.what() << std::endl;
     }
-
-    // put a dummy job into the queue so that the shouter can quit
-    TypedMessage quit(MSG_QUIT);
-    m_outboundMessages.insert( quit );
 
     return 0;
 }
@@ -671,9 +653,6 @@ void* ClientHandler::shout()
 
     try
     {
-        GCM<AES>::Encryption enc;
-        enc.SetKeyWithIV(m_cek.BytePtr(), m_cek.SizeInBytes(),
-                          m_iv.BytePtr(),  m_iv.SizeInBytes());
         while(1)
         {
             TypedMessage msg;
@@ -704,10 +683,6 @@ void* ClientHandler::shout()
     return 0;
 }
 
-ClientHandler::InQueue_t* ClientHandler::inboundQueue()
-{
-    return &m_inboundMessages;
-}
 
 
 

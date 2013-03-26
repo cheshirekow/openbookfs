@@ -38,6 +38,8 @@ namespace   openbook {
 namespace filesystem {
 namespace     server {
 
+class ClientHandler;
+
 /// maps client ids to client handlers, if the client is connected
 typedef Synchronized< std::map<uint64_t,ClientHandler*> >   ClientMap;
 
