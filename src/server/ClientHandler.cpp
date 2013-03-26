@@ -232,10 +232,7 @@ void* ClientHandler::main()
     std::cout << "handler " << (void*)this << " worker thread quit\n";
 
     // remove ourselves from the client map
-    {
-        pthreads::ScopedLock lock(m_clientMap->mutex());
-        m_clientMap->subvert()->erase(m_clientId);
-    }
+    m_clientMap->lockFor()->erase(m_clientId);
 
     // now we do our cleanup, but first lock the object so that no one tries
     // to modify us while we're doing this
@@ -606,11 +603,26 @@ void ClientHandler::handshake()
     sql << "UPDATE known_clients SET client_name='" << displayName
         << "' WHERE client_id=" << m_clientId;
 
-    // now map the client id to this object
+
     // lock scope
     {
-        pthreads::ScopedLock lock(m_clientMap->mutex());
+        // wait for a lock on the map
+        pthreads::ScopedLock lock( m_clientMap->mutex() );
+
+        // now map the client id to this object
+        // if another ClientHandler is in the map for this client then we must
+        // wait for it to remove itself before we put this in the map as the
+        // handler for the client
+        while( m_clientMap->subvert()->find(m_clientId)
+                != m_clientMap->subvert()->end() )
+        {
+            // releases the lock, and then waits for someone else to aquire
+            // and release it
+            m_clientMap->wait();
+        }
+
         (*(m_clientMap->subvert()))[m_clientId] = this;
+        m_clientMap->signal();
     }
 }
 

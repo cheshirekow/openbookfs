@@ -78,18 +78,21 @@ class Synchronized
     friend class LockedPtr<Base>;
 
     private:
-        pthreads::Mutex   m_mutex;
-        Base              m_base;
+        pthreads::Mutex     m_mutex;  ///< locked if reference exists
+        pthreads::Condition m_cond;   ///< signaled when reference destroyed
+        Base                m_base;
 
     public:
         Synchronized()
         {
             m_mutex.init();
+            m_cond.init();
         }
 
         ~Synchronized()
         {
             m_mutex.destroy();
+            m_cond.destroy();
         }
 
         /// when we access the object through pointer indirection we return
@@ -110,6 +113,14 @@ class Synchronized
 
         /// explicitly unlock
         int unlock(){ return m_mutex.unlock(); }
+
+        /// wait for a change to be signaled, note the mutex must be owned
+        /// by the calling thread, either by a lock() call or by explicitly
+        /// locking the mutex returned by mutex()
+        void wait(){ m_cond.wait(m_mutex); }
+
+        /// explicitly signal the condition
+        void signal(){ m_cond.signal(); }
 
         /// for using a scoped lock
         pthreads::Mutex& mutex(){ return m_mutex; }
@@ -132,6 +143,7 @@ LockedPtr<Base>::LockedPtr( Synchronized<Base>& synced ):
 template <class Base>
 LockedPtr<Base>::~LockedPtr( )
 {
+    m_synced.m_cond.signal();
     m_synced.m_mutex.unlock();
 }
 
