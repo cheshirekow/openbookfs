@@ -1,0 +1,55 @@
+\documentclass{article}
+
+\usepackage{hyperref}
+
+\hypersetup{
+   pdftitle    ={Openbook Filesystem},%
+   pdfauthor   ={Joshua Bialkowski, Bruno Alvisio, Gabe Ayers},%
+   pdfsubject  ={},%
+   pdfcreator  ={},%
+   pdfproducer ={},%
+   pdfkeywords ={6.824},
+   colorlinks=true,
+   linkcolor=red,
+   anchorcolor=black,
+   citecolor=green,
+   urlcolor=magenta,
+   plainpages=false,
+   hypertexnames=true
+}
+
+\title
+{%
+   Openbook Filesystem \\
+   \small 6.824 Project Proposal
+}
+
+\author
+{%
+   \small Josh Bialkowski \\
+   \small Bruno Alvisio \\
+   \small Gabe Ayers (potentially)
+}
+
+
+
+\begin{document}
+\maketitle
+
+We propose to make a free-software file synchronizer based on some of the ideas 
+behind Ficus and Bayou. The main idea is to utilize File Systems in User Space
+(FUSE) to run the synchronization system in the background and as a user 
+process. While a truly distributed architecture would be the end-goal, for the
+scope of this project we plan to implement a system that relies on a dedicated
+primary server. We are attempting to design the system in such a way as to make
+the eventual transition to a truly distributed architecture managable in the
+future. 
+
+The software will be written in C++. We intend to focus on building the project
+with only free-software (GPL compatable) components and to build the system 
+from the ground up with a focus on security and usability. Our implementation 
+will focus primarily on the availability of files with the goal of eventual
+consistency. The project has a public face on github at 
+\url{https://github.com/cheshirekow/openbookfs}. 
+
+\end{document}
