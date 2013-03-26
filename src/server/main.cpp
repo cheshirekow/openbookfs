@@ -287,10 +287,6 @@ int main(int argc, char** argv)
 
     // handlers available for new client connections
     ClientHandler::Pool_t      handlerPool(nH);
-    MessageHandler::Pool_t     workerPool(nJ);
-
-    // message queue
-    Queue<ClientMessage>    inboundQueue;
 
     // allows us to store the client handler pointer in thread specific
     // storage
@@ -298,16 +294,9 @@ int main(int argc, char** argv)
 
     // handler objects
     ClientHandler*  handlers = new ClientHandler[nH];
-    MessageHandler* workers  = new MessageHandler[nJ];
 
     for(int i=0; i < nH; i++)
-        handlers[i].init(&handlerPool,&server,&inboundQueue,&clientMap);
-
-    for(int i=0; i < nJ; i++)
-    {
-        workers[i].init(&workerPool,&inboundQueue,&server,&clientMap);
-        workers[i].start();
-    }
+        handlers[i].init(&handlerPool,&server,&clientMap);
 
     // for waiting until things happen
     SelectSpec selectMe;
@@ -409,33 +398,9 @@ int main(int argc, char** argv)
         sleep(5);
     }
 
-    // now we need to kill all the job workers
-    std::cout << "Killing job workers" << std::endl;
-    ClientMessage quit(0,0,MSG_QUIT);
-    for(int i=0; i < nJ; i++)
-        inboundQueue.insert(quit);
-
-    while( workerPool.size() < nJ )
-    {
-        std::cout << "Waiting for " << nJ - workerPool.size()
-                  << " more threads to finish " << std::endl;
-        sleep(5);
-    }
-
-    // now destroy any extra jobs that we created for the workers
-    std::cout << "Destroying outstanding jobs" << std::endl;
-    while( !inboundQueue.empty() )
-    {
-        ClientMessage msg;
-        inboundQueue.extract(msg);
-        if(msg.typed.msg)
-            delete msg.typed.msg;
-    }
-
     std::cout << "Final destructions" << std::endl;
     g_handlerKey.destroy();
     delete [] handlers;
-    delete [] workers;
     close(serversock);
 
     std::cout << "All cleaned up, terminating" << std::endl;

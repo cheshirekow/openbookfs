@@ -121,7 +121,7 @@ void MessageHandler::handleMessage(
     out.type = MSG_PONG;
 
     messages::Pong* pong= new messages::Pong();
-    pong->set_payload(0xb19b00b5);
+    pong->set_payload(0xdeadf00d);
     out.msg = pong;
 
     sleep(5);
@@ -136,7 +136,7 @@ void MessageHandler::handleMessage(
     out.type = MSG_PING;
 
     messages::Ping* ping= new messages::Ping();
-    ping->set_payload(0xb19b00b5);
+    ping->set_payload(0xdeadf00d);
     out.msg = ping;
 
     sleep(5);

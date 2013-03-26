@@ -90,14 +90,14 @@ ClientHandler::~ClientHandler()
 }
 
 void ClientHandler::init(
-        Pool_t* pool, Server* server, InQueue_t* msgQueue, ClientMap* clientMap )
+        Pool_t* pool, Server* server, ClientMap* clientMap )
 {
     using namespace pthreads;
     m_pool      = pool;
     m_server    = server;
     m_clientMap = clientMap;
-    m_inboundMessages   = msgQueue;
-    m_clientId = 0;
+    m_clientId  = 0;
+    m_worker.init(server,this);
 
     std::cout << "Initializing handler " << (void*)this << std::endl;
     ScopedLock lock(m_mutex);
@@ -200,15 +200,20 @@ void* ClientHandler::main()
                       << " launching shout thread\n";
             m_shoutThread.launch( dispatch_shout, this );
 
+            // start the worker
+            std::cout << "handler " << (void*)this
+                      << " launching worker thread\n";
+            m_workerThread.launch( MessageHandler::dispatch_main, &m_worker );
+
             // create a ping message for the client
             messages::Ping* ping = new messages::Ping();
-            ping->set_payload(0xb19b00b5);
+            ping->set_payload(0xdeadf00d);
             TypedMessage pingMsg(MSG_PING,ping);
             m_outboundMessages.insert(pingMsg);
 
             sleep(2);
             messages::Pong* pong = new messages::Pong();
-            pong->set_payload(0xb19b00b5);
+            pong->set_payload(0xdeadf00d);
             TypedMessage pongMsg(MSG_PONG,pong);
             m_outboundMessages.insert(pongMsg);
         }
@@ -224,6 +229,14 @@ void* ClientHandler::main()
 
     m_shoutThread.join();
     std::cout << "handler " << (void*)this << " shout thread quit\n";
+
+    // put a quit message into the inbound queue so that the handler knows
+    // to quit
+    ClientMessage quit(this,m_clientId,MSG_QUIT);
+    m_inboundMessages.insert( quit );
+
+    m_workerThread.join();
+    std::cout << "handler " << (void*)this << " worker thread quit\n";
 
     // remove ourselves from the client map
     {
@@ -629,10 +642,10 @@ void* ClientHandler::listen()
             ClientMessage msg;
             msg.client      = this;
             msg.client_id   = m_clientId;
-            msg.typed       = m_msg.readEnc(m_fd);
+            msg.typed       = m_msg.readEnc(m_fd);  //< throws on disconnect
 
             // put the message in the inbound queue
-            m_inboundMessages->insert(msg);
+            m_inboundMessages.insert(msg);
         }
     }
     catch( std::exception& ex )
@@ -691,7 +704,10 @@ void* ClientHandler::shout()
     return 0;
 }
 
-
+ClientHandler::InQueue_t* ClientHandler::inboundQueue()
+{
+    return &m_inboundMessages;
+}
 
 
 

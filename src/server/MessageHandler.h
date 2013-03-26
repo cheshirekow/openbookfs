@@ -45,7 +45,9 @@
 
 namespace   openbook {
 namespace filesystem {
- namespace    server {
+namespace     server {
+
+class ClientHandler;
 
 
 /// reads a message and does whatever the message says to do
@@ -56,13 +58,15 @@ class MessageHandler
         typedef Queue<ClientMessage>          MsgQueue_t;
 
     private:
-        Pool_t*             m_pool;             ///< pool to which this belongs
-        MsgQueue_t*         m_msgQueue;         ///< global msg queue
-        ClientMap*          m_clientMap;        ///< maps client ids to handlers
-        pthreads::Thread    m_thread;           ///< the thread we're running in
-        pthreads::Mutex     m_mutex;            ///< locks this data
+        Server*             m_server;   ///< server configuration
+        ClientHandler*      m_client;   ///< RPC middleman
+        pthreads::Thread    m_thread;   ///< the thread we're running in
+        pthreads::Mutex     m_mutex;    ///< locks this data
 
-        Server*             m_server;
+
+    public:
+        MessageHandler();
+        ~MessageHandler();
 
         /// main method of the job handler, waits for jobs in the queue and
         /// then does them
@@ -71,22 +75,18 @@ class MessageHandler
         /// static method for pthreads, calls main()
         static void* dispatch_main( void* vp_h );
 
+        /// set the parent pointer and start DH parameter generation in
+        /// detached thread
+        void init( Server*, ClientHandler* );
+
+    private:
         /// typed message  handler
         void handleMessage( ClientMessage msg, messages::Ping*       upcast );
         void handleMessage( ClientMessage msg, messages::Pong*       upcast );
         void handleMessage( ClientMessage msg, messages::NewVersion* upcast );
         void handleMessage( ClientMessage msg, messages::FileChunk*  upcast );
 
-    public:
-        MessageHandler();
-        ~MessageHandler();
 
-        /// set the parent pointer and start DH parameter generation in
-        /// detached thread
-        void init( Pool_t*, MsgQueue_t*, Server*, ClientMap* );
-
-        /// start the worker thread
-        void start();
 
 };
 

@@ -50,12 +50,14 @@
 
 #include "ExceptionStream.h"
 #include "MessageBuffer.h"
+#include "MessageHandler.h"
 #include "Pool.h"
 #include "Queue.h"
 #include "Server.h"
 #include "Synchronized.h"
 #include "ClientMessage.h"
 #include "ClientMap.h"
+
 
 namespace   openbook {
 namespace filesystem {
@@ -94,11 +96,13 @@ class ClientHandler
         ClientMap*          m_clientMap;        ///< maps client ids to handlers
         pthreads::Thread    m_thread;           ///< the thread we're running in
 
-        InQueue_t*          m_inboundMessages;  ///< received message queue
-        OutQueue_t          m_outboundMessages; ///< messages to send
+        InQueue_t           m_inboundMessages;  ///< received message queue
+        OutQueue_t          m_outboundMessages; ///< queue for messages to send
+        MessageHandler      m_worker;           ///< worker for this client
 
         pthreads::Thread    m_listenThread;     ///< child thread for listening
         pthreads::Thread    m_shoutThread;      ///< child thread for shouting
+        pthreads::Thread    m_workerThread;     ///< child thread for worker
         pthreads::Mutex     m_mutex;            ///< locks this data
         MessageBuffer       m_msg;              ///< message buffer
         int                 m_fd[2];            ///< socket and terminal fd
@@ -151,7 +155,7 @@ class ClientHandler
 
         /// set the parent pointer and start DH parameter generation in
         /// detached thread
-        void init( Pool_t*, Server*, InQueue_t*, ClientMap* );
+        void init( Pool_t*, Server*, ClientMap* );
 
         /// sec the client socket and start the handler interfacing with the
         /// client in a detached thread
@@ -159,6 +163,9 @@ class ClientHandler
 
         /// adds a message to the outgoing queue
         void sendMessage( ClientMessage msg );
+
+        /// retrieves a pointer to the inbound message queue for the handler
+        InQueue_t* inboundQueue();
 
 
 

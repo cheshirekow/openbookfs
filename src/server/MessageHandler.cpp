@@ -29,6 +29,7 @@
 
 #include <boost/filesystem.hpp>
 
+#include "ClientHandler.h"
 #include "MessageHandler.h"
 #include "MetaFile.h"
 
@@ -57,13 +58,16 @@ void* MessageHandler::main()
 {
     std::cout << "Message handler " << (void*)this << " starting up\n";
 
+    pthreads::ScopedLock lock(m_mutex);
+    MsgQueue_t* msgQueue = m_client->inboundQueue();
+
     bool shouldDie = false;
     while(!shouldDie)
     {
         ClientMessage msg;
 
         // wait for a new message
-        m_msgQueue->extract(msg);
+        msgQueue->extract(msg);
 
         // handle the message
         switch( msg.typed.type )
@@ -95,7 +99,6 @@ void* MessageHandler::main()
             delete msg.typed.msg;
     }
 
-    m_pool->reassign(this);
     return 0;
 }
 
@@ -107,7 +110,7 @@ void MessageHandler::handleMessage(
     out.typed.type = MSG_PONG;
 
     messages::Pong* pong= new messages::Pong();
-    pong->set_payload(0xb19b00b5);
+    pong->set_payload(0xdeadf00d);
     out.typed.msg = pong;
     sleep(5);
     out.send();
@@ -122,7 +125,7 @@ void MessageHandler::handleMessage(
     out.typed.type = MSG_PING;
 
     messages::Ping* ping= new messages::Ping();
-    ping->set_payload(0xb19b00b5);
+    ping->set_payload(0xdeadf00d);
     out.typed.msg = ping;
     sleep(5);
     out.send();
@@ -391,8 +394,7 @@ void MessageHandler::handleMessage(
 }
 
 MessageHandler::MessageHandler():
-    m_pool(0),
-    m_msgQueue(0)
+    m_client(0)
 {
     m_mutex.init();
 }
@@ -403,40 +405,14 @@ MessageHandler::~MessageHandler()
 }
 
 void MessageHandler::init(
-        Pool_t*         pool,
-        MsgQueue_t*     queue,
         Server*         server,
-        ClientMap*      clientMap)
+        ClientHandler*  client)
 {
-    m_pool     = pool;
-    m_msgQueue = queue;
     m_server   = server;
-    m_clientMap= clientMap;
+    m_client   = client;
 }
 
-void MessageHandler::start()
-{
-    // lock scope
-    // the worker thread wont be able to start doing anything until
-    // we're done in here
-    {
-        using namespace pthreads;
-        ScopedLock lock(m_mutex);
 
-        Attr<Thread> attr;
-        attr.init();
-        attr << DETACHED;
-        int result = m_thread.launch(attr,dispatch_main,this);
-        attr.destroy();
-
-        if( result )
-        {
-            std::cerr << "Failed to start job handler thread, errno " << result
-                      << " : " << strerror(result) << std::endl;
-            m_pool->reassign(this);
-        }
-    }
-}
 
 
 
