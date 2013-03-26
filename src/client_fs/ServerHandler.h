@@ -49,6 +49,7 @@
 #include "Client.h"
 #include "ExceptionStream.h"
 #include "MessageBuffer.h"
+#include "MessageHandler.h"
 #include "Queue.h"
 
 
@@ -85,11 +86,13 @@ class ServerHandler
         Client*             m_client;           ///< server configuration
         pthreads::Thread    m_thread;           ///< the thread we're running in
 
-        MsgQueue_t*         m_inboundMessages;  ///< received message queue
-        MsgQueue_t          m_outboundMessages;    ///< messages to send
+        MsgQueue_t          m_inboundMessages;  ///< received message queue
+        MsgQueue_t          m_outboundMessages; ///< messages to send
+        MessageHandler      m_worker;           ///< worker handles messages
 
         pthreads::Thread    m_listenThread;     ///< child thread for listening
         pthreads::Thread    m_shoutThread;      ///< child thread for shouting
+        pthreads::Thread    m_workerThread;     ///< child thread for worker
         pthreads::Mutex     m_mutex;            ///< locks this data
         MessageBuffer       m_msg;              ///< message buffer
         int                 m_fd[2];            ///< socket and terminator fd
@@ -142,7 +145,7 @@ class ServerHandler
         ~ServerHandler();
 
         /// set the parent pointer and terminator pipe fd
-        void init( Client*, MsgQueue_t*, int termfd );
+        void init( Client*, int termfd );
 
         /// start the handler
         void start();

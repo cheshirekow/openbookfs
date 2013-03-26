@@ -40,42 +40,26 @@
 #include "Queue.h"
 #include "messages.h"
 #include "Client.h"
-#include "ServerHandler.h"
 
 namespace   openbook {
 namespace filesystem {
 namespace     client {
 
-
+class ServerHandler;
 
 /// reads a message and does whatever the message says to do
 class MessageHandler
 {
     public:
-        typedef Pool<MessageHandler>          Pool_t;
         typedef Queue<TypedMessage>           MsgQueue_t;
 
     private:
-        Pool_t*             m_pool;             ///< pool to which this belongs
-        MsgQueue_t*         m_msgQueue;         ///< global msg queue
+        MsgQueue_t*         m_msgQueue;         ///< msg queue from client
         pthreads::Thread    m_thread;           ///< the thread we're running in
         pthreads::Mutex     m_mutex;            ///< locks this data
 
         Client*         m_client;
         ServerHandler*  m_server;
-
-        /// static method for pthreads, calls main()
-        static void* dispatch_main( void* vp_h );
-
-        /// main method of the job handler, waits for jobs in the queue and
-        /// then does them
-        void* main();
-
-        /// typed message  handlers
-        void handleMessage( TypedMessage msg, messages::Ping*         upcast );
-        void handleMessage( TypedMessage msg, messages::Pong*         upcast );
-        void handleMessage( TypedMessage msg, messages::RequestChunk* upcast );
-        void handleMessage( TypedMessage msg, messages::Commit*       upcast );
 
     public:
         MessageHandler();
@@ -83,10 +67,24 @@ class MessageHandler
 
         /// set the parent pointer and start DH parameter generation in
         /// detached thread
-        void init( Pool_t*, MsgQueue_t*, Client*, ServerHandler* );
+        void init( Client*, ServerHandler*, MsgQueue_t* );
 
-        /// start the worker thread
-        void start();
+        /// main method of the job handler, waits for jobs in the queue and
+        /// then does them
+        void* main();
+
+        /// static method for pthreads, calls main()
+        static void* dispatch_main( void* vp_h );
+
+    private:
+        /// typed message  handlers
+        void handleMessage( TypedMessage msg, messages::Ping*         upcast );
+        void handleMessage( TypedMessage msg, messages::Pong*         upcast );
+        void handleMessage( TypedMessage msg, messages::RequestChunk* upcast );
+        void handleMessage( TypedMessage msg, messages::Commit*       upcast );
+
+
+
 
 };
 

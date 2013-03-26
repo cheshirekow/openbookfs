@@ -101,16 +101,17 @@ ServerHandler::~ServerHandler()
 }
 
 void ServerHandler::init(
-        Client* client, MsgQueue_t* msgQueue, int termfd )
+        Client* client, int termfd )
 {
     using namespace pthreads;
     namespace cryp = CryptoPP;
 
     m_client            = client;
-    m_inboundMessages   = msgQueue;
     m_fd[0]     = 0;
     m_fd[1]     = termfd;
     m_shouldDie = false;
+
+    m_worker.init(client,this,&m_inboundMessages);
 
     // load public and private keys
     try
@@ -238,6 +239,10 @@ void* ServerHandler::main()
                       << " launching shout thread\n";
             m_shoutThread.launch( dispatch_shout, this );
 
+            std::cout << "handler " << (void*)this
+                      << " launching worker thread\n";
+            m_workerThread.launch( MessageHandler::dispatch_main, &m_worker );
+
             m_listenThread.join();
             std::cout << "handler " << (void*)this
                       << " listen thread quit\n";
@@ -245,6 +250,13 @@ void* ServerHandler::main()
             m_shoutThread.join();
             std::cout << "handler " << (void*)this
                       << " shout thread quit\n";
+
+            TypedMessage quit(MSG_QUIT);
+            m_inboundMessages.insert(quit);
+
+            m_workerThread.join();
+            std::cout << "handler " << (void*)this
+                      << " worker thread quit\n";
         }
         catch( std::exception& ex )
         {
@@ -718,7 +730,7 @@ void* ServerHandler::listen()
 
             // put the message in the global queue, will block until queue has
             // capacity
-            m_inboundMessages->insert(msg);
+            m_inboundMessages.insert(msg);
         }
     }
     catch( std::exception& ex )

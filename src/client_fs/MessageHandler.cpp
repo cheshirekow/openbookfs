@@ -30,8 +30,9 @@
 #include <sys/mman.h>
 
 #include "MessageHandler.h"
-#include "ExceptionStream.h"
 #include "MetaFile.h"
+#include "ExceptionStream.h"
+#include "ServerHandler.h"
 
 
 /// simple macro used only in MessageHandler.cpp which creates a case statement
@@ -97,13 +98,13 @@ void* MessageHandler::main()
             delete msg.msg;
     }
 
-    m_pool->reassign(this);
     return 0;
 }
 
 MessageHandler::MessageHandler():
-    m_pool(0),
-    m_msgQueue(0)
+    m_msgQueue(0),
+    m_client(0),
+    m_server(0)
 {
     m_mutex.init();
 }
@@ -279,40 +280,15 @@ void MessageHandler::handleMessage(
 }
 
 void MessageHandler::init(
-        Pool_t*         pool,
-        MsgQueue_t*     queue,
         Client*         client,
-        ServerHandler*  server )
+        ServerHandler*  server,
+        MsgQueue_t*     queue)
 {
-    m_pool     = pool;
-    m_msgQueue = queue;
     m_client   = client;
     m_server   = server;
+    m_msgQueue = queue;
 }
 
-void MessageHandler::start()
-{
-    // lock scope
-    // the worker thread wont be able to start doing anything until
-    // we're done in here
-    {
-        using namespace pthreads;
-        ScopedLock lock(m_mutex);
-
-        Attr<Thread> attr;
-        attr.init();
-        attr << DETACHED;
-        int result = m_thread.launch(attr,dispatch_main,this);
-        attr.destroy();
-
-        if( result )
-        {
-            std::cerr << "Failed to start job handler thread, errno " << result
-                      << " : " << strerror(result) << std::endl;
-            m_pool->reassign(this);
-        }
-    }
-}
 
 
 

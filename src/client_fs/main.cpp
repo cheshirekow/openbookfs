@@ -308,27 +308,16 @@ int main(int argc, char** argv)
 
     // create server handler, job queue, and worker objects
     ServerHandler           serverHandler;
-    Queue<TypedMessage>     inboundQueue;
-
-    // create job pool
-    MessageHandler* msgHandlers = new MessageHandler[ client.maxWorkers() ];
-    Pool<MessageHandler> workerPool( client.maxWorkers() );
 
     try
     {
-        serverHandler.init(&client,&inboundQueue,termNote.readFd());
+        serverHandler.init(&client,termNote.readFd());
         serverHandler.start();
     }
     catch( std::exception& ex )
     {
         std::cerr << "Problem starting server handler: " << ex.what() << std::endl;
         return 1;
-    }
-
-    for(int i=0; i < client.maxWorkers(); i++)
-    {
-        msgHandlers[i].init(&workerPool,&inboundQueue,&client,&serverHandler);
-        msgHandlers[i].start();
     }
 
     // extra info for opend file descriptors
@@ -353,33 +342,6 @@ int main(int argc, char** argv)
     // wait for the server handler to quit
     std::cout << "\n\nShutting down  \nWaiting for server handler to quit...\n";
     serverHandler.join();
-
-    // pump quit messages into job pool
-    TypedMessage quit(MSG_QUIT);
-    for(int i=0; i < client.maxWorkers(); i++)
-        inboundQueue.insert(quit);
-
-    std::cout << "Shutting down worker threads\n";
-
-    // wait for the workers to quit
-    while( workerPool.size() < client.maxWorkers() )
-    {
-        std::cout << "Waiting for "
-                  << client.maxWorkers() - workerPool.size()
-                  << " workers to quit\n";
-        sleep(1);
-    }
-
-    std::cout << "Emptying extra jobs\n";
-
-    // empty out any extra jobs
-    while( !inboundQueue.empty() )
-    {
-        TypedMessage msg;
-        inboundQueue.extract(msg);
-        if(msg.msg)
-            delete msg.msg;
-    }
 
     delete [] argv_buf;
     delete [] fuse_argv;
