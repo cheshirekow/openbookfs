@@ -12,4 +12,4 @@ Doxygen
 You can find doxygen documentation [here][1]. The doxygen mainpage has
 build instructions for Ubuntu 12.04 (though they are quite generic). 
 
-[1]: http://www.cheshirekow.com/
+[1]: http://www.cheshirekow.com/~projects/openbook_fs/
