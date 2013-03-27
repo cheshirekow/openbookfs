@@ -6,6 +6,12 @@ filesystem is mounted file synchronization happens in the background. We're
 planning to use a Bayou-like peer-to-peer synchronization strategy, however
 at this point in time we're developing the system to use a dedicated server. 
 
+Authors
+--------
+Joshua Bialkowski
+Gabe Ayers
+Bruno Alvisio
+
 Doxygen
 --------
 
