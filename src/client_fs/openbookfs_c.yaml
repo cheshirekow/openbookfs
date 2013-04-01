@@ -27,6 +27,9 @@ rootDir : "${CMAKE_CURRENT_BINARY_DIR}/root"
 #
 #   $ openssl genrsa -out id_rsa 3072
 #   $ openssl pkcs8 -nocrypt -in id_rsa -topk8 -outform DER -out id_rsa.der
+#
+# or you may let the system generate a key, which it will do if the key file
+# does not exist
 privKeyFile : "${CMAKE_CURRENT_BINARY_DIR}/rsa-openssl-priv.der"
 
 # Public keyfile. This serves as the clients's "identity" and is used to
@@ -36,6 +39,9 @@ privKeyFile : "${CMAKE_CURRENT_BINARY_DIR}/rsa-openssl-priv.der"
 #
 #   $ openssl genrsa -out id_rsa 3072
 #   $ openssl rsa -in id_rsa -pubout -outform DER -out id_rsa_pub.der
+#
+# or you may let the system generate a key, which it will do if the key file
+# does not exist
 pubKeyFile  : "${CMAKE_CURRENT_BINARY_DIR}/rsa-openssl-pub.der"
 
 # Address family of interface to bind to. Options are AF_INET (IPv4) or 
@@ -52,6 +58,9 @@ iface : any
 # Server location in [HOSTNAME]:[PORT] format. 
 server : localhost:3031
 
+# DEPRECATED: we are now using one worker per connection, may be re-enabled
+# for long-jobs in the future
+#
 # Size of the worker pool. The worker pool does work. Work is usually rather
 # short so this doesn't have to be too large.
 maxWorkers : 20
