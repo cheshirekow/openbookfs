@@ -25,12 +25,23 @@
  */
 
 #include "messages.h"
+#include "ExceptionStream.h"
 
 namespace   openbook {
 namespace filesystem {
 
+MessageId parseMessageId( char byte )
+{
+    if( 0 < byte && byte < NUM_MSG )
+        return (MessageId)(byte);
+    else
+    {
+        ex()() << "Invalid message type: " << (int)byte;
+        return INVALID_MESSAGE;
+    }
+}
 
-const char* messageIdToString( char id )
+const char* messageIdToString( MessageId id )
 {
     const char* str[] =
     {
@@ -44,11 +55,14 @@ const char* messageIdToString( char id )
         "AUTH_CHALLENGE",
         "AUTH_SOLUTION",
         "AUTH_RESULT",
-        "JOB_FINISHED",
+        "SUBSCRIBE",
+        "UNSUBSCRIBE",
         "NEW_VERSION",
-        "REQUEST_CHUNK",
+        "REQUEST_FILE",
+        "FILE_INFO",
         "FILE_CHUNK",
-        "COMMIT",
+        "DIR_INFO",
+        "DIR_CHUNK",
         "INVALID_ID"
     };
 

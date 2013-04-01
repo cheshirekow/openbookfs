@@ -45,17 +45,23 @@ enum MessageId
     MSG_AUTH_CHALLENGE,
     MSG_AUTH_SOLN,
     MSG_AUTH_RESULT,
-    MSG_JOB_FINISHED,
+    MSG_SUBSCRIBE,
+    MSG_UNSUBSCRIBE,
     MSG_NEW_VERSION,
-    MSG_REQUEST_CHUNK,
+    MSG_REQUEST_FILE,
+    MSG_FILE_INFO,
     MSG_FILE_CHUNK,
-    MSG_COMMIT,
+    MSG_DIR_INFO,
+    MSG_DIR_CHUNK,
     INVALID_MESSAGE,
     NUM_MSG = INVALID_MESSAGE,
 };
 
+/// parses a byte into a MessageId
+MessageId parseMessageId( char byte );
+
 /// returns a string corresponding to the specified message id
-const char* messageIdToString( char id );
+const char* messageIdToString( MessageId id );
 
 /// all messages are subclasses of googles protocol buffer messages
 typedef google::protobuf::Message Message;
@@ -81,9 +87,6 @@ template < MessageId ID > struct MessageType;
 template <> struct MessageType<MSG_PING>         { typedef messages::Ping         type; };
 template <> struct MessageType<MSG_PONG>         { typedef messages::Pong         type; };
 template <> struct MessageType<MSG_NEW_VERSION>  { typedef messages::NewVersion   type; };
-template <> struct MessageType<MSG_REQUEST_CHUNK>{ typedef messages::RequestChunk type; };
-template <> struct MessageType<MSG_FILE_CHUNK>   { typedef messages::FileChunk    type; };
-template <> struct MessageType<MSG_COMMIT>       { typedef messages::Commit       type; };
 /// @endcond MessageTypeTemplateInstantiations
 
 /// upcasts a generic message pointer to it's derived type

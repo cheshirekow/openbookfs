@@ -74,7 +74,6 @@ MessageBuffer::MessageBuffer()
     m_msgs[MSG_AUTH_CHALLENGE]  = &m_authChallenge;
     m_msgs[MSG_AUTH_SOLN]       = &m_authSoln;
     m_msgs[MSG_AUTH_RESULT]     = &m_authResult;
-    m_msgs[MSG_JOB_FINISHED]    = &m_jobFinished;
     m_msgs[MSG_NEW_VERSION]     = &m_newVersion;
 }
 
@@ -275,13 +274,11 @@ MessageId MessageBuffer::read( int sockfd,
 
     // the first decoded byte is the type
     type = m_plain[0];
+    MessageId mid = parseMessageId( type );
 
     // if it's a valid type attempt to parse the message
-    if( type < 0 || type >= NUM_MSG )
-        ex()() << "Invalid message type: " << (int)type;
-
-    if( !m_msgs[type]->ParseFromArray(&m_plain[1],m_plain.size()-1) )
-        ex()() << "Failed to parse message " << messageIdToString(type)
+    if( !m_msgs[mid]->ParseFromArray(&m_plain[1],m_plain.size()-1) )
+        ex()() << "Failed to parse message " << messageIdToString(mid)
                << " of size " << m_plain.size()-1;
 
     std::cout << "   read done\n";
@@ -458,13 +455,10 @@ MessageId MessageBuffer::read( int fd[2] )
 
     // the first decoded byte is the type
     type = m_plain[0];
+    MessageId mid = parseMessageId( type );
 
-    // if it's a valid type attempt to parse the message
-    if( type < 0 || type >= NUM_MSG )
-        ex()() << "Invalid message type: " << (int)type;
-
-    if( !m_msgs[type]->ParseFromArray(&m_plain[1],m_plain.size()-1) )
-        ex()() << "Failed to parse message " << messageIdToString(type)
+    if( !m_msgs[mid]->ParseFromArray(&m_plain[1],m_plain.size()-1) )
+        ex()() << "Failed to parse message " << messageIdToString(mid)
                << " of size " << m_plain.size()-1;
 
     std::cout << "   read done\n";
@@ -655,13 +649,11 @@ MessageId MessageBuffer::read( int fd[2],
 
     // the first decoded byte is the type
     type = m_plain[0];
+    MessageId mid = parseMessageId( type );
 
     // if it's a valid type attempt to parse the message
-    if( type < 0 || type >= NUM_MSG )
-        ex()() << "Invalid message type: " << (int)type;
-
-    if( !m_msgs[type]->ParseFromArray(&m_plain[1],m_plain.size()-1) )
-        ex()() << "Failed to parse message " << messageIdToString(type)
+    if( !m_msgs[mid]->ParseFromArray(&m_plain[1],m_plain.size()-1) )
+        ex()() << "Failed to parse message " << messageIdToString(mid)
                << " of size " << m_plain.size()-1;
 
     std::cout << "   read done\n";
@@ -872,21 +864,17 @@ TypedMessage MessageBuffer::readEnc( int fd[2] )
     if( type < 0 || type >= NUM_MSG )
         ex()() << "Invalid message type: " << (int)type;
 
-    out.type = (MessageId)type;
-
+    out.type = parseMessageId( type );
     switch(out.type)
     {
         DECODE_MSG(MSG_NEW_VERSION)
         DECODE_MSG(MSG_PING)
         DECODE_MSG(MSG_PONG)
-        DECODE_MSG(MSG_REQUEST_CHUNK)
-        DECODE_MSG(MSG_FILE_CHUNK)
-        DECODE_MSG(MSG_COMMIT)
 
         default:
         {
             ex()() << "Unknown message type for allocated receive: "
-                   << " (" << (int)type << ") : " << messageIdToString(type);
+                   << " (" << (int)type << ") : " << messageIdToString(out.type);
             break;
         }
     }

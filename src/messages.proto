@@ -88,69 +88,96 @@ message Pong {
 //                      File System Notifications and Jobs
 // ----------------------------------------------------------------------------
 
-// sent by the client when the user writes to a file on the file system or by
-// the server when it finishes downloading a new version
+// sent by a client when it subscribes to a path
+message Subscribe {
+    optional int64  msg_id  =1;     // message identifier
+    optional string path    =2;     // the path to subscribe to
+}
+
+// sent by a client when it unsubscribes to a path
+message Unsubscribe {
+    optional int64  msg_id  =1;     // message identifier
+    optional string path    =2;     // the path to unsubscribe from
+}
+
+// one entry in a version vector
+message VersionEntry {
+    optional string client  = 1; // base64 encoded public key
+    optional int64  version = 2; // version number
+}
+
+// a version vector
+message VersionVector {
+    repeated VersionEntry version = 1;
+}
+
+// sent by a client to other subscribed clients when a file is updated
 message NewVersion {
-    optional int32  job_id         = 1;    // server specific request_id
-    optional int32  base_version   = 2;    // official version of original file
-    optional int32  client_version = 3;    // number of client changes
-    optional int64  size           = 4;    // file size
-    optional string path           = 5;    // path of the file 
+    optional int64          msg_id      = 1;    // message identifier
+    optional string         path        = 2;    // path of the file 
+    optional VersionVector  version     = 3;    // version vector
 }
 
-// Sent by the client or server requesting a chunk of data from the specified
-// file. This message is always acked.
-message RequestChunk {
-    optional int32  msg_id          = 1;    // message id for acking
-    optional int32  base_version    = 2;    // used to verify file is ok
-    optional int32  client_version  = 3;    // used to verify file is ok
-    optional int64  offset          = 4;    // offset of chunk
-    optional int64  size            = 5;    // size of chunk
-    optional string path            = 6;    // path of the file
+// Sent by one client to another when it wishes to receive a copy of 
+// the file
+message RequestFile {
+    optional int64          msg_id      = 1;    // message id
+    optional int64          req_id      = 2;    // recipient transaction id
+    optional string         path        = 3;    // path of the file
+    optional int64          offset      = 4;    // first byte/entry to send 
+    optional VersionVector  version     = 5;    // version requested
 }
 
-// Message containinga  chunk of a file
+// First message sent in preparation of a file transfer
+message FileInfo {
+    optional int64  msg_id          = 1;    // message id
+    optional int64  req_id          = 2;    // recipient transaction id
+    optional int64  size            = 3;    // size of the file
+    optional int64  ctime           = 4;    // creation time
+    optional int64  mtime           = 5;    // modification time
+}
+
+// Message containing  chunk of a file
 message FileChunk {
-    optional int32  msg_id          = 1;    // message id of response
-    optional int32  base_version    = 2;    // used to verify file is ok
-    optional int32  client_version  = 3;    // used to verify file is ok
-    optional int64  offset          = 4;    // offset of chunk
-    optional string path            = 5;    // path of the file
-    optional bytes  data            = 6;    // actual data chunk
+    optional int64  msg_id          = 1;    // message id 
+    optional int64  req_id          = 2;    // recipient transaction id
+    optional int64  offset          = 3;    // offset of chunk
+    optional bytes  data            = 4;    // actual data chunk
 }
  
-// Sent by the server after a download telling a client that his version
-// is now official
-message Commit {
-    optional int32  msg_id           = 1; // message id for acking
-    optional int32  base_version     = 2; // old base version
-    optional int32  client_version   = 3; // version committed
-    optional int32  new_version      = 4; // new base version
-    optional string path             = 5; // the file committed
+
+ 
+// types of files
+enum NodeType {
+    REGULAR   = 0;    // regular file
+    DIRECTORY = 1;    // subdirectory
+    SIMLINK   = 2;    // simlink
+}
+ 
+// one entry of a directory
+message DirEntry {
+    optional string     path    = 1;    // path name of child
+    optional NodeType   type    = 2;    // type of child
+    optional int64      size    = 3;    // size if a file
+    optional int64      ctime   = 4;    // creation time
+    optional int64      mtime   = 5;    // modification time
 }
 
-
-
-// acknowledges a job completion
-message JobComplete {
-    optional int32   job_id = 1;    
+// info a bout a directory
+message DirInfo {
+    optional int64  msg_id  = 1; // message id
+    optional int64  req_id  = 2; // recipient transaction id
+    optional int64  size    = 3; // number of entries
+    optional int64  ctime   = 4; // creation time
+    optional int64  mtime   = 5; // modification time
 }
 
-
-
-
-// sent when a subscription is created
-message Subscribe {
-    optional int32   job_id     = 1;    // client specific request id
-    optional int32   client_id  = 2;    // which client get's the subscription
-    optional string  path       = 3;    // path to the file
-}
-
-// sent when a subscription is removed
-message Unsubscribe {
-    optional int32   job_id     = 1;    // client specific request id
-    optional int32   client_id  = 2;    // which client get's the subscription
-    optional string  path       = 3;    // path to the file
+// Message containing a chunk of a directory
+message DirChunk {
+    optional int64      msg_id  = 1; // message id
+    optional int64      req_id  = 2; // recipient transaction id
+    optional int64      offset  = 3; // row number of first row in this message
+    repeated DirEntry   entries = 4; // actual entries
 }
 
 
