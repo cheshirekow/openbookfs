@@ -86,7 +86,10 @@ template < MessageId ID > struct MessageType;
 /// @cond MessageTypeTemplateInstantiations
 template <> struct MessageType<MSG_PING>         { typedef messages::Ping         type; };
 template <> struct MessageType<MSG_PONG>         { typedef messages::Pong         type; };
+template <> struct MessageType<MSG_SUBSCRIBE>    { typedef messages::Subscribe    type; };
+template <> struct MessageType<MSG_UNSUBSCRIBE>  { typedef messages::Unsubscribe  type; };
 template <> struct MessageType<MSG_NEW_VERSION>  { typedef messages::NewVersion   type; };
+
 /// @endcond MessageTypeTemplateInstantiations
 
 /// upcasts a generic message pointer to it's derived type

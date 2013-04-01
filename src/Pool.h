@@ -28,6 +28,7 @@
 #define OPENBOOK_POOL_H_
 
 #include <vector>
+#include <cpp-pthreads.h>
 
 namespace   openbook {
 namespace filesystem {

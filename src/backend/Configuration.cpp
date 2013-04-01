@@ -17,7 +17,7 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   src/client_fs/Client.cpp
+ *  @file   src/client_fs/Configuration.cpp
  *
  *  @date   Feb 17, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
@@ -26,7 +26,7 @@
 
 
 
-#include "Client.h"
+#include "Configuration.h"
 #include "ExceptionStream.h"
 #include <iostream>
 #include <fstream>
@@ -44,65 +44,68 @@
 
 namespace   openbook {
 namespace filesystem {
-namespace     client {
 
-Client::Client()
+Configuration::Configuration()
 {
-    m_nextId = 0;
+    // initialize the kv-store with sensable defaults
+    static_cast<KVStore_t&>(*this)
+    ( "displayName"  , std::string("Unnamed")  )
+    ( "password"     , std::string("fabulous") )
+    ( "dataDir"      , std::string("./data")   )
+    ( "rootDir"      , std::string("./root")   )
+    ( "addressFamily", std::string("AF_INET")  )
+    ( "iface"        , std::string("any")      )
+    ( "maxWorkers"   , (int)20                 );
+
     m_mutex.init();
 }
 
-Client::~Client()
+Configuration::~Configuration()
 {
     m_mutex.destroy();
 }
 
 
-void Client::initConfig(const std::string& configFile)
+void initializeDataDir()
+{
+
+}
+
+void Configuration::loadConfig()
+{
+    loadConfig(m_configFile);
+}
+
+void Configuration::loadConfig(const std::string& configFile)
 {
     namespace fs = boost::filesystem;
 
-    // verify that the config file exists
-    if( !fs::exists( fs::path(configFile) ) )
-        ex()() << "Client configuration file not found: " << configFile;
+    // load the configuration into the kv-store
+    KVStore_t::read(configFile);
 
-    std::ifstream in(configFile.c_str());
-    if(!in)
-        ex()() << "Failed to open " << configFile << " for reading";
+    path dataDir = getPath("dataDir");
+    this->set( "realRoot",   ( dataDir / "real_root"   ).string() );
+    this->set( "dbFile",     ( dataDir / "store.sqlite").string() );
+    this->set( "privKeyFile",( dataDir / "id_rsa.der"  ).string() );
+    this->set( "pubKeyFile", ( dataDir / "pub_rsa.der" ).string() );
 
-    YAML::Parser parser(in);
-    YAML::Node   config;
-    parser.GetNextDocument(config);
 
-    std::string serverStr;
-
-    config["displayName"]   >> m_displayName;
-    config["password"]      >> m_password;
-    config["dataDir"]       >> m_dataDir;
-    config["rootDir"]       >> m_rootDir;
-    config["addressFamily"] >> m_addressFamily;
-    config["iface"]         >> m_iface;
-    config["maxWorkers"]    >> m_maxWorkers;
-    config["server"]        >> m_server;
-
-    namespace fs = boost::filesystem;
-
-    m_realRoot = fs::path(m_dataDir) / "real_root";
 
     // check that the data directory and subdirectories exist
-    if( !fs::exists( m_realRoot  ) )
+    path realRoot = getPath("realRoot");
+    if( !fs::exists( realRoot  ) )
     {
         std::cout << "creating data directory: "
-                  << fs::absolute( m_realRoot  )
+                  << fs::absolute( realRoot  )
                   << std::endl;
-        bool result = fs::create_directories( m_realRoot  );
+        bool result = fs::create_directories( realRoot  );
         if( !result )
-            ex()() << "failed to create data directory: " << m_realRoot ;
+            ex()() << "failed to create data directory: " << realRoot ;
     }
 
     // if there is no private key file then create one
-    fs::path privKeyFile = fs::path(m_dataDir) / "id_rsa.der";
-    fs::path pubKeyFile  = fs::path(m_dataDir) / "id_rsa_pub.der";
+    path privKeyFile = getPath("privKeyFile");
+    path pubKeyFile  = getPath("pubKeyFile");
 
     if( !fs::exists( privKeyFile) || !fs::exists (pubKeyFile) )
     {
@@ -132,15 +135,12 @@ void Client::initConfig(const std::string& configFile)
         queue.Clear();
     }
 
-    m_pubKeyFile    = pubKeyFile.string();
-    m_privKeyFile   = privKeyFile.string();
-
     // initialize the message database
     using namespace soci;
 
     std::cout << "Initializing database" << std::endl;
-    m_dbFile = fs::path(m_dataDir) / "store.sqlite";
-    session sql(sqlite3,m_dbFile.string());
+    path dbFile = getPath("dbFile");
+    session sql(sqlite3,dbFile.string());
 
     sql << "CREATE TABLE IF NOT EXISTS conflict_files ("
             "conflict_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
@@ -162,7 +162,7 @@ void Client::initConfig(const std::string& configFile)
     sql.close();
 
     // initialize the root directory if not already initialized
-    std::string rootMeta = (fs::path(m_realRoot) / "obfs.sqlite").string();
+    std::string rootMeta = ( realRoot / "obfs.sqlite").string();
     sql.open(sqlite3,rootMeta);
 
     sql << "CREATE TABLE IF NOT EXISTS meta ("
@@ -194,15 +194,21 @@ void Client::initConfig(const std::string& configFile)
             "mtime INTEGER NOT NULL) ";
 }
 
-
-uint64_t Client::nextId()
+void Configuration::saveConfig()
 {
-    pthreads::ScopedLock lock(m_mutex);
-    return ++m_nextId;
+    saveConfig(m_configFile);
+}
+
+void Configuration::saveConfig( const std::string& configFile )
+{
+    KVStore_t::write(configFile);
+}
+
+boost::filesystem::path Configuration::getPath( const std::string& key )
+{
+    return get<std::string>(key);
 }
 
 
-
-} // namespace client
 } // namespace filesystem
 } // namespace openbook
