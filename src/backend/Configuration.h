@@ -43,32 +43,46 @@ namespace   openbook {
 namespace filesystem {
 
 
+struct MountPoint
+{
+    typedef boost::filesystem::path  path;
+
+    path    m_logicalDir;
+    path    m_mountDir;
+};
 
 
-/// encapsulates details about the client and it's configuration
-struct Configuration:
-    public KVStore<std::string,int>
+/// a simple k/v store holding configuration variables
+struct Configuration
 {
     public:
-        typedef KVStore<std::string,int>    KVStore_t;
         typedef boost::filesystem::path     path;
+        typedef std::vector<MountPoint>     MountVec;
 
     private:
         pthreads::Mutex m_mutex;        ///< locks this data
         std::string     m_configFile;   ///< the configuration file
+        std::string     m_displayName;  ///< used to help identify this machine
+                                        ///  to the user
+        path            m_dataDir;      ///< meta data storage
+        MountVec        m_mounts;       ///< mount points
+        addrinfo        m_listenHints;
+
 
     public:
         Configuration();
         ~Configuration();
 
     private:
-        /// called when the data directory changes
+        /// sets the paths to things like the real root and sqlite files
+        /// after the data directory has changed
+        void setDerivedPaths();
+
+        /// makes sure that all the subdirectories and ata files exit and
+        /// are initialized
         void initializeDataDir();
 
     public:
-        /// gui interface
-        void setConfigFile();
-
         /// load a configuration from a file (will throw an exception on
         /// errors)
         void loadConfig();

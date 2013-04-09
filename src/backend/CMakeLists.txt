@@ -8,7 +8,7 @@ find_package(RE2)
 find_package(Tclap)
 find_package(YamlCpp)
 find_package(Soci COMPONENTS sqlite3) 
-
+find_package(SigC++)
 configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/config.yaml
                 ${CMAKE_CURRENT_BINARY_DIR}/config.yaml )
                              
@@ -22,7 +22,8 @@ if( (FUSE_FOUND)
     AND (Tclap_FOUND) 
     AND (YAMLCPP_FOUND)
     AND (THREADS_FOUND)
-    AND (SOCI_FOUND) 
+    AND (SOCI_FOUND)
+    AND (SigC++_FOUND)
      )
                                                                     
     include_directories( 
@@ -36,6 +37,7 @@ if( (FUSE_FOUND)
         ${Tclap_INCLUDE_DIR}
         ${YAMLCPP_INCLUDE_DIR}
         ${SOCI_INCLUDE_DIRS}
+        ${SigC++_INCLUDE_DIRS}
         ${CMAKE_CURRENT_SOURCE_DIR}
         )
     
@@ -50,6 +52,7 @@ if( (FUSE_FOUND)
         ${RE2_LIBRARY}
         ${YAMLCPP_LIBRARY}
         ${SOCI_LIBRARY}
+        ${SigC++_LIBRARIES}
         ${SOCI_sqlite3_PLUGIN}
         )
         
@@ -114,6 +117,10 @@ else()
     
     if( NOT (Soci_FOUND) )
         set(MISSING "${MISSING} soci,")
+    endif()
+    
+    if( NOT (SigC++_FOUND) )
+        set(MISSGIN "${MISSING} sigc++,")
     endif()
     
     message( WARNING "Can't build obfs_backend, missing: ${MISSING}")

@@ -66,29 +66,19 @@ Configuration::~Configuration()
 }
 
 
-void initializeDataDir()
+void Configuration::setDerivedPaths()
 {
-
-}
-
-void Configuration::loadConfig()
-{
-    loadConfig(m_configFile);
-}
-
-void Configuration::loadConfig(const std::string& configFile)
-{
-    namespace fs = boost::filesystem;
-
-    // load the configuration into the kv-store
-    KVStore_t::read(configFile);
-
     path dataDir = getPath("dataDir");
     this->set( "realRoot",   ( dataDir / "real_root"   ).string() );
     this->set( "dbFile",     ( dataDir / "store.sqlite").string() );
     this->set( "privKeyFile",( dataDir / "id_rsa.der"  ).string() );
     this->set( "pubKeyFile", ( dataDir / "pub_rsa.der" ).string() );
+}
 
+
+void Configuration::initializeDataDir()
+{
+    namespace fs = boost::filesystem;
 
 
     // check that the data directory and subdirectories exist
@@ -192,6 +182,26 @@ void Configuration::loadConfig(const std::string& configFile)
             "size INTEGER NOT NULL, "
             "ctime INTEGER NOT NULL, "
             "mtime INTEGER NOT NULL) ";
+}
+
+void Configuration::loadConfig()
+{
+    loadConfig(m_configFile);
+}
+
+void Configuration::loadConfig(const std::string& configFile)
+{
+    namespace fs = boost::filesystem;
+
+    // load the configuration into the kv-store
+    KVStore_t::read(configFile);
+
+    setDerivedPaths();
+    initializeDataDir();
+
+
+
+
 }
 
 void Configuration::saveConfig()
