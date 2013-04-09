@@ -166,6 +166,24 @@ class Marshall
          */
         void write( RefPtr<AutoMessage> msg );
 
+        template <typename T>
+        void writeMsg( T* msg )
+        {
+            AutoMessage* amsg = new AutoMessage();
+            amsg->type = MessageTypeToId<T>::ID;
+            amsg->msg  = msg;
+            write( amsg );
+        }
+
+        template <typename T>
+        void writeEncMsg( T* msg )
+        {
+            AutoMessage* amsg = new AutoMessage();
+            amsg->type = MessageTypeToId<T>::ID;
+            amsg->msg  = msg;
+            writeEnc( amsg );
+        }
+
 
 
 };

@@ -84,25 +84,33 @@ struct TypedMessage
 /// maps MessageId to the message type
 template < MessageId ID > struct MessageType;
 
+/// maps message type to MessageId
+template < typename T > struct MessageTypeToId;
+
 /// @cond MessageTypeTemplateInstantiations
-template <> struct MessageType<MSG_PING>            { typedef messages::Ping            type; };
-template <> struct MessageType<MSG_PONG>            { typedef messages::Pong            type; };
-template <> struct MessageType<MSG_LEADER_ELECT>    { typedef messages::LeaderElect     type; };
-template <> struct MessageType<MSG_DH_PARAMS>       { typedef messages::DiffieHellmanParams type; };
-template <> struct MessageType<MSG_KEY_EXCHANGE>    { typedef messages::KeyExchange     type; };
-template <> struct MessageType<MSG_CEK>             { typedef messages::ContentKey      type; };
-template <> struct MessageType<MSG_AUTH_REQ>        { typedef messages::AuthRequest     type; };
-template <> struct MessageType<MSG_AUTH_CHALLENGE>  { typedef messages::AuthChallenge   type; };
-template <> struct MessageType<MSG_AUTH_SOLN>       { typedef messages::AuthSolution    type; };
-template <> struct MessageType<MSG_AUTH_RESULT>     { typedef messages::AuthResult      type; };
-template <> struct MessageType<MSG_SUBSCRIBE>       { typedef messages::Subscribe       type; };
-template <> struct MessageType<MSG_UNSUBSCRIBE>     { typedef messages::Unsubscribe     type; };
-template <> struct MessageType<MSG_NEW_VERSION>     { typedef messages::NewVersion      type; };
-template <> struct MessageType<MSG_REQUEST_FILE>    { typedef messages::RequestFile     type; };
-template <> struct MessageType<MSG_FILE_INFO>       { typedef messages::FileInfo        type; };
-template <> struct MessageType<MSG_FILE_CHUNK>      { typedef messages::FileChunk       type; };
-template <> struct MessageType<MSG_DIR_INFO>        { typedef messages::DirInfo         type; };
-template <> struct MessageType<MSG_DIR_CHUNK>       { typedef messages::DirChunk        type; };
+#define MAP_MSG_TYPE(ID,TYPE) \
+template <> struct MessageType<MSG_##ID> { typedef messages::TYPE type; }; \
+template <> struct MessageTypeToId<messages::TYPE> { static const MessageId ID = MSG_##ID; };
+
+MAP_MSG_TYPE(PING,              Ping)
+MAP_MSG_TYPE(PONG,              Pong)
+MAP_MSG_TYPE(LEADER_ELECT,      LeaderElect)
+MAP_MSG_TYPE(DH_PARAMS,         DiffieHellmanParams)
+MAP_MSG_TYPE(KEY_EXCHANGE,      KeyExchange)
+MAP_MSG_TYPE(CEK,               ContentKey)
+MAP_MSG_TYPE(AUTH_REQ,          AuthRequest)
+MAP_MSG_TYPE(AUTH_CHALLENGE,    AuthChallenge)
+MAP_MSG_TYPE(AUTH_SOLN,         AuthSolution)
+MAP_MSG_TYPE(AUTH_RESULT,       AuthResult)
+MAP_MSG_TYPE(SUBSCRIBE,         Subscribe)
+MAP_MSG_TYPE(UNSUBSCRIBE,       Unsubscribe)
+MAP_MSG_TYPE(NEW_VERSION,       NewVersion)
+MAP_MSG_TYPE(REQUEST_FILE,      RequestFile)
+MAP_MSG_TYPE(FILE_INFO,         FileInfo)
+MAP_MSG_TYPE(FILE_CHUNK,        FileChunk)
+MAP_MSG_TYPE(DIR_INFO,          DirInfo)
+MAP_MSG_TYPE(DIR_CHUNK,         DirChunk)
+
 
 /// @endcond MessageTypeTemplateInstantiations
 

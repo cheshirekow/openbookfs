@@ -48,15 +48,15 @@
 namespace   openbook {
 namespace filesystem {
 
-static void validate_message( TypedMessage msg, MessageId expected )
+static void validate_message( RefPtr<AutoMessage> msg, MessageId expected )
 {
-    if( msg.type != expected )
+    if( msg->type != expected )
     {
         ex()() << "Protocol Error: expected "
                << messageIdToString(expected)
                << " from peer, instead got"
-               << messageIdToString(msg.type)
-               << "(" << (int)msg.type << ")";
+               << messageIdToString(msg->type)
+               << "(" << (int)msg->type << ")";
     }
 }
 
@@ -218,9 +218,10 @@ void* Connection::main()
     // g_handlerKey.setSpecific(this);
 
     try
-    {
-        // lock scope
+    {// lock scope
         pthreads::ScopedLock(m_mutex);
+        m_marshall.setFd(m_sockfd);
+
         handshake();
         std::cout << "handler " << (void*)this
                   << " launching listen thread\n";
@@ -388,24 +389,26 @@ bool Connection::leaderElect()
 {
     namespace msgs = messages;
     using namespace pthreads;
-    int fd[2]    = {m_sockfd,g_termNote->readFd()};
 
-    int          number = m_rng.GenerateByte();
+    int myNum   = 0;
+    int peerNum = 0;
 
-    // first, peers generate random numbers to decide who is the leader and
-    // who is the follower
-    msgs::LeaderElect leaderElect;
-    leaderElect.set_number( number );
-    m_msg.writePlain(fd,TypedMessage(MSG_LEADER_ELECT,&leaderElect));
+    while(myNum == peerNum)
+    {
+        myNum = m_rng.GenerateByte();
+        // first, peers generate random numbers to decide who is the leader and
+        // who is the follower
+        msgs::LeaderElect* msg = new msgs::LeaderElect();
+        msg->set_number( myNum );
+        m_marshall.writeMsg(msg);
 
-    TypedMessage reply = m_msg.readPlain(fd);
-    validate_message(reply,MSG_LEADER_ELECT);
-    msgs::LeaderElect *leaderElectRecv =
-            static_cast<msgs::LeaderElect*>(reply.msg);
-    bool amLeader = number > leaderElectRecv->number();
-    delete leaderElectRecv;
+        RefPtr<AutoMessage> reply = m_marshall.read();
+        validate_message(reply,MSG_LEADER_ELECT);
+        msg = static_cast<msgs::LeaderElect*>(reply->msg);
+        peerNum = msg->number();
+    }
 
-    return amLeader;
+    return myNum > peerNum;
 }
 
 void Connection::keyExchange(
@@ -415,8 +418,6 @@ void Connection::keyExchange(
     namespace msgs = messages;
     using namespace pthreads;
     using namespace CryptoPP;
-
-    int fd[2]    = {m_sockfd,g_termNote->readFd()};
 
     DH                dh;       //< Diffie-Hellman structure
     DH2               dh2(dh);  //< Diffie-Hellman structure
@@ -432,30 +433,25 @@ void Connection::keyExchange(
     SecByteBlock shared( dh2.AgreedValueLength() );
 
     // now, the peers send each other a key exchange message
-    msgs::KeyExchange keyEx;
-    keyEx.set_ekey( epub.BytePtr(), epub.SizeInBytes() );
-    keyEx.set_skey( spub.BytePtr(), spub.SizeInBytes() );
+    msgs::KeyExchange* keyEx = new msgs::KeyExchange();
+    keyEx->set_ekey( epub.BytePtr(), epub.SizeInBytes() );
+    keyEx->set_skey( spub.BytePtr(), spub.SizeInBytes() );
 
     std::cout << "Sending KEY_EXCHANGE message " << std::endl;
-    m_msg.writePlain( fd, TypedMessage(MSG_KEY_EXCHANGE,&keyEx) );
+    m_marshall.writeMsg( keyEx );
 
     std::cout << "Waiting for KEY_EXCHANGE message " << std::endl;
-    TypedMessage reply = m_msg.readPlain(fd);
+    RefPtr<AutoMessage> reply = m_marshall.read();
     validate_message( reply, MSG_KEY_EXCHANGE );
-
-    msgs::KeyExchange* keyExRecv =
-            static_cast<msgs::KeyExchange*>(reply.msg);
+    keyEx = static_cast<msgs::KeyExchange*>(reply->msg);
 
     // read client keys
     SecByteBlock epubClient(
-                    (unsigned char*)&keyExRecv->ekey()[0],
-                    keyExRecv->ekey().size() );
+                    (unsigned char*)&keyEx->ekey()[0],
+                    keyEx->ekey().size() );
     SecByteBlock spubClient(
-                    (unsigned char*)&keyExRecv->skey()[0],
-                    keyExRecv->skey().size() );
-
-    // delete the message
-    delete keyExRecv;
+                    (unsigned char*)&keyEx->skey()[0],
+                    keyEx->skey().size() );
 
     // generate shared key
     if( !dh2.Agree(shared,spriv,epriv,spubClient,epubClient) )
@@ -485,8 +481,6 @@ void Connection::sendCEK( CryptoPP::SecByteBlock& kek,
     using namespace pthreads;
     using namespace CryptoPP;
 
-    int fd[2]    = {m_sockfd,g_termNote->readFd()};
-
     CMAC<AES> cmac(mack.BytePtr(), mack.SizeInBytes());
 
     // Generate a random CEK and IV
@@ -496,7 +490,7 @@ void Connection::sendCEK( CryptoPP::SecByteBlock& kek,
     m_rng.GenerateBlock( m_iv.BytePtr(), m_iv.SizeInBytes());
 
     // initialize message buffer encoder, decoder
-    m_msg.initAES(m_cek,m_iv);
+    m_marshall.initAES(m_cek,m_iv);
 
     // print it for checking
     Integer cekOut, ivOut;
@@ -521,9 +515,7 @@ void Connection::sendCEK( CryptoPP::SecByteBlock& kek,
                                   msg_cipher.BytePtr(), 2*AES::BLOCKSIZE );
 
     // fill the content key message
-    msgs::ContentKey* contentKey =
-            static_cast<msgs::ContentKey*>( m_msg[MSG_CEK] );
-
+    msgs::ContentKey* contentKey =  new msgs::ContentKey();
     contentKey->set_key( msg_cipher.BytePtr(), AES::BLOCKSIZE );
     contentKey->set_iv(  &msg_cipher.BytePtr()[ AES::BLOCKSIZE],
                                                AES::BLOCKSIZE );
@@ -531,7 +523,7 @@ void Connection::sendCEK( CryptoPP::SecByteBlock& kek,
 
     // send the content key message
     std::cout << "Sending CEK message " << std::endl;
-    m_msg.write(fd,MSG_CEK);
+    m_marshall.writeMsg(contentKey);
 }
 
 
@@ -542,8 +534,6 @@ void Connection::recvCEK( CryptoPP::SecByteBlock& kek,
     using namespace pthreads;
     using namespace CryptoPP;
 
-    int fd[2]    = {m_sockfd,g_termNote->readFd()};
-
     CMAC<AES> cmac(mack.BytePtr(), mack.SizeInBytes());
 
     // extract and decode the content key
@@ -553,12 +543,12 @@ void Connection::recvCEK( CryptoPP::SecByteBlock& kek,
     aes.SetKey(kek.BytePtr(), kek.SizeInBytes());
 
     // receive the content encryption key from the server
-    TypedMessage recv = m_msg.readPlain(fd);
+    RefPtr<AutoMessage> recv = m_marshall.read();
     validate_message( recv, MSG_CEK );
 
     // verify message sizes
     msgs::ContentKey* contentKey =
-            static_cast<msgs::ContentKey*>( m_msg[MSG_CEK] );
+            static_cast<msgs::ContentKey*>( recv->msg );
     if( contentKey->key().size() != AES::BLOCKSIZE )
         ex()() << "Message error: CEK key size "
                << contentKey->key().size() << " is incorrect, should be "
@@ -621,14 +611,17 @@ void Connection::authenticatePeer(std::string& base64)
     using namespace pthreads;
     using namespace CryptoPP;
 
-    int fd[2]    = {m_sockfd,g_termNote->readFd()};
-
     // trade public keys
-    TypedMessage recv = m_msg.readEnc(fd);
-    validate_message( recv, MSG_AUTH_REQ );
+    msgs::AuthRequest* authReq = new msgs::AuthRequest();
+    authReq->set_display_name("DisplayName");
+    authReq->set_public_key(base64);
+    m_marshall.writeMsg( authReq );
 
+    RefPtr<AutoMessage> recv = m_marshall.read();
+    validate_message( recv, MSG_AUTH_REQ );
     msgs::AuthRequest* authReq =
-            static_cast<msgs::AuthRequest*>( m_msg[MSG_AUTH_REQ] );
+            static_cast<msgs::AuthRequest*>( recv->msg );
+
     std::string displayName = authReq->display_name();
     std::stringstream  inkey( authReq->public_key() );
     FileSource keyFile(inkey,true);
@@ -701,8 +694,6 @@ void* Connection::listen()
               << " in thread "
               << pthreads::Thread::self().c_obj() << "\n";
 
-    int fd[2]    = {m_sockfd,g_termNote->readFd()};
-
     try
     {
         // infinite loop until exception is thrown
@@ -710,7 +701,7 @@ void* Connection::listen()
         {
             // read one message from client, exception thrown on disconnect
             // or termination signal
-            TypedMessage msg = m_msg.readEnc(fd);
+            RefPtr<AutoMessage> msg = m_marshall.readEnc();
 
             // put the message in the inbound queue
             m_inboundMessages.insert(msg);
@@ -735,19 +726,17 @@ void* Connection::shout()
               << " in thread "
               << pthreads::Thread::self().c_obj() << "\n";
 
-    int fd[2]    = {m_sockfd,g_termNote->readFd()};
-
     try
     {
         while(1)
         {
-            TypedMessage msg;
+            RefPtr<AutoMessage> msg;
 
             // wait for a job to be finished from the queue
             m_outboundMessages.extract(msg);
 
             // if it's a quit message then quit
-            if( msg.type == MSG_QUIT )
+            if( msg->type == MSG_QUIT )
             {
                 std::cout << "Client Handler " << (void*)this << " received a "
                              "QUIT_SHOUTER job, so quitting\n";
@@ -755,8 +744,7 @@ void* Connection::shout()
             }
 
             // otherwise send the message
-            m_msg.writeEnc(fd,msg);
-            delete msg.msg;
+            m_marshall.writeEnc(msg);
         }
     }
     catch( std::exception& ex )

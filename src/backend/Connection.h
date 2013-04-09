@@ -49,7 +49,7 @@
 #include <soci/sqlite3/soci-sqlite3.h>
 
 #include "ExceptionStream.h"
-#include "MessageBuffer.h"
+#include "Marshall.h"
 #include "Pool.h"
 #include "Queue.h"
 #include "Synchronized.h"
@@ -63,8 +63,8 @@ namespace filesystem {
 class Connection
 {
     public:
-        typedef Pool<Connection>        Pool_t;
-        typedef Queue<TypedMessage>     MsgQueue_t;
+        typedef Pool<Connection>                Pool_t;
+        typedef Queue< RefPtr<AutoMessage> >    MsgQueue_t;
 
     private:
         static const unsigned int sm_bufsize = 256;
@@ -81,7 +81,7 @@ class Connection
         pthreads::Thread    m_workerThread;     ///< child thread for jobs
 
         pthreads::Mutex     m_mutex;            ///< locks this data
-        MessageBuffer       m_msg;              ///< message buffer
+        Marshall            m_marshall;         ///< message/stream conversion
         int                 m_sockfd;           ///< socket for the connection
 
         // Diffie-Hellman Paramters
