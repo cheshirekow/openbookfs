@@ -57,21 +57,8 @@ if( (FUSE_FOUND)
         )
         
     add_executable( obfs_backend 
-                    ../messages.cpp
-                    ../MessageBuffer.cpp
-                    ../FdSet.cpp
-                    ../SelectSpec.cpp
-                    ../NotifyPipe.cpp
-                    ../TimeVal.cpp   
                     main.cpp
-                    #fuse_operations.cpp
-                    Configuration.cpp
-                    #FileDescriptor.cpp
-                    #MessageHandler.cpp
-                    #MetaFile.cpp
-                    #OpenbookFS.cpp
-                    #ServerHandler.cpp          
-                    ${MESSAGES_PB_CC}
+                    #${MESSAGES_PB_CC}
                     )
                             
     set_target_properties( obfs_backend 
