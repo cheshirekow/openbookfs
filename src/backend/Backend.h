@@ -48,6 +48,7 @@ class Backend
         };
 
     private:
+        std::string      m_configFile;  ///< configuration file to load
         NotifyPipe       m_termNote;    ///< globally signals termination
 
         /// listens for incoming connections
@@ -60,8 +61,13 @@ class Backend
         Backend();
         ~Backend();
 
+    private:
+        /// parses the command line
+        void parse( int argc, char** argv );
+
+    public:
         /// call from main()
-        int run();
+        int run(int argc, char** argv);
 };
 
 }
