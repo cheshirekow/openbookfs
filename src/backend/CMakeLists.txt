@@ -43,6 +43,7 @@ if( (FUSE_FOUND)
     
     
     set(LIBS ${LIBS} 
+        ${CMAKE_THREAD_LIBS_INIT}
         ${FUSE_LIBRARY}
         ${Boost_LIBRARIES}
         ${Protobuf_LIBRARY}
@@ -51,13 +52,18 @@ if( (FUSE_FOUND)
         ${Crypto++_LIBRARY}
         ${RE2_LIBRARY}
         ${YAMLCPP_LIBRARY}
-        ${SOCI_LIBRARY}
         ${SigC++_LIBRARIES}
+        ${SOCI_LIBRARY}
         ${SOCI_sqlite3_PLUGIN}
         )
         
     add_executable( obfs_backend 
                     main.cpp
+                    SocketListener.cpp
+                    ../FdSet.cpp
+                    ../NotifyPipe.cpp
+                    ../SelectSpec.cpp
+                    ../TimeVal.cpp
                     #${MESSAGES_PB_CC}
                     )
                             
