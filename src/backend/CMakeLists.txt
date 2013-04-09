@@ -59,6 +59,7 @@ if( (FUSE_FOUND)
         
     add_executable( obfs_backend 
                     main.cpp
+                    Backend.cpp
                     SocketListener.cpp
                     ../FdSet.cpp
                     ../NotifyPipe.cpp

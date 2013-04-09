@@ -113,6 +113,21 @@ void SocketListener::mainLoop()
                 m_sockfd = socket(addr->ai_family,
                                     addr->ai_socktype | O_NONBLOCK,
                                     addr->ai_protocol);
+
+                char host[NI_MAXHOST];
+                char port[NI_MAXSERV];
+                memset(host, 0, sizeof(host));
+                memset(port, 0, sizeof(port));
+                getnameinfo( (sockaddr*)addr->ai_addr, addr->ai_addrlen,
+                             host, sizeof(host),
+                             port, sizeof(port),
+                             NI_NUMERICHOST | NI_NUMERICSERV );
+
+                msg.str("");
+                msg << "Attempting to bind listener to "
+                    << host << ":" << port << std::endl;
+                std::cout << msg.str();
+
                 if (m_sockfd < 0)
                     continue;
                 else
@@ -121,6 +136,7 @@ void SocketListener::mainLoop()
 
             if( !addr )
                 ex()() << "None of the matching interfaces work";
+            std::cout << "Listener bound\n";
 
             // So that we can re-bind to it without TIME_WAIT problems
             int reuse_addr = 1;
@@ -134,18 +150,7 @@ void SocketListener::mainLoop()
             if ( bind(m_sockfd, addr->ai_addr, addr->ai_addrlen) < 0)
                 ex()() << "Failed to bind the server socket\n";
 
-            char host[NI_MAXHOST];
-            char port[NI_MAXSERV];
-            memset(host, 0, sizeof(host));
-            memset(port, 0, sizeof(port));
-            getnameinfo( (sockaddr*)addr->ai_addr, addr->ai_addrlen,
-                         host, sizeof(host),
-                         port, sizeof(port),
-                         NI_NUMERICHOST | NI_NUMERICSERV );
 
-            std::stringstream msg;
-            msg << "Bound server to " << host << ":" << port << std::endl;
-            std::cout << msg.str();
 
             //  Listen on the server socket, 10 max pending connections
             if (listen(m_sockfd, 10) < 0)

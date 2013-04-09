@@ -42,7 +42,9 @@ namespace filesystem {
 
 /// opens a server socket and listens for incoming client connections
 /**
- *  The listener
+ *  The listener runs in it's own thread. The interface it listens on can
+ *  be changed while it's running. Any accepted client connections are passed
+ *  through sig_client
  */
 class SocketListener
 {

@@ -40,6 +40,7 @@
 #include <tclap/CmdLine.h>
 
 #include "global.h"
+#include "Backend.h"
 #include "SocketListener.h"
 
 
@@ -75,27 +76,6 @@ void signal_callback( int signum )
 
 int main(int argc, char** argv)
 {
-    // for notifiying termination
-    NotifyPipe  termPipe;
-    g_termNote = &termPipe;
-
-    pthreads::Thread guiThread;
-    pthreads::Thread peerThread;
-
-    SocketListener guiListener;
-    SocketListener peerListener;
-
-    guiThread.launch(  SocketListener::start, &guiListener );
-    peerThread.launch( SocketListener::start, &peerListener );
-
-    sleep(2);
-    guiListener.setInterface( "localhost", 3031 );
-    peerListener.setInterface("localhost", 3032 );
-    sleep(2);
-
-    g_termNote->notify();
-    guiThread.join();
-    peerThread.join();
-
-    return 0;
+    Backend backend;
+    return backend.run();
 }
