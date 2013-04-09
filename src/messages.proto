@@ -8,6 +8,12 @@ package openbook.filesystem.messages;
 //             Registered Client Authentication with Server
 // ----------------------------------------------------------------------------
 
+// Peers generate random numbers break symmetry, only one gets to generates 
+// the content encryption key
+message LeaderElect {
+    optional int32  number  = 1;    // randomly generated integer
+}
+
 // Diffie-Hellman parametrs
 message DiffieHellmanParams {
     optional bytes p = 1;

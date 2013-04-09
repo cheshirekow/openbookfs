@@ -38,6 +38,7 @@ enum MessageId
     MSG_QUIT=0,             ///< special message to quit
     MSG_PING,
     MSG_PONG,
+    MSG_LEADER_ELECT,
     MSG_DH_PARAMS,
     MSG_KEY_EXCHANGE,
     MSG_CEK,
@@ -84,11 +85,24 @@ struct TypedMessage
 template < MessageId ID > struct MessageType;
 
 /// @cond MessageTypeTemplateInstantiations
-template <> struct MessageType<MSG_PING>         { typedef messages::Ping         type; };
-template <> struct MessageType<MSG_PONG>         { typedef messages::Pong         type; };
-template <> struct MessageType<MSG_SUBSCRIBE>    { typedef messages::Subscribe    type; };
-template <> struct MessageType<MSG_UNSUBSCRIBE>  { typedef messages::Unsubscribe  type; };
-template <> struct MessageType<MSG_NEW_VERSION>  { typedef messages::NewVersion   type; };
+template <> struct MessageType<MSG_PING>            { typedef messages::Ping            type; };
+template <> struct MessageType<MSG_PONG>            { typedef messages::Pong            type; };
+template <> struct MessageType<MSG_LEADER_ELECT>    { typedef messages::LeaderElect     type; };
+template <> struct MessageType<MSG_DH_PARAMS>       { typedef messages::DiffieHellmanParams type; };
+template <> struct MessageType<MSG_KEY_EXCHANGE>    { typedef messages::KeyExchange     type; };
+template <> struct MessageType<MSG_CEK>             { typedef messages::ContentKey      type; };
+template <> struct MessageType<MSG_AUTH_REQ>        { typedef messages::AuthRequest     type; };
+template <> struct MessageType<MSG_AUTH_CHALLENGE>  { typedef messages::AuthChallenge   type; };
+template <> struct MessageType<MSG_AUTH_SOLN>       { typedef messages::AuthSolution    type; };
+template <> struct MessageType<MSG_AUTH_RESULT>     { typedef messages::AuthResult      type; };
+template <> struct MessageType<MSG_SUBSCRIBE>       { typedef messages::Subscribe       type; };
+template <> struct MessageType<MSG_UNSUBSCRIBE>     { typedef messages::Unsubscribe     type; };
+template <> struct MessageType<MSG_NEW_VERSION>     { typedef messages::NewVersion      type; };
+template <> struct MessageType<MSG_REQUEST_FILE>    { typedef messages::RequestFile     type; };
+template <> struct MessageType<MSG_FILE_INFO>       { typedef messages::FileInfo        type; };
+template <> struct MessageType<MSG_FILE_CHUNK>      { typedef messages::FileChunk       type; };
+template <> struct MessageType<MSG_DIR_INFO>        { typedef messages::DirInfo         type; };
+template <> struct MessageType<MSG_DIR_CHUNK>       { typedef messages::DirChunk        type; };
 
 /// @endcond MessageTypeTemplateInstantiations
 

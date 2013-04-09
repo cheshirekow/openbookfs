@@ -60,12 +60,14 @@ if( (FUSE_FOUND)
     add_executable( obfs_backend 
                     main.cpp
                     Backend.cpp
+                    Marshall.cpp
                     SocketListener.cpp
+                    ../messages.cpp
                     ../FdSet.cpp
                     ../NotifyPipe.cpp
                     ../SelectSpec.cpp
                     ../TimeVal.cpp
-                    #${MESSAGES_PB_CC}
+                    ${MESSAGES_PB_CC}
                     )
                             
     set_target_properties( obfs_backend 

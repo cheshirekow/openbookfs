@@ -43,11 +43,18 @@ class Pool
 
     public:
         /// initializes the free store
-        Pool(unsigned int size)
+        Pool(unsigned int size=10)
         {
             m_mutex.init();
             pthreads::ScopedLock lock(m_mutex);
             m_available.reserve(size);
+        }
+
+        // increase the reserve
+        void reserve( int size )
+        {
+            if( size > m_available.capacity() )
+                m_available.reserve(size);
         }
 
         ~Pool()

@@ -48,6 +48,7 @@ const char* messageIdToString( MessageId id )
         "QUIT",
         "PING",
         "PONG",
+        "PENNIES",
         "DH_PARAMS",
         "KEY_EXCHANGE",
         "CEK",
