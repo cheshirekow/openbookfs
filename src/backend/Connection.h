@@ -58,6 +58,9 @@
 namespace   openbook {
 namespace filesystem {
 
+// forward dec b/c Backend.h includes Connection.h
+class Backend;
+
 /// dedicated RPC handler for a single client, manages both inbound and
 /// outbound protocol buffer messages
 class Connection
@@ -68,6 +71,8 @@ class Connection
 
     private:
         static const unsigned int sm_bufsize = 256;
+
+        Backend*            m_backend;          ///< top-level object
 
         uint32_t            m_peerId;           ///< id of peer connected to
         Pool_t*             m_pool;             ///< pool to which this belongs
@@ -91,7 +96,7 @@ class Connection
         CryptoPP::AutoSeededRandomPool  m_rng;    ///< random number gen
 
     public:
-        Connection();
+        Connection(Backend*);
         ~Connection();
 
         /// set the parent pointer and start DH parameter generation in
@@ -120,16 +125,25 @@ class Connection
          *  @note After initialization, @p this is inserted into the
          *        available pool
          */
-        void* initDH();
+        void initDH();
+
+        /// returns this to the pool
+        void returnToPool();
 
         /// main method of the client handler, performs handshake and then
         /// launches listener and shouter
-        void* main();
+        void main();
 
         /// performs handshake protocol whereby two peers agree on a shared
         /// key for this session, authenticate each other by public key, and
         /// authorize each other by table lookup
         void handshake();
+
+        /// get pointer to inbound queue
+        MsgQueue_t* inboundQueue(){ return &m_inboundMessages; }
+
+        /// get pointer to outbound queue
+        MsgQueue_t* outboundQueue(){ return &m_outboundMessages; }
 
     private:
         /// performs leader election in the handshake
@@ -140,16 +154,16 @@ class Connection
                       CryptoPP::SecByteBlock& mack );
         void recvCEK( CryptoPP::SecByteBlock& kek,
                       CryptoPP::SecByteBlock& mack );
-        void authenticatePeer( std::string& pubKey );
+        void authenticatePeer( std::string& base64 );
 
     public:
         /// listens for job messages from the client and adds them to the
         /// job queue
-        void* listen();
+        void listen();
 
         /// waits for jobs to complete and sends job completion messages back
         /// to the client
-        void* shout();
+        void shout();
 
 
 

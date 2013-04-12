@@ -60,6 +60,7 @@ if( (FUSE_FOUND)
     add_executable( obfs_backend 
                     main.cpp
                     Backend.cpp
+                    Connection.cpp
                     Marshall.cpp
                     SocketListener.cpp
                     ../messages.cpp

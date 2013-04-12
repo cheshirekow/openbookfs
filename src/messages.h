@@ -88,9 +88,9 @@ template < MessageId ID > struct MessageType;
 template < typename T > struct MessageTypeToId;
 
 /// @cond MessageTypeTemplateInstantiations
-#define MAP_MSG_TYPE(ID,TYPE) \
-template <> struct MessageType<MSG_##ID> { typedef messages::TYPE type; }; \
-template <> struct MessageTypeToId<messages::TYPE> { static const MessageId ID = MSG_##ID; };
+#define MAP_MSG_TYPE(MID,TYPE) \
+template <> struct MessageType<MSG_##MID> { typedef messages::TYPE type; }; \
+template <> struct MessageTypeToId<messages::TYPE> { static const MessageId ID = MSG_##MID; };
 
 MAP_MSG_TYPE(PING,              Ping)
 MAP_MSG_TYPE(PONG,              Pong)

@@ -50,6 +50,26 @@ Backend::~Backend()
 
 }
 
+const std::string& Backend::publicKey()
+{
+    return m_pubKey;
+}
+
+int Backend::connectPeer( const std::string& publickKey )
+{
+    return 0;
+}
+
+void Backend::disconnectPeer( int peerId )
+{
+
+}
+
+std::string Backend::privateKeyFile()
+{
+    return "***noKeyFileSet***";
+}
+
 void Backend::parse(int argc, char** argv)
 {
     namespace fs = boost::filesystem;

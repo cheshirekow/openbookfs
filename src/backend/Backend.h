@@ -29,6 +29,7 @@
 
 #include <cpp-pthreads.h>
 
+#include "Connection.h"
 #include "NotifyPipe.h"
 #include "SocketListener.h"
 
@@ -57,9 +58,25 @@ class Backend
         /// threads for listeners
         pthreads::Thread m_listenThreads[NUM_LISTENERS];
 
+        std::string     m_pubKey;   ///< base64 encoded public key
+        std::string     m_privKey;  ///< base64 encoded private key
+
     public:
         Backend();
         ~Backend();
+
+        /// get base64 encoded public key
+        const std::string& publicKey();
+
+        /// register and retrieve the peerId given the peers public key
+        int connectPeer( const std::string& publicKey );
+
+        /// unregister a connected peer
+        void disconnectPeer( int peerId );
+
+        /// return the path to the private key file
+        std::string privateKeyFile();
+
 
     private:
         /// parses the command line

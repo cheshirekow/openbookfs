@@ -51,6 +51,7 @@ class ReferenceCounted
         }
 };
 
+
 template <typename T>
 struct RefPtr
 {
@@ -128,8 +129,8 @@ struct RefPtr
         }
 };
 
-}
-}
+} //< filesystem
+} //< openbook
 
 
 

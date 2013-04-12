@@ -40,6 +40,7 @@
 
 
 #include "global.h"
+#include "Backend.h"
 #include "Connection.h"
 #include "SelectSpec.h"
 #include "messages.h"
@@ -60,7 +61,8 @@ static void validate_message( RefPtr<AutoMessage> msg, MessageId expected )
     }
 }
 
-Connection::Connection():
+Connection::Connection(Backend* backend):
+    m_backend(backend),
     m_pool(0)
 {
     m_mutex.init();
@@ -127,25 +129,30 @@ void Connection::handleClient( int sockfd )
 void* Connection::dispatch_initDH( void* vp_handler )
 {
     Connection* h = static_cast<Connection*>(vp_handler);
-    return h->initDH();
+    h->initDH();
+    h->returnToPool();
+    return vp_handler;
 }
 
 void* Connection::dispatch_main( void* vp_handler )
 {
     Connection* h = static_cast<Connection*>(vp_handler);
-    return h->main();
+    h->main();
+    return vp_handler;
 }
 
 void* Connection::dispatch_listen( void* vp_handler )
 {
     Connection* h = static_cast<Connection*>(vp_handler);
-    return h->listen();
+    h->listen();
+    return vp_handler;
 }
 
 void* Connection::dispatch_shout( void* vp_handler )
 {
     Connection* h = static_cast<Connection*>(vp_handler);
-    return h->shout();
+    h->shout();
+    return vp_handler;
 }
 
 
@@ -153,7 +160,7 @@ void* Connection::dispatch_shout( void* vp_handler )
 
 
 
-void* Connection::initDH()
+void Connection::initDH()
 {
     pthreads::ScopedLock lock(m_mutex);
     std::cout << "Handler " << (void*) this
@@ -197,11 +204,14 @@ void* Connection::initDH()
             "A308B0FE64F5FBD3");
 
     std::cout << "Handler " << (void*) this
-              << " finished generating DH and returning to pool\n";
-    m_pool->reassign(this);
+              << " finished generating DH\n";
+}
 
-    std::cout.flush();
-    return 0;
+void Connection::returnToPool()
+{
+    std::cout << "Handler " << (void*) this
+              << " returning to pool DH\n";
+    m_pool->reassign(this);
 }
 
 
@@ -209,7 +219,9 @@ void* Connection::initDH()
 
 
 
-void* Connection::main()
+
+
+void Connection::main()
 {
     std::cout << "Starting handler " << (void*)this << " in thread "
               << pthreads::Thread::self().c_obj() << "\n";
@@ -240,13 +252,12 @@ void* Connection::main()
         // create a ping message for the client
         messages::Ping* ping = new messages::Ping();
         ping->set_payload(0xdeadf00d);
-        TypedMessage pingMsg(MSG_PING,ping);
-        m_outboundMessages.insert(pingMsg);
+        m_outboundMessages.insert(new AutoMessage(ping));
 
         messages::Pong* pong = new messages::Pong();
         pong->set_payload(0xdeadf00d);
         TypedMessage pongMsg(MSG_PONG,pong);
-        m_outboundMessages.insert(pongMsg);
+        m_outboundMessages.insert(new AutoMessage(ping));
     }
     catch( std::exception& ex )
     {
@@ -257,18 +268,15 @@ void* Connection::main()
     m_readThread.join();
     std::cout << "handler " << (void*)this << " listen thread quit\n";
 
-    // special message to notify child threads
-    TypedMessage quit(MSG_QUIT);
-
     // put a quit message into the outgoing queue so that the shouter
     // knows its time to quit
-    m_outboundMessages.insert( quit );
+    m_outboundMessages.insert( new AutoMessage(MSG_QUIT) );
     m_writeThread.join();
     std::cout << "handler " << (void*)this << " shout thread quit\n";
 
     // put a quit message into the inbound queue so that the worker knows
     // it's time to quit
-    m_inboundMessages.insert( quit );
+    m_inboundMessages.insert( new AutoMessage(MSG_QUIT) );
     m_workerThread.join();
     std::cout << "handler " << (void*)this << " worker thread quit\n";
 
@@ -301,19 +309,15 @@ void* Connection::main()
 //              << " finished re-generating DH and returning to pool\n";
 
     // clear out unsent messages (todo: put these in sqlite database)
-    TypedMessage msg;
+    RefPtr<AutoMessage> msg;
     std::cout << "Handler " << (void*) this
               << " removing unsent messages\n";
     while( !m_outboundMessages.empty() )
-    {
         m_outboundMessages.extract(msg);
-        delete msg.msg;
-    }
 
     // put ourselves back int the available pool
-    m_pool->reassign(this);
-    std::cout.flush();
-    return 0;
+    initDH();
+    returnToPool();
 }
 
 
@@ -339,28 +343,29 @@ void Connection::handshake()
         recvCEK(kek,mack);
 
     // now we can make our encryptor and decriptor
-    m_msg.initAES(m_cek,m_iv);
+    m_marshall.initAES(m_cek,m_iv);
 
     std::string base64;
     authenticatePeer(base64);
+    m_peerId = m_backend->connectPeer(base64);
 
-    std::cout << "Putting base64 client key into db: " << base64 << std::endl;
-
-    // create sqlite connection
-    soci::session sql(soci::sqlite3,m_server->dbFile());
-
-    // insert the key into the database if it isn't already there
-    sql << "INSERT OR IGNORE INTO known_clients (client_key, client_name) "
-           "VALUES ('"<< base64 << "','" << displayName << "')";
-
-    // now select out the id
-    sql << "SELECT client_id FROM known_clients WHERE client_key='"
-        << base64 << "'",
-            soci::into(m_clientId);
-
-    // update the client name
-    sql << "UPDATE known_clients SET client_name='" << displayName
-        << "' WHERE client_id=" << m_clientId;
+//    std::cout << "Putting base64 client key into db: " << base64 << std::endl;
+//
+//    // create sqlite connection
+//    soci::session sql(soci::sqlite3,m_server->dbFile());
+//
+//    // insert the key into the database if it isn't already there
+//    sql << "INSERT OR IGNORE INTO known_clients (client_key, client_name) "
+//           "VALUES ('"<< base64 << "','" << displayName << "')";
+//
+//    // now select out the id
+//    sql << "SELECT client_id FROM known_clients WHERE client_key='"
+//        << base64 << "'",
+//            soci::into(m_clientId);
+//
+//    // update the client name
+//    sql << "UPDATE known_clients SET client_name='" << displayName
+//        << "' WHERE client_id=" << m_clientId;
 
 
 //    // lock scope
@@ -614,25 +619,26 @@ void Connection::authenticatePeer(std::string& base64)
     // trade public keys
     msgs::AuthRequest* authReq = new msgs::AuthRequest();
     authReq->set_display_name("DisplayName");
-    authReq->set_public_key(base64);
+    authReq->set_public_key(m_backend->publicKey());
     m_marshall.writeMsg( authReq );
 
     RefPtr<AutoMessage> recv = m_marshall.read();
     validate_message( recv, MSG_AUTH_REQ );
-    msgs::AuthRequest* authReq =
-            static_cast<msgs::AuthRequest*>( recv->msg );
+    authReq = static_cast<msgs::AuthRequest*>( recv->msg );
 
     std::string displayName = authReq->display_name();
     std::stringstream  inkey( authReq->public_key() );
     FileSource keyFile(inkey,true);
     ByteQueue  queue;
     keyFile.TransferTo(queue);
+    Base64Decoder decoder;
+    queue.CopyTo(decoder);
     queue.MessageEnd();
-    RSA::PublicKey clientKey;
-    clientKey.Load(queue);
+    RSA::PublicKey peerKey;
+    peerKey.Load(decoder);
 
     // create an RSA Encryptor to verify ownership
-    RSAES_OAEP_SHA_Encryptor rsaEnc( clientKey );
+    RSAES_OAEP_SHA_Encryptor rsaEnc( peerKey );
 
     // Now that there is a concrete object, we can validate
     if( rsaEnc.FixedMaxPlaintextLength() == 0 )
@@ -640,54 +646,91 @@ void Connection::authenticatePeer(std::string& base64)
 
     // now we authenticate the client by sending a challenge of his key
     // ownership
-    // generate a random string
     std::string plainChallenge;
     std::string cipherChallenge;
-    plainChallenge.resize(rsaEnc.FixedMaxPlaintextLength());
+    plainChallenge.resize(  rsaEnc.FixedMaxPlaintextLength() );
     cipherChallenge.resize( rsaEnc.CiphertextLength(plainChallenge.size()) );
 
+    // generate a random string
     m_rng.GenerateBlock(
             (unsigned char*)&(plainChallenge[0]), plainChallenge.size());
+
+    // encrypt the random string
     rsaEnc.Encrypt( m_rng,
                     (unsigned char*)&plainChallenge[0],
                     plainChallenge.size(),
                     (unsigned char*)&cipherChallenge[0] );
 
-    msgs::AuthChallenge challenge;
-    challenge.set_type( msgs::AuthChallenge::AUTHENTICATE );
-    challenge.set_challenge(cipherChallenge);
 
-    m_msg.writeEnc( fd, TypedMessage(MSG_AUTH_CHALLENGE,&challenge));
+    msgs::AuthChallenge* challenge = new msgs::AuthChallenge();
+    challenge->set_challenge(cipherChallenge);
+    m_marshall.writeEncMsg(challenge);
 
-    // read the challenge solution
-    recv = m_msg.readEnc(fd);
-    validate_message( recv, MSG_AUTH_SOLN );
-    msgs::AuthSolution* authSoln =
-            static_cast<msgs::AuthSolution*>( recv.msg);
-    msgs::AuthResult authResult;
-    if( authSoln->solution().compare(plainChallenge) != 0 )
+    // now we read the peers challenge and decode it
+    recv = m_marshall.readEnc();
+    validate_message(recv, MSG_AUTH_CHALLENGE );
+    challenge = static_cast<msgs::AuthChallenge*>( recv->msg );
+
+    // create an RSA Decryptor to verify ownership
+    std::ifstream privKeyIn( m_backend->privateKeyFile() );
+    if( !privKeyIn.good() )
     {
-        authResult.set_response(false);
-        m_msg.writeEnc(fd,TypedMessage(MSG_AUTH_RESULT,&authResult));
-        ex()() << "Client does not own the key";
+        ex()() << "Failed to open private key: "
+               << m_backend->privateKeyFile()
+               << "for reading";
     }
+    FileSource privKeyFile( privKeyIn, true );
+    queue.Clear();
+    privKeyFile.TransferTo(queue);
+    queue.MessageEnd();
+    RSA::PrivateKey myKey;
+    myKey.Load(queue);
 
-    authResult.set_response(true);
-    m_msg.writeEnc(fd,TypedMessage(MSG_AUTH_RESULT,&authResult));
+    RSAES_OAEP_SHA_Decryptor rsaDec( myKey );
+    std::string solution;
+    solution.resize( rsaDec.FixedMaxPlaintextLength() );
+    rsaDec.Decrypt(m_rng,
+                    (unsigned char*)&challenge->challenge()[0],
+                    challenge->challenge().size(),
+                    (unsigned char*)&solution[0] );
 
+    // send back the solution
+    msgs::AuthSolution* authSoln = new msgs::AuthSolution();
+    authSoln->set_solution(solution);
+    m_marshall.writeEncMsg( authSoln );
+
+    // read peers challenge solution
+    recv = m_marshall.readEnc();
+    validate_message( recv, MSG_AUTH_SOLN );
+    authSoln = static_cast<msgs::AuthSolution*>( recv->msg );
+
+    bool isAuthed = authSoln->solution().compare(plainChallenge) == 0;
+
+    msgs::AuthResult* authResult = new msgs::AuthResult();
+    authResult->set_response(isAuthed);
+    m_marshall.writeEncMsg( authResult );
+    if( !isAuthed )
+        ex()() << "Client does not own the key";
     std::cout << "Client authenticated" << std::endl;
+
+    // read the peers auth result
+    recv = m_marshall.readEnc();
+    validate_message(recv,MSG_AUTH_RESULT);
+    authResult = static_cast<msgs::AuthResult*>(recv->msg);
+    if( !authResult->response() )
+        ex()() << "Client refused our authentication attempt";
 
     // base64 encode the clients public key
     queue.Clear();
     CryptoPP::Base64Encoder encoder;
-    clientKey.Save(queue);
+    peerKey.Save(queue);
     queue.CopyTo(encoder);
     encoder.MessageEnd();
     base64.resize( encoder.MaxRetrievable(), '\0' );
     encoder.Get( (byte*)&base64[0], base64.size() );
 }
 
-void* Connection::listen()
+void Connection::listen()
 {
     using namespace CryptoPP;
     std::cout << "Starting client listener for handler" << (void*)this
@@ -714,12 +757,11 @@ void* Connection::listen()
                   << ex.what() << std::endl;
     }
 
-    return 0;
 }
 
 
 
-void* Connection::shout()
+void Connection::shout()
 {
     using namespace CryptoPP;
     std::cout << "Starting client shouter for handler" << (void*)this
@@ -754,7 +796,6 @@ void* Connection::shout()
                   << ex.what() << std::endl;
     }
 
-    return 0;
 }
 
 

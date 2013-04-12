@@ -63,6 +63,14 @@ struct AutoMessage :
         msg(msg)
     {}
 
+    /// construct with dectected type key
+    template <typename Message_t>
+    AutoMessage( Message_t* msg_in )
+    {
+        type = MessageTypeToId<Message_t>::ID;
+        msg  = msg_in;
+    }
+
     ~AutoMessage();
 };
 
