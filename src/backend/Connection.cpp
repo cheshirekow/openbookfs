@@ -234,7 +234,9 @@ void Connection::main()
         pthreads::ScopedLock(m_mutex);
         m_marshall.setFd(m_sockfd);
 
+        // perform handshake with the peer
         handshake();
+
         std::cout << "handler " << (void*)this
                   << " launching listen thread\n";
         m_readThread.launch( dispatch_listen, this );
@@ -294,20 +296,6 @@ void Connection::main()
     // close the file descriptor
     close(m_sockfd);
 
-    // generate new paramters for the next time we're run
-//    std::cout << "Handler " << (void*) this
-//              << " re-generating DH parameters\n";
-//
-//    CryptoPP::DH dh;
-//    dh.AccessGroupParameters().GenerateRandomWithKeySize(m_rng,1024);
-//
-//    p = dh.GetGroupParameters().GetModulus();
-//    q = dh.GetGroupParameters().GetSubgroupOrder();
-//    g = dh.GetGroupParameters().GetGenerator();
-//
-//    std::cout << "Handler " << (void*) this
-//              << " finished re-generating DH and returning to pool\n";
-
     // clear out unsent messages (todo: put these in sqlite database)
     RefPtr<AutoMessage> msg;
     std::cout << "Handler " << (void*) this
@@ -315,8 +303,10 @@ void Connection::main()
     while( !m_outboundMessages.empty() )
         m_outboundMessages.extract(msg);
 
-    // put ourselves back int the available pool
+    // regenerate DH parameters
     initDH();
+
+    // put ourselves back in the available pool
     returnToPool();
 }
 
@@ -342,52 +332,12 @@ void Connection::handshake()
     else
         recvCEK(kek,mack);
 
-    // now we can make our encryptor and decriptor
+    // now we can make our encryptor and decryptor
     m_marshall.initAES(m_cek,m_iv);
 
     std::string base64;
     authenticatePeer(base64);
     m_peerId = m_backend->connectPeer(base64);
-
-//    std::cout << "Putting base64 client key into db: " << base64 << std::endl;
-//
-//    // create sqlite connection
-//    soci::session sql(soci::sqlite3,m_server->dbFile());
-//
-//    // insert the key into the database if it isn't already there
-//    sql << "INSERT OR IGNORE INTO known_clients (client_key, client_name) "
-//           "VALUES ('"<< base64 << "','" << displayName << "')";
-//
-//    // now select out the id
-//    sql << "SELECT client_id FROM known_clients WHERE client_key='"
-//        << base64 << "'",
-//            soci::into(m_clientId);
-//
-//    // update the client name
-//    sql << "UPDATE known_clients SET client_name='" << displayName
-//        << "' WHERE client_id=" << m_clientId;
-
-
-//    // lock scope
-//    {
-//        // wait for a lock on the map
-//        pthreads::ScopedLock lock( m_clientMap->mutex() );
-//
-//        // now map the client id to this object
-//        // if another Connection is in the map for this client then we must
-//        // wait for it to remove itself before we put this in the map as the
-//        // handler for the client
-//        while( m_clientMap->subvert()->find(m_clientId)
-//                != m_clientMap->subvert()->end() )
-//        {
-//            // releases the lock, and then waits for someone else to aquire
-//            // and release it
-//            m_clientMap->wait();
-//        }
-//
-//        (*(m_clientMap->subvert()))[m_clientId] = this;
-//        m_clientMap->signal();
-//    }
 }
 
 bool Connection::leaderElect()

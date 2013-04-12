@@ -57,6 +57,44 @@ const std::string& Backend::publicKey()
 
 int Backend::connectPeer( const std::string& publickKey )
 {
+//    std::cout << "Putting base64 client key into db: " << base64 << std::endl;
+//
+//    // create sqlite connection
+//    soci::session sql(soci::sqlite3,m_server->dbFile());
+//
+//    // insert the key into the database if it isn't already there
+//    sql << "INSERT OR IGNORE INTO known_clients (client_key, client_name) "
+//           "VALUES ('"<< base64 << "','" << displayName << "')";
+//
+//    // now select out the id
+//    sql << "SELECT client_id FROM known_clients WHERE client_key='"
+//        << base64 << "'",
+//            soci::into(m_clientId);
+//
+//    // update the client name
+//    sql << "UPDATE known_clients SET client_name='" << displayName
+//        << "' WHERE client_id=" << m_clientId;
+
+//    // lock scope
+//    {
+//        // wait for a lock on the map
+//        pthreads::ScopedLock lock( m_clientMap->mutex() );
+//
+//        // now map the client id to this object
+//        // if another Connection is in the map for this client then we must
+//        // wait for it to remove itself before we put this in the map as the
+//        // handler for the client
+//        while( m_clientMap->subvert()->find(m_clientId)
+//                != m_clientMap->subvert()->end() )
+//        {
+//            // releases the lock, and then waits for someone else to aquire
+//            // and release it
+//            m_clientMap->wait();
+//        }
+//
+//        (*(m_clientMap->subvert()))[m_clientId] = this;
+//        m_clientMap->signal();
+//    }
     return 0;
 }
 

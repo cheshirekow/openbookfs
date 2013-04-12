@@ -61,19 +61,20 @@ namespace filesystem {
 // forward dec b/c Backend.h includes Connection.h
 class Backend;
 
+
 /// dedicated RPC handler for a single client, manages both inbound and
 /// outbound protocol buffer messages
 class Connection
 {
     public:
-        typedef Pool<Connection>                Pool_t;
-        typedef Queue< RefPtr<AutoMessage> >    MsgQueue_t;
+        typedef Pool<Connection>     Pool_t;
+        typedef RefPtr<AutoMessage>  MsgPtr_t;
+        typedef Queue< MsgPtr_t >    MsgQueue_t;
 
     private:
         static const unsigned int sm_bufsize = 256;
 
         Backend*            m_backend;          ///< top-level object
-
         uint32_t            m_peerId;           ///< id of peer connected to
         Pool_t*             m_pool;             ///< pool to which this belongs
         pthreads::Thread    m_thread;           ///< the thread we're running in

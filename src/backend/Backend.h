@@ -59,7 +59,7 @@ class Backend
         pthreads::Thread m_listenThreads[NUM_LISTENERS];
 
         std::string     m_pubKey;   ///< base64 encoded public key
-        std::string     m_privKey;  ///< base64 encoded private key
+        std::string     m_privKey;  ///< path to private key file
 
     public:
         Backend();
