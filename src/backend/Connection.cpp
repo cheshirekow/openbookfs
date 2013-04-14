@@ -342,7 +342,6 @@ void Connection::handshake()
         if(amLeader)
             sendCEK(kek,mack);
         else
-            recvCEK(kek,mack);
 
         // now we can make our encryptor and decryptor
         m_marshall.initAES(m_cek,m_iv);
@@ -350,7 +349,8 @@ void Connection::handshake()
 
     std::string base64;
     authenticatePeer(base64);
-    m_peerId = m_backend->connectPeer(base64);
+    if( base64 != "UserInterface" )
+        m_peerId = m_backend->connectPeer(base64);
 }
 
 bool Connection::leaderElect()
@@ -590,7 +590,13 @@ void Connection::authenticatePeer(std::string& base64)
     authReq = static_cast<msgs::AuthRequest*>( recv->msg );
 
     std::string displayName = authReq->display_name();
-    std::stringstream  inkey( authReq->public_key() );
+    base64                  = authReq->public_key();
+
+    // check to see if this is a user interface on a local connection
+    if( !m_isRemote && authReq->public_key() == "UserInterface" )
+        return;
+
+    std::stringstream  inkey( base64 );
     FileSource keyFile(inkey,true);
     ByteQueue  queue;
     keyFile.TransferTo(queue);
@@ -686,15 +692,6 @@ void Connection::authenticatePeer(std::string& base64)
         if( !authResult->response() )
             ex()() << "Client refused our authentication attempt";
     }
-
-    // base64 encode the clients public key
-    queue.Clear();
-    CryptoPP::Base64Encoder encoder;
-    peerKey.Save(queue);
-    queue.CopyTo(encoder);
-    encoder.MessageEnd();
-    base64.resize( encoder.MaxRetrievable(), '\0' );
-    encoder.Get( (byte*)&base64[0], base64.size() );
 }
 
 void Connection::listen()

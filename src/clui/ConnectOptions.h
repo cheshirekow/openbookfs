@@ -64,6 +64,7 @@ class ConnectOptions:
             FdPtr_t sockfd = connectToClient(*this);
             Marshall marshall;
             marshall.setFd(*sockfd);
+            handshake(marshall);
 
             // send the message
 
