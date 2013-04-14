@@ -77,6 +77,9 @@ class Backend
         WorkerPool_t    m_workerPool;   ///< worker pool
 
 
+        // for outgoing connections
+        int         m_clientFamily;
+        std::string m_clientNode;
 
 
     public:
@@ -104,27 +107,42 @@ class Backend
         //  1. loading a configuration file
         //  2. a gui message
         //  3. a command line message
+
+        /// set the display name for this replica
         void setDisplayName( const std::string& name );
 
+        /// set the data directory, where actual file storage is
         void setDataDir( const std::string& dir );
 
+        /// set the local socket where we listen for local connections... i.e.
+        /// command line client or gui client
         void setLocalSocket( int port );
 
+        /// set th remote socket where we listen for remote connections... i.e.
+        /// replicas
         void setRemoteSocket( int addressFamily,
                                 const std::string& node,
                                 const std::string& service );
 
-        void setMaxConnections( int maxConnections );
+        /// set the socket we use connecting to peers
+        void setClientSocket( int addressFamily, const std::string& node );
 
-    private:
-        /// parses the command line
-        void parse( int argc, char** argv );
+        /// set the size of the connection pool
+        void setMaxConnections( int maxConnections );
 
         /// loads a configuration file
         void loadConfig(const std::string& filename);
 
         /// saves a configuration file
         void saveConfig(const std::string& filename);
+
+        /// attempt to connect to a peer
+        void attemptConnection( const std::string& node,
+                                const std::string& service );
+
+    private:
+        /// parses the command line
+        void parse( int argc, char** argv );
 
     public:
         /// call from main()

@@ -45,6 +45,9 @@ namespace filesystem {
  *  The listener runs in it's own thread. The interface it listens on can
  *  be changed while it's running. Any accepted client connections are passed
  *  through sig_client
+ *
+ *  todo: make socket file descriptors a reference counted resource so that
+ *        failures dont have to worry about cleaning them up
  */
 class SocketListener
 {

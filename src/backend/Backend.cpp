@@ -77,6 +77,9 @@ Backend::Backend()
             sigc::bind<-1>( sigc::mem_fun(*this,&Backend::onConnect),false) );
     m_listeners[LISTEN_REMOTE].sig_client.connect(
             sigc::bind<-1>( sigc::mem_fun(*this,&Backend::onConnect),true) );
+
+    m_clientFamily = AF_UNSPEC;
+    m_clientNode   = "";
 }
 
 Backend::~Backend()
@@ -346,6 +349,15 @@ void Backend::setRemoteSocket( int addressFamily,
     m_listeners[LISTEN_REMOTE].setInterface( addressFamily, node, service );
 }
 
+void Backend::setClientSocket( int addressFamily,
+                                const std::string& node )
+{
+    std::cout << "Backend: setting client socket to : "
+              << node << "\n";
+    m_clientFamily = addressFamily;
+    m_clientNode   = node;
+}
+
 void Backend::setMaxConnections( int maxConnections )
 {
     std::cout << "Backend: max connections: " << maxConnections << "\n";
@@ -361,6 +373,301 @@ void Backend::setMaxConnections( int maxConnections )
         worker->init(this,&m_workerPool);
     }
 }
+
+void Backend::loadConfig( const std::string& filename )
+{
+    namespace fs = boost::filesystem;
+
+    // verify that the config file exists
+    if( !fs::exists( fs::path(filename) ) )
+        ex()() << "Configuration file not found: " << filename;
+
+    std::ifstream in(filename.c_str());
+    if(!in)
+        ex()() << "Failed to open " << filename << " for reading";
+
+    YAML::Parser parser(in);
+    YAML::Node   config;
+    parser.GetNextDocument(config);
+
+    // any errors will throw an exception
+    const YAML::Node*  node;
+    std::string  strVal,strVal2;
+    int          intVal;
+
+    node = config.FindValue("displayName");
+    if(node)
+    {
+        (*node) >> strVal;
+        setDisplayName( strVal );
+    }
+
+    node = config.FindValue("dataDir");
+    if(node)
+    {
+        (*node) >> strVal;
+        setDataDir(strVal);
+    }
+
+    node = config.FindValue("localSocket");
+    if(node)
+    {
+        const YAML::Node* node2 = node->FindValue("service");
+        intVal = 3030;
+        if(node2)
+        {
+            (*node2)>> intVal;
+            setLocalSocket( intVal );
+        }
+        else
+            std::cerr << "Found localSocket entry but no service\n";
+    }
+
+    node = config.FindValue("remoteSocket");
+    if(node)
+    {
+        int addr_family;
+        std::string addr_node,addr_service;
+        const YAML::Node* node2;
+
+        addr_family = AF_UNSPEC;
+        node2 = node->FindValue("family");
+        if(node2)
+        {
+            *node2 >> strVal;
+            if( strVal.compare("AF_INET")==0 )
+                addr_family = AF_INET;
+            else if( strVal.compare("AF_INET6")==0 )
+                addr_family = AF_INET6;
+            else if( strVal.compare("AF_UNSPEC")==0 )
+                addr_family = AF_UNSPEC;
+            else
+            {
+                std::cerr << "Failed to determine address family " << strVal
+                          << ", using AF_UNSPEC";
+            }
+        }
+
+        node2 = node->FindValue("node");
+        if(node2)
+        {
+            (*node2) >> addr_node;
+            if(addr_node.compare("any")==0)
+                addr_node = "";
+        }
+
+        node2 = node->FindValue("service");
+        if(node2)
+            (*node2) >> addr_service;
+
+        setRemoteSocket( addr_family, addr_node, addr_service );
+    }
+
+    node = config.FindValue("clientSocket");
+    if(node)
+    {
+        int addr_family;
+        std::string addr_node;
+        const YAML::Node* node2;
+
+        addr_family = AF_UNSPEC;
+        node2 = node->FindValue("family");
+        if(node2)
+        {
+            *node2 >> strVal;
+            if( strVal.compare("AF_INET")==0 )
+                addr_family = AF_INET;
+            else if( strVal.compare("AF_INET6")==0 )
+                addr_family = AF_INET6;
+            else if( strVal.compare("AF_UNSPEC")==0 )
+                addr_family = AF_UNSPEC;
+            else
+            {
+                std::cerr << "Failed to determine address family " << strVal
+                          << ", using AF_UNSPEC";
+            }
+        }
+
+        node2 = node->FindValue("node");
+        if(node2)
+        {
+            (*node2) >> addr_node;
+            if(addr_node.compare("any")==0)
+                addr_node = "";
+        }
+
+        setClientSocket( addr_family, addr_node);
+    }
+
+    node = config.FindValue("maxConnections");
+    if( node )
+    {
+        (*node) >> intVal;
+        setMaxConnections( intVal );
+    }
+
+
+}
+
+void Backend::saveConfig( const std::string& filename )
+{
+    namespace fs = boost::filesystem;
+
+    // verify that the config file exists
+    std::ofstream out(filename.c_str());
+    if(!out)
+        ex()() << "Failed to open " << filename << " for writing";
+
+    YAML::Emitter yaml;
+    yaml << YAML::BeginMap
+         << YAML::Key   << "displayName"
+         << YAML::Value << m_displayName
+         << YAML::Key   << "dataDir"
+         << YAML::Value << m_dataDir.string()
+         << YAML::Key   << "localSocket"
+             << YAML::BeginMap
+             << YAML::Key   << "service"
+             << YAML::Value << m_listeners[LISTEN_LOCAL].getService()
+             << YAML::EndMap
+         << YAML::Key   << "remoteSocket"
+             << YAML::BeginMap
+             << YAML::Key   << "family"
+             << YAML::Value << m_listeners[LISTEN_REMOTE].getFamily()
+             << YAML::Key   << "node"
+             << YAML::Value << m_listeners[LISTEN_REMOTE].getNode()
+             << YAML::Key   << "service"
+             << YAML::Value << m_listeners[LISTEN_REMOTE].getService()
+             << YAML::EndMap
+         << YAML::Key   << "maxConnections"
+         << YAML::Value << m_maxPeers
+         << YAML::EndMap;
+
+    out << yaml.c_str();
+}
+
+void Backend::attemptConnection( const std::string& node,
+                                 const std::string& service )
+{
+    // defaults
+    addrinfo  hints;
+    addrinfo* found;
+    memset(&hints,0,sizeof(addrinfo));
+    hints.ai_family   = m_clientFamily;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = 0;
+
+    int sockfd = 0;
+    if( m_clientNode.size() < 1 )
+    {
+        sockfd = socket( hints.ai_family,
+                         hints.ai_socktype ,
+                         hints.ai_protocol );
+        if (sockfd < 0)
+            ex()() << "Failed to create a socket for 'any'";
+    }
+    else
+    {
+        const char* node    = m_clientNode.c_str();
+        const char* service = 0;
+
+        int result = getaddrinfo(node,service,&hints,&found);
+        if( result < 0  )
+        {
+            ex()() << "Failed to find an interface which matches family: "
+                   << m_clientFamily << ", node: "
+                   << m_clientNode
+                   << "\nErrno is " << errno << " : " << strerror(errno);
+        }
+
+        addrinfo* addr = found;
+
+        for( ; addr; addr = addr->ai_next )
+        {
+            std::cout << "Attempting to create socket:"
+                      << "\n   family: " << addr->ai_family
+                      << "\n     type: " << addr->ai_socktype
+                      << "\n protocol: " << addr->ai_protocol
+                      << std::endl;
+
+            sockfd = socket(addr->ai_family,
+                                addr->ai_socktype ,
+                                addr->ai_protocol);
+            if (sockfd < 0)
+                continue;
+            else
+                break;
+        }
+
+        freeaddrinfo(found);
+
+        if( !addr )
+            ex()() << "None of the matched interfaces work";
+
+        char host[NI_MAXHOST];
+        char port[NI_MAXSERV];
+        memset(host, 0, sizeof(host));
+        memset(port, 0, sizeof(port));
+        getnameinfo( (sockaddr*)addr->ai_addr, addr->ai_addrlen,
+                     host, sizeof(host),
+                     port, sizeof(port),
+                     NI_NUMERICHOST | NI_NUMERICSERV );
+
+        std::cout << "Using client interface " << host
+                  << ":" << port << std::endl;
+    }
+
+    // attempt to make connection
+    const char* pnode    = node.c_str();
+    const char* pservice = service.c_str();
+
+    std::cout << "Searching for host addr matching "
+              << node << ":" << service << std::endl;
+
+    hints.ai_family = AF_UNSPEC;
+    int result = getaddrinfo(pnode,pservice,&hints,&found);
+    if( result < 0 )
+    {
+        close(sockfd);
+        ex()() << "Failed to find an interface which matches family: "
+               << node << ":" << service
+               << "\nErrno is " << errno << " : " << strerror(errno);
+    }
+
+    addrinfo* addr = found;
+
+    for( ; addr; addr = addr->ai_next )
+    {
+        std::cout << "Attempting to connect to server:"
+                  << "\n   family: " << addr->ai_family
+                  << "\n     type: " << addr->ai_socktype
+                  << "\n protocol: " << addr->ai_protocol
+                  << std::endl;
+
+        int connectResult =
+                connect( sockfd, addr->ai_addr, addr->ai_addrlen );
+        if (connectResult < 0 )
+        {
+            std::cerr << "Connection failed, errno " << errno << " : "
+                      << strerror(errno) << "\n";
+            continue;
+        }
+        else
+            break;
+    }
+
+    freeaddrinfo(found);
+
+    if( !addr )
+    {
+        close(sockfd);
+        ex()() << "None of the matched server interfaces work";
+    }
+
+    onConnect( sockfd, true );
+}
+
+
+
 
 void Backend::parse(int argc, char** argv)
 {
@@ -454,140 +761,7 @@ void Backend::parse(int argc, char** argv)
     }
 }
 
-void Backend::loadConfig( const std::string& filename )
-{
-    namespace fs = boost::filesystem;
 
-    // verify that the config file exists
-    if( !fs::exists( fs::path(filename) ) )
-        ex()() << "Configuration file not found: " << filename;
-
-    std::ifstream in(filename.c_str());
-    if(!in)
-        ex()() << "Failed to open " << filename << " for reading";
-
-    YAML::Parser parser(in);
-    YAML::Node   config;
-    parser.GetNextDocument(config);
-
-    // any errors will throw an exception
-    const YAML::Node*  node;
-    std::string  strVal,strVal2;
-    int          intVal;
-
-    node = config.FindValue("displayName");
-    if(node)
-    {
-        (*node) >> strVal;
-        setDisplayName( strVal );
-    }
-
-    node = config.FindValue("dataDir");
-    if(node)
-    {
-        (*node) >> strVal;
-        setDataDir(strVal);
-    }
-
-    node = config.FindValue("localSocket");
-    if(node)
-    {
-        const YAML::Node* node2 = node->FindValue("service");
-        intVal = 3030;
-        if(node2)
-        {
-            (*node2)>> intVal;
-            setLocalSocket( intVal );
-        }
-        else
-            std::cerr << "Found localSocket entry but no service\n";
-    }
-
-    node = config.FindValue("remoteSocket");
-    if(node)
-    {
-        int addr_family;
-        std::string addr_node,addr_service;
-        const YAML::Node* node2;
-
-        addr_family = AF_UNSPEC;
-        node2 = node->FindValue("family");
-        if(node2)
-        {
-            *node2 >> strVal;
-            if( strVal.compare("AF_INET")==0 )
-                addr_family = AF_INET;
-            else if( strVal.compare("AF_INET6")==0 )
-                addr_family = AF_INET6;
-            else if( strVal.compare("AF_UNSPEC")==0 )
-                addr_family = AF_UNSPEC;
-            else
-            {
-                std::cerr << "Failed to determine address family " << strVal
-                          << ", using AF_UNSPEC";
-            }
-        }
-
-        node2 = node->FindValue("node");
-        if(node2)
-        {
-            (*node2) >> addr_node;
-            if(addr_node.compare("any")==0)
-                addr_node = "";
-        }
-
-        node2 = node->FindValue("service");
-        if(node2)
-            (*node2) >> addr_service;
-
-        setRemoteSocket( addr_family, addr_node, addr_service );
-    }
-
-    node = config.FindValue("maxConnections");
-    if( node )
-    {
-        (*node) >> intVal;
-        setMaxConnections( intVal );
-    }
-
-
-}
-
-void Backend::saveConfig( const std::string& filename )
-{
-    namespace fs = boost::filesystem;
-
-    // verify that the config file exists
-    std::ofstream out(filename.c_str());
-    if(!out)
-        ex()() << "Failed to open " << filename << " for writing";
-
-    YAML::Emitter yaml;
-    yaml << YAML::BeginMap
-         << YAML::Key   << "displayName"
-         << YAML::Value << m_displayName
-         << YAML::Key   << "dataDir"
-         << YAML::Value << m_dataDir.string()
-         << YAML::Key   << "localSocket"
-             << YAML::BeginMap
-             << YAML::Key   << "service"
-             << YAML::Value << m_listeners[LISTEN_LOCAL].getService()
-             << YAML::EndMap
-         << YAML::Key   << "remoteSocket"
-             << YAML::BeginMap
-             << YAML::Key   << "family"
-             << YAML::Value << m_listeners[LISTEN_REMOTE].getFamily()
-             << YAML::Key   << "node"
-             << YAML::Value << m_listeners[LISTEN_REMOTE].getNode()
-             << YAML::Key   << "service"
-             << YAML::Value << m_listeners[LISTEN_REMOTE].getService()
-             << YAML::EndMap
-         << YAML::Key   << "maxConnections"
-         << YAML::Value << m_maxPeers
-         << YAML::EndMap;
-
-    out << yaml.c_str();
-}
 
 int Backend::run(int argc, char** argv)
 {
