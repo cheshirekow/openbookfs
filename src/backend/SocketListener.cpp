@@ -86,7 +86,7 @@ void SocketListener::mainLoop()
     bool shouldQuit = false;
     while(!shouldQuit)
     {
-        m_sockfd        = 0;
+        m_sockfd.clear();
         addrinfo* found = 0; // matching interfaces
         addrinfo* addr  = 0; // decided interface
 
@@ -121,7 +121,7 @@ void SocketListener::mainLoop()
                           << "\n";
                 std::cout << msg.str();
 
-                m_sockfd = socket(addr->ai_family,
+                int sockfd = socket(addr->ai_family,
                                     addr->ai_socktype | O_NONBLOCK,
                                     addr->ai_protocol);
 
@@ -139,10 +139,13 @@ void SocketListener::mainLoop()
                     << host << ":" << port << std::endl;
                 std::cout << msg.str();
 
-                if (m_sockfd < 0)
+                if (sockfd < 0)
                     continue;
                 else
+                {
+                    m_sockfd = FileDescriptor::create(sockfd);
                     break;
+                }
             }
 
             if( !addr )
@@ -151,27 +154,25 @@ void SocketListener::mainLoop()
 
             // So that we can re-bind to it without TIME_WAIT problems
             int reuse_addr = 1;
-            if( setsockopt(m_sockfd, SOL_SOCKET, SO_REUSEADDR,
+            if( setsockopt(*m_sockfd, SOL_SOCKET, SO_REUSEADDR,
                                     &reuse_addr, sizeof(reuse_addr)) )
             {
                 ex()() << "Failed to set SO_REUSEADDR on socket";
             }
 
             //  Bind the server socket
-            if ( bind(m_sockfd, addr->ai_addr, addr->ai_addrlen) < 0)
+            if ( bind(*m_sockfd, addr->ai_addr, addr->ai_addrlen) < 0)
                 ex()() << "Failed to bind the server socket\n";
 
             //  Listen on the server socket, 10 max pending connections
-            if (listen(m_sockfd, 10) < 0)
+            if (listen(*m_sockfd, 10) < 0)
                 ex()() << "Failed to listen on server socket\n";
         }
         catch( std::exception& ex )
         {
             std::cerr << "Error while setting up the socket: "
                       << ex.what() << std::endl;
-            if( m_sockfd > 0 )
-                close(m_sockfd);
-            m_sockfd = 0;
+            m_sockfd.clear();
         }
 
         if(found)
@@ -186,7 +187,7 @@ void SocketListener::mainLoop()
                     ( m_notify.readFd(), READ )     //< socket change
                     ( TimeVal(10,0) );              //< timeout
             if( m_sockfd )
-                selectMe.add( m_sockfd, READ );     //< client connect
+                selectMe.add( *m_sockfd, READ );     //< client connect
         }
 
         // receive loop
@@ -204,7 +205,6 @@ void SocketListener::mainLoop()
             else if( selectMe.ready( m_notify.readFd(), READ) )
             {
                 std::cout << "SocketListener notified, restarting\n";
-                close( m_sockfd );
                 shouldRestart = true;
                 break;
             }
@@ -225,7 +225,7 @@ void SocketListener::mainLoop()
 
             //  Wait for client connection (should not block)
             int clientsock = accept4(
-                    m_sockfd,
+                    *m_sockfd,
                     (sockaddr*)&clientaddr,
                     &addrlen,
                     SOCK_NONBLOCK);
@@ -266,6 +266,10 @@ void SocketListener::mainLoop()
             FdPtr_t sockfd = FileDescriptor::create(clientsock);
             sig_client(sockfd);
         }
+
+        // since we broke out of the loop, release the socket we were listening
+        // on
+        m_sockfd.clear();
     }
 }
 

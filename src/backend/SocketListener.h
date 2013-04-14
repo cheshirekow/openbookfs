@@ -61,7 +61,7 @@ class SocketListener
         addrinfo            m_hints;    ///< interface to listen on
         std::string         m_node;     ///< interface to listen on
         std::string         m_service;  ///< interface to listen on
-        int                 m_sockfd;   ///< listening socket fd
+        FdPtr_t             m_sockfd;   ///< listening socket fd
 
     public:
         /// when a peer connects, the socket fd is sent over this signal

@@ -25,6 +25,7 @@
  */
 
 #include "FileDescriptor.h"
+#include "iostream"
 
 namespace   openbook {
 namespace filesystem {
@@ -32,10 +33,13 @@ namespace filesystem {
 
 FileDescriptor::FileDescriptor(int fd):
     fd(fd)
-{}
+{
+    std::cout << "FileDescriptor: initialized refcount for fd: " << fd << "\n";
+}
 
 FileDescriptor::~FileDescriptor()
 {
+    std::cout << "FileDescriptor: closing fd: " << fd << "\n";
     close(fd);
 }
 
