@@ -2,6 +2,19 @@ package openbook.filesystem.messages;
 
 
 
+// ----------------------------------------------------------------------------
+//             Virtual messages, aren't ever really used
+// ----------------------------------------------------------------------------
+
+// signals a thread to quit
+message Quit {
+    optional int32  dummy = 1;  // no meaning
+}
+
+// something is wrong
+message Invalid {
+    optional int32  dummy = 1;  // no meaning
+}
 
 
 // ----------------------------------------------------------------------------

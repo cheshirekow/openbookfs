@@ -37,7 +37,7 @@ MessageId parseMessageId( char byte )
     else
     {
         ex()() << "Invalid message type: " << (int)byte;
-        return INVALID_MESSAGE;
+        return MSG_INVALID;
     }
 }
 

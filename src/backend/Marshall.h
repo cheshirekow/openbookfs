@@ -58,7 +58,7 @@ struct AutoMessage :
     Message*    msg;    ///< base class pointer to the message
 
     /// fill constructor with defaults
-    AutoMessage( MessageId type=INVALID_MESSAGE, Message* msg=0):
+    AutoMessage( MessageId type=MSG_INVALID, Message* msg=0):
         type(type),
         msg(msg)
     {}

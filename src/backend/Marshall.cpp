@@ -45,8 +45,9 @@ namespace filesystem {
 template <int NA, int NC>
 struct MessageDestroyer
 {
-    static const int NB = (NA+NC)/2;
-    static const MessageId MID = (MessageId)NB;
+    static const int        NB  = (NA+NC)/2;
+    static const MessageId  MID = (MessageId)NB;
+
     static void destroy( MessageId type, Message* msg )
     {
         if( type < NB )
@@ -54,7 +55,12 @@ struct MessageDestroyer
         else if( type > NB )
             MessageDestroyer<NB,NC>::destroy( type, msg );
         else
-            delete message_cast<MID>( msg );
+        {
+            typedef typename MessageType<MID>::type DownType;
+            DownType* downcast = message_cast<MID>(msg );
+            if( downcast )
+                delete downcast;
+        }
     }
 };
 
@@ -63,8 +69,9 @@ struct MessageDestroyer
 template <int NA, int NC>
 struct MessageParser
 {
-    static const int NB = (NA+NC)/2;
-    static const MessageId MID = (MessageId)NB;
+    static const int        NB  = (NA+NC)/2;
+    static const MessageId  MID = (MessageId)NB;
+
     static Message* parse( const std::string& data )
     {
         if( data[0] < NB )
@@ -73,8 +80,8 @@ struct MessageParser
             return MessageParser<NB,NC>::parse(data);
         else
         {
-            typedef typename MessageType<MID>::type UpType;
-            UpType* msg = new UpType();
+            typedef typename MessageType<MID>::type DownType;
+            DownType* msg = new DownType();
             if( !msg->ParseFromArray(&data[1], data.size()-1) )
             {
                 ex()() << "Failed to parse message as "

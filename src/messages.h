@@ -54,8 +54,8 @@ enum MessageId
     MSG_FILE_CHUNK,
     MSG_DIR_INFO,
     MSG_DIR_CHUNK,
-    INVALID_MESSAGE,
-    NUM_MSG = INVALID_MESSAGE,
+    MSG_INVALID,
+    NUM_MSG = MSG_INVALID,
 };
 
 /// parses a byte into a MessageId
@@ -75,7 +75,7 @@ struct TypedMessage
     Message*    msg;    ///< base class pointer to the message
 
     /// fill constructor with defaults
-    TypedMessage( MessageId type=INVALID_MESSAGE, Message* msg=0):
+    TypedMessage( MessageId type=MSG_INVALID, Message* msg=0):
         type(type),
         msg(msg)
     {}
@@ -92,6 +92,7 @@ template < typename T > struct MessageTypeToId;
 template <> struct MessageType<MSG_##MID> { typedef messages::TYPE type; }; \
 template <> struct MessageTypeToId<messages::TYPE> { static const MessageId ID = MSG_##MID; };
 
+MAP_MSG_TYPE(QUIT,              Quit)
 MAP_MSG_TYPE(PING,              Ping)
 MAP_MSG_TYPE(PONG,              Pong)
 MAP_MSG_TYPE(LEADER_ELECT,      LeaderElect)
@@ -110,6 +111,7 @@ MAP_MSG_TYPE(FILE_INFO,         FileInfo)
 MAP_MSG_TYPE(FILE_CHUNK,        FileChunk)
 MAP_MSG_TYPE(DIR_INFO,          DirInfo)
 MAP_MSG_TYPE(DIR_CHUNK,         DirChunk)
+MAP_MSG_TYPE(INVALID,           Invalid)
 
 
 /// @endcond MessageTypeTemplateInstantiations

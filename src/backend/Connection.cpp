@@ -40,11 +40,14 @@
 
 
 #include "global.h"
+#include "messages.h"
+#include "messages.pb.h"
+
 #include "Backend.h"
 #include "Connection.h"
 #include "SelectSpec.h"
-#include "messages.h"
-#include "messages.pb.h"
+#include "MessageHandler.h"
+
 
 namespace   openbook {
 namespace filesystem {
@@ -79,6 +82,7 @@ void Connection::init( Pool_t* pool )
     using namespace pthreads;
     m_pool      = pool;
     m_peerId    = 0;
+    m_worker    = 0;
 
     std::cout << "Initializing handler " << (void*)this << std::endl;
     ScopedLock lock(m_mutex);
@@ -98,13 +102,14 @@ void Connection::init( Pool_t* pool )
     }
 }
 
-void Connection::handleClient( int sockfd )
+void Connection::handleClient( int sockfd, MessageHandler* worker )
 {
     // lock scope
     {
         using namespace pthreads;
         ScopedLock lock(m_mutex);
         m_sockfd = sockfd;
+        m_worker = worker;
 
         Attr<Thread> attr;
         attr.init();
@@ -116,7 +121,7 @@ void Connection::handleClient( int sockfd )
         {
             std::cerr << "Failed to start handler thread, errno " << result
                       << " : " << strerror(result) << std::endl;
-            m_pool->reassign(this);
+            returnToPool();
         }
     }
 }
@@ -212,6 +217,8 @@ void Connection::returnToPool()
     std::cout << "Handler " << (void*) this
               << " returning to pool DH\n";
     m_pool->reassign(this);
+    m_worker->returnToPool();
+    m_worker = 0;
 }
 
 

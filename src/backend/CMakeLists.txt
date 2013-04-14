@@ -62,6 +62,7 @@ if( (FUSE_FOUND)
                     Backend.cpp
                     Connection.cpp
                     Marshall.cpp
+                    MessageHandler.cpp
                     SocketListener.cpp
                     ../messages.cpp
                     ../FdSet.cpp

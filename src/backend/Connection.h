@@ -61,6 +61,8 @@ namespace filesystem {
 // forward dec b/c Backend.h includes Connection.h
 class Backend;
 
+// forward dec b/c MessageHandler.h includes Connection.h
+class MessageHandler;
 
 /// dedicated RPC handler for a single client, manages both inbound and
 /// outbound protocol buffer messages
@@ -86,6 +88,8 @@ class Connection
         pthreads::Thread    m_writeThread;      ///< child thread for writing
         pthreads::Thread    m_workerThread;     ///< child thread for jobs
 
+        MessageHandler*     m_worker;           ///< worker assigned to us
+
         pthreads::Mutex     m_mutex;            ///< locks this data
         Marshall            m_marshall;         ///< message/stream conversion
         int                 m_sockfd;           ///< socket for the connection
@@ -106,7 +110,7 @@ class Connection
 
         /// set the client socket and start the handler interfacing with the
         /// client in a detached thread
-        void handleClient( int sockfd );
+        void handleClient( int sockfd, MessageHandler* worker );
 
     private:
         /// static method for pthreads, calls initDH()
