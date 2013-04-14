@@ -49,6 +49,7 @@
 #include <soci/sqlite3/soci-sqlite3.h>
 
 #include "ExceptionStream.h"
+#include "FileDescriptor.h"
 #include "Marshall.h"
 #include "Pool.h"
 #include "Queue.h"
@@ -69,9 +70,11 @@ class MessageHandler;
 class Connection
 {
     public:
-        typedef Pool<Connection>     Pool_t;
-        typedef RefPtr<AutoMessage>  MsgPtr_t;
-        typedef Queue< MsgPtr_t >    MsgQueue_t;
+        typedef Pool<Connection>        Pool_t;
+        typedef RefPtr<FileDescriptor>  FdPtr_t;
+        typedef RefPtr<AutoMessage>     MsgPtr_t;
+        typedef Queue< MsgPtr_t >       MsgQueue_t;
+
 
     private:
         static const unsigned int sm_bufsize = 256;
@@ -93,7 +96,7 @@ class Connection
 
         pthreads::Mutex     m_mutex;            ///< locks this data
         Marshall            m_marshall;         ///< message/stream conversion
-        int                 m_sockfd;           ///< socket for the connection
+        FdPtr_t             m_sockfd;           ///< socket for the connection
 
         // Diffie-Hellman Paramters
         CryptoPP::Integer               p,q,g;
@@ -111,7 +114,7 @@ class Connection
 
         /// set the client socket and start the handler interfacing with the
         /// client in a detached thread
-        void handleClient( bool remote, int sockfd, MessageHandler* worker );
+        void handleClient( bool remote, FdPtr_t sockfd, MessageHandler* worker );
 
     private:
         /// static method for pthreads, calls initDH()

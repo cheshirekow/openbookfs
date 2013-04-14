@@ -150,7 +150,7 @@ std::string Backend::privateKeyFile()
     return "***noKeyFileSet***";
 }
 
-void Backend::onConnect(int sockfd, bool remote)
+void Backend::onConnect(FdPtr_t sockfd, bool remote)
 {
     std::cout << "Backend assigning a connection object and handler to new "
               << ( remote ? "remote" : "local" )
@@ -616,6 +616,8 @@ void Backend::attemptConnection( const std::string& node,
                   << ":" << port << std::endl;
     }
 
+    FdPtr_t clientfd = FileDescriptor::create(sockfd);
+
     // attempt to make connection
     const char* pnode    = node.c_str();
     const char* pservice = service.c_str();
@@ -627,7 +629,6 @@ void Backend::attemptConnection( const std::string& node,
     int result = getaddrinfo(pnode,pservice,&hints,&found);
     if( result < 0 )
     {
-        close(sockfd);
         ex()() << "Failed to find an interface which matches family: "
                << node << ":" << service
                << "\nErrno is " << errno << " : " << strerror(errno);
@@ -644,7 +645,7 @@ void Backend::attemptConnection( const std::string& node,
                   << std::endl;
 
         int connectResult =
-                connect( sockfd, addr->ai_addr, addr->ai_addrlen );
+                connect( *clientfd, addr->ai_addr, addr->ai_addrlen );
         if (connectResult < 0 )
         {
             std::cerr << "Connection failed, errno " << errno << " : "
@@ -658,12 +659,9 @@ void Backend::attemptConnection( const std::string& node,
     freeaddrinfo(found);
 
     if( !addr )
-    {
-        close(sockfd);
         ex()() << "None of the matched server interfaces work";
-    }
 
-    onConnect( sockfd, true );
+    onConnect( clientfd, true );
 }
 
 

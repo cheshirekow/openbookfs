@@ -35,6 +35,7 @@
 #include <sigc++/sigc++.h>
 
 #include "NotifyPipe.h"
+#include "FileDescriptor.h"
 
 
 namespace   openbook {
@@ -51,6 +52,9 @@ namespace filesystem {
  */
 class SocketListener
 {
+    public:
+        typedef RefPtr<FileDescriptor>  FdPtr_t;
+
     private:
         NotifyPipe          m_notify;   ///< signals a restart
         pthreads::Mutex     m_mutex;    ///< locks data
@@ -61,7 +65,7 @@ class SocketListener
 
     public:
         /// when a peer connects, the socket fd is sent over this signal
-        sigc::signal<void,int>  sig_client;
+        sigc::signal<void,FdPtr_t>  sig_client;
 
         /// initializes the mutex
         SocketListener();

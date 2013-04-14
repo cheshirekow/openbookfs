@@ -105,7 +105,7 @@ void Connection::init( Backend* backend, Pool_t* pool )
     }
 }
 
-void Connection::handleClient( bool remote, int sockfd, MessageHandler* worker )
+void Connection::handleClient( bool remote, FdPtr_t sockfd, MessageHandler* worker )
 {
     // lock scope
     {
@@ -220,6 +220,7 @@ void Connection::returnToPool()
 {
     std::cout << "Handler " << (void*) this
               << " returning to pool DH\n";
+    m_sockfd.clear();
     m_pool->reassign(this);
     if(m_worker)
         m_worker->returnToPool();
@@ -244,7 +245,7 @@ void Connection::main()
     try
     {// lock scope
         pthreads::ScopedLock(m_mutex);
-        m_marshall.setFd(m_sockfd);
+        m_marshall.setFd(*m_sockfd);
 
         // perform handshake with the peer
         handshake();
@@ -303,8 +304,9 @@ void Connection::main()
     // don't get sent when this handler is reused later
     m_peerId=0;
 
-    // close the file descriptor
-    close(m_sockfd);
+    // close the file descriptor, not necessary, will happen by dropping the
+    // file descriptor reference
+    // close(m_sockfd);
 
     // clear out unsent messages (todo: put these in sqlite database)
     RefPtr<AutoMessage> msg;

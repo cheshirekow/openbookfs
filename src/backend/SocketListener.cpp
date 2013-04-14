@@ -263,7 +263,8 @@ void SocketListener::mainLoop()
                 << "] port=[" << clientport << "]" << "\n";
             std::cout << msg.str();
 
-            sig_client(clientsock);
+            FdPtr_t sockfd = FileDescriptor::create(clientsock);
+            sig_client(sockfd);
         }
     }
 }

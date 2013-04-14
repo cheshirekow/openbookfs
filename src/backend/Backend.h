@@ -31,9 +31,11 @@
 #include <cpp-pthreads.h>
 
 #include "Connection.h"
+#include "FileDescriptor.h"
 #include "MessageHandler.h"
 #include "NotifyPipe.h"
 #include "SocketListener.h"
+
 
 
 
@@ -46,6 +48,7 @@ class Backend
     public:
         typedef Pool<Connection>        ConnPool_t;
         typedef Pool<MessageHandler>    WorkerPool_t;
+        typedef RefPtr<FileDescriptor>  FdPtr_t;
         typedef boost::filesystem::path Path_t;
 
         enum Listeners
@@ -100,7 +103,7 @@ class Backend
         std::string privateKeyFile();
 
         /// callback for new peer connections
-        void onConnect(int sockfd, bool remote);
+        void onConnect(FdPtr_t sockfd, bool remote);
 
         // -------- CONFIG OPS -----------
         // each of these can be called as the result of
