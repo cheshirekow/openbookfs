@@ -332,6 +332,8 @@ void Backend::setDataDir( const std::string& dir )
             "ctime INTEGER NOT NULL, "
             "mtime INTEGER NOT NULL) ";
     m_dataDir = dir;
+
+    std::cout << "Done initializing\n";
 }
 
 void Backend::setLocalSocket( int port )
@@ -398,6 +400,7 @@ void Backend::loadConfig( const std::string& filename )
     node = config.FindValue("displayName");
     if(node)
     {
+        std::cout << "Config: Reading display name\n";
         (*node) >> strVal;
         setDisplayName( strVal );
     }
@@ -405,6 +408,7 @@ void Backend::loadConfig( const std::string& filename )
     node = config.FindValue("dataDir");
     if(node)
     {
+        std::cout << "Config: Reading data dir\n";
         (*node) >> strVal;
         setDataDir(strVal);
     }
@@ -412,11 +416,15 @@ void Backend::loadConfig( const std::string& filename )
     node = config.FindValue("localSocket");
     if(node)
     {
+        std::cout << "Config: Reading local socket\n";
         const YAML::Node* node2 = node->FindValue("service");
         intVal = 3030;
         if(node2)
         {
-            (*node2)>> intVal;
+            (*node2) >> strVal;
+            std::cout << "Config: local socket: " << strVal << "\n";
+            (*node2) >> intVal;
+            std::cout << "Config: setting local socket to " << intVal << "\n";
             setLocalSocket( intVal );
         }
         else
@@ -426,6 +434,7 @@ void Backend::loadConfig( const std::string& filename )
     node = config.FindValue("remoteSocket");
     if(node)
     {
+        std::cout << "Config: Reading remote socket\n";
         int addr_family;
         std::string addr_node,addr_service;
         const YAML::Node* node2;
