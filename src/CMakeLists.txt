@@ -13,5 +13,6 @@ if( (Protobuf_FOUND) )
     add_subdirectory(client_fs)
     add_subdirectory(server)
     add_subdirectory(backend)
+    add_subdirectory(clui)
 
 endif()
