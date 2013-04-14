@@ -17,44 +17,37 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/backend/FileDescriptor.h
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/backend/FileDescriptor.cpp
  *
  *  @date   Apr 14, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_FS_FILEDESCRIPTOR_H_
-#define OPENBOOK_FS_FILEDESCRIPTOR_H_
-
-#include <unistd.h>
-#include "ReferenceCounted.h"
+#include "FileDescriptor.h"
 
 namespace   openbook {
 namespace filesystem {
 
-/// adds a reference count to a file descriptor and closes the fd when
-/// destroyed
-class FileDescriptor:
-    public ReferenceCounted
+
+FileDescriptor::FileDescriptor(int fd):
+    fd(fd)
+{}
+
+FileDescriptor::~FileDescriptor()
 {
-    private:
-        int fd;
+    close(fd);
+}
 
-        /// simply stores fd, private so that it can only be constructed by
-        /// create()
-        FileDescriptor(int fd);
+FileDescriptor::operator int() const
+{
+    return fd;
+}
 
-    public:
-        /// calls close(fd)
-        ~FileDescriptor();
-
-        /// the file descriptor can act like an OS file descriptor, an int
-        operator int() const;
-
-        /// create a smart pointer to a reference counted file descriptor
-        static RefPtr<FileDescriptor> create( int fd );
-};
+RefPtr<FileDescriptor> FileDescriptor::create( int fd )
+{
+    return RefPtr<FileDescriptor>( new FileDescriptor(fd) );
+}
 
 
 } // namespace filesystem
@@ -65,13 +58,3 @@ class FileDescriptor:
 
 
 
-
-
-
-
-
-
-
-
-
-#endif // FILEDESCRIPTOR_H_

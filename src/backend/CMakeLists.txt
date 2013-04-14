@@ -61,6 +61,7 @@ if( (FUSE_FOUND)
                     main.cpp
                     Backend.cpp
                     Connection.cpp
+                    FileDescriptor.cpp
                     Marshall.cpp
                     MessageHandler.cpp
                     SocketListener.cpp
