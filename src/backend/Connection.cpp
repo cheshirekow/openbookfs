@@ -221,7 +221,8 @@ void Connection::returnToPool()
     std::cout << "Handler " << (void*) this
               << " returning to pool DH\n";
     m_pool->reassign(this);
-    m_worker->returnToPool();
+    if(m_worker)
+        m_worker->returnToPool();
     m_worker = 0;
 }
 
