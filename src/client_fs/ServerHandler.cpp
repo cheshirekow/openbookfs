@@ -319,7 +319,7 @@ void ServerHandler::createConnection()
     hints.ai_protocol = 0;
 
     if( m_client->addressFamily() == "AF_INET" )
-        hints.ai_family     = AF_INET;
+        hints.ai_family = AF_INET;
     else if( m_client->addressFamily() == "AF_INET6" )
         hints.ai_family = AF_INET6;
     else if( m_client->addressFamily() != "AF_UNSPEC" )

@@ -43,6 +43,7 @@
 #include "MessageHandler.h"
 #include <crypto++/base64.h>
 #include <soci/sqlite3/soci-sqlite3.h>
+#include "SelectSpec.h"
 
 
 
@@ -170,11 +171,14 @@ void Backend::onConnect(int sockfd, bool remote)
 
 void Backend::setDisplayName( const std::string& name )
 {
+    std::cout << "Backend: setting display name: " << name << "\n";
     m_displayName = name;
 }
 
 void Backend::setDataDir( const std::string& dir )
 {
+    std::cout << "Backend: setting data dir: " << dir << "\n";
+
     m_dataDir = dir;
     m_rootDir = m_dataDir / "root";
     namespace fs = boost::filesystem;
@@ -329,18 +333,22 @@ void Backend::setDataDir( const std::string& dir )
 
 void Backend::setLocalSocket( int port )
 {
-    m_listeners[0].setInterface( "localhost", port);
+    std::cout << "Backend: setting local socket to port: " << port << "\n";
+    m_listeners[LISTEN_LOCAL].setInterface( "localhost", port);
 }
 
 void Backend::setRemoteSocket( int addressFamily,
                                 const std::string& node,
                                 const std::string& service )
 {
-    m_listeners[0].setInterface( addressFamily, node, service );
+    std::cout << "Backend: setting remote socket to : "
+              << node << ":" << service << "\n";
+    m_listeners[LISTEN_REMOTE].setInterface( addressFamily, node, service );
 }
 
 void Backend::setMaxConnections( int maxConnections )
 {
+    std::cout << "Backend: max connections: " << maxConnections << "\n";
     m_maxPeers = maxConnections;
     int toCreate = m_maxPeers - m_connPool.capacity();
     m_connPool.reserve( m_maxPeers );
@@ -484,29 +492,55 @@ void Backend::loadConfig( const std::string& filename )
     node = config.FindValue("localSocket");
     if(node)
     {
-        (*node)["service"] >> intVal;
-        setLocalSocket( intVal );
+        const YAML::Node* node2 = node->FindValue("service");
+        intVal = 3030;
+        if(node2)
+        {
+            (*node2)>> intVal;
+            setLocalSocket( intVal );
+        }
+        else
+            std::cerr << "Found localSocket entry but no service\n";
     }
 
     node = config.FindValue("remoteSocket");
     if(node)
     {
-        (*node)["family"]  >> strVal;
-        if( strVal.compare("AF_INET") )
-            intVal = AF_INET;
-        else if( strVal.compare("AF_INET6") )
-            intVal = AF_INET6;
-        else if( strVal.compare("AF_UNSPEC") )
-            intVal = AF_UNSPEC;
-        else
+        int addr_family;
+        std::string addr_node,addr_service;
+        const YAML::Node* node2;
+
+        addr_family = AF_UNSPEC;
+        node2 = node->FindValue("family");
+        if(node2)
         {
-            std::cerr << "Failed to determine address family " << strVal
-                      << ", using AF_UNSPEC";
-            intVal = AF_UNSPEC;
+            *node2 >> strVal;
+            if( strVal.compare("AF_INET")==0 )
+                addr_family = AF_INET;
+            else if( strVal.compare("AF_INET6")==0 )
+                addr_family = AF_INET6;
+            else if( strVal.compare("AF_UNSPEC")==0 )
+                addr_family = AF_UNSPEC;
+            else
+            {
+                std::cerr << "Failed to determine address family " << strVal
+                          << ", using AF_UNSPEC";
+            }
         }
-        (*node)["node"]    >> strVal;
-        (*node)["service"] >> strVal2;
-        setRemoteSocket( intVal, strVal, strVal2 );
+
+        node2 = node->FindValue("node");
+        if(node2)
+        {
+            (*node2) >> addr_node;
+            if(addr_node.compare("any")==0)
+                addr_node = "";
+        }
+
+        node2 = node->FindValue("service");
+        if(node2)
+            (*node2) >> addr_service;
+
+        setRemoteSocket( addr_family, addr_node, addr_service );
     }
 
     node = config.FindValue("maxConnections");
@@ -566,15 +600,15 @@ int Backend::run(int argc, char** argv)
     for(int i=0; i < NUM_LISTENERS; i++)
         m_listenThreads[i].launch( SocketListener::start, m_listeners+i );
 
-    sleep(2);
     for(int i=0; i < NUM_LISTENERS; i++)
         m_listeners[i].setInterface( "localhost", 3030+i);
 
     sleep(2);
     loadConfig( m_configFile );
 
-    sleep(2);
-    g_termNote->notify();
+    SelectSpec selectme;
+    selectme.gen()( g_termNote->readFd(), select_spec::READ );
+    selectme.wait();
 
     for(int i=0; i < NUM_LISTENERS; i++)
         m_listenThreads[i].join();

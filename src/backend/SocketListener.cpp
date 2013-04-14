@@ -161,8 +161,6 @@ void SocketListener::mainLoop()
             if ( bind(m_sockfd, addr->ai_addr, addr->ai_addrlen) < 0)
                 ex()() << "Failed to bind the server socket\n";
 
-
-
             //  Listen on the server socket, 10 max pending connections
             if (listen(m_sockfd, 10) < 0)
                 ex()() << "Failed to listen on server socket\n";
@@ -206,6 +204,7 @@ void SocketListener::mainLoop()
             else if( selectMe.ready( m_notify.readFd(), READ) )
             {
                 std::cout << "SocketListener notified, restarting\n";
+                close( m_sockfd );
                 shouldRestart = true;
                 break;
             }

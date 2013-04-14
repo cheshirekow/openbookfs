@@ -76,6 +76,9 @@ void signal_callback( int signum )
 
 int main(int argc, char** argv)
 {
+    signal(SIGINT,signal_callback);
+    signal(SIGPIPE,signal_callback);
+
     Backend backend;
     return backend.run(argc, argv);
 }
