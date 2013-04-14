@@ -70,6 +70,27 @@ class SocketListener
         /// the listener to restart
         void setInterface( const std::string& node, int port );
 
+        /// changes the interface the listener should listen on and signals
+        /// the listener to restart
+        void setInterface( int family,
+                            const std::string& node,
+                            const std::string& service);
+
+        std::string getFamily()
+        {
+            switch( m_hints.ai_family)
+            {
+                case AF_INET:
+                    return "AF_INET";
+                case AF_INET6:
+                    return "AF_INET6";
+                default:
+                    return "AF_UNSPEC";
+            }
+        }
+        const std::string& getNode(){ return m_node; }
+        const std::string& getService(){ return m_service; }
+
     private:
         /// opens a socket based on hints, listens for clients, and sends
         /// connections over sig_connect

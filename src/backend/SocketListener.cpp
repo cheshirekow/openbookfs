@@ -70,6 +70,17 @@ void SocketListener::setInterface(const std::string& node, int port )
     m_notify.notify();
 }
 
+void SocketListener::setInterface(int family,
+                                    const std::string& node,
+                                    const std::string& service )
+{
+    pthreads::ScopedLock( m_mutex );
+    m_hints.ai_family = family;
+    m_node    = node;
+    m_service = service;
+    m_notify.notify();
+}
+
 void SocketListener::mainLoop()
 {
     bool shouldQuit = false;

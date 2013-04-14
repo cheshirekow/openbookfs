@@ -98,6 +98,18 @@ class Pool
             }
             return size;
         }
+
+        int capacity()
+        {
+            int size = 0;
+
+            // lock scope
+            {
+                pthreads::ScopedLock lock(m_mutex);
+                size = m_available.capacity();
+            }
+            return size;
+        }
 };
 
 

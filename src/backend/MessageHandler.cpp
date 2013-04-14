@@ -54,6 +54,7 @@ void MessageHandler::init(Backend* backend, Pool_t* pool)
 {
     m_backend = backend;
     m_pool    = pool;
+    returnToPool();
 }
 
 void MessageHandler::go( pthreads::Thread& thread, MsgQueue_t* in, MsgQueue_t* out )
@@ -93,7 +94,6 @@ void* MessageHandler::dispatch_main(void* vp_h )
 
 
 
-void MessageHandler::handleMessage( messages::Quit* msg )               { exceptMessage(msg); }
 void MessageHandler::handleMessage( messages::LeaderElect* msg )        { exceptMessage(msg); }
 void MessageHandler::handleMessage( messages::DiffieHellmanParams* msg ){ exceptMessage(msg); }
 void MessageHandler::handleMessage( messages::KeyExchange* msg )        { exceptMessage(msg); }
@@ -103,14 +103,24 @@ void MessageHandler::handleMessage( messages::AuthChallenge* msg )      { except
 void MessageHandler::handleMessage( messages::AuthSolution* msg )       { exceptMessage(msg); }
 void MessageHandler::handleMessage( messages::AuthResult* msg )         { exceptMessage(msg); }
 
+void MessageHandler::handleMessage( messages::Quit* msg )
+{
+    m_shouldQuit = true;
+}
+
 void MessageHandler::handleMessage( messages::Ping*         msg )
 {
-
+    messages::Pong* pong = new messages::Pong();
+    pong->set_payload(0xdeadf00d);
+    TypedMessage pongMsg(MSG_PONG,pong);
+    m_outboundQueue->insert(new AutoMessage(pong));
 }
 
 void MessageHandler::handleMessage( messages::Pong*         msg )
 {
-
+    messages::Ping* ping = new messages::Ping();
+    ping->set_payload(0xdeadf00d);
+    m_outboundQueue->insert(new AutoMessage(ping));
 }
 
 

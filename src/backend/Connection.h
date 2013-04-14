@@ -80,6 +80,7 @@ class Connection
         uint32_t            m_peerId;           ///< id of peer connected to
         Pool_t*             m_pool;             ///< pool to which this belongs
         pthreads::Thread    m_thread;           ///< the thread we're running in
+        bool                m_isRemote;         ///< is not a local connection
 
         MsgQueue_t          m_inboundMessages;  ///< received message queue
         MsgQueue_t          m_outboundMessages; ///< queue for messages to send
@@ -101,16 +102,16 @@ class Connection
         CryptoPP::AutoSeededRandomPool  m_rng;    ///< random number gen
 
     public:
-        Connection(Backend*);
+        Connection();
         ~Connection();
 
         /// set the parent pointer and start DH parameter generation in
         /// detached thread
-        void init( Pool_t* );
+        void init( Backend*, Pool_t* );
 
         /// set the client socket and start the handler interfacing with the
         /// client in a detached thread
-        void handleClient( int sockfd, MessageHandler* worker );
+        void handleClient( bool remote, int sockfd, MessageHandler* worker );
 
     private:
         /// static method for pthreads, calls initDH()
@@ -169,10 +170,6 @@ class Connection
         /// waits for jobs to complete and sends job completion messages back
         /// to the client
         void shout();
-
-
-
-
 };
 
 

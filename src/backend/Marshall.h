@@ -155,7 +155,7 @@ class Marshall
          *  on the heap instead of using the internal buffers. The
          *  allocated message pointer is owned by the caller
          */
-        RefPtr<AutoMessage> read(  );
+        RefPtr<AutoMessage> read( bool encrypted=false  );
 
         /// write an encryupted message to a socket, will throw a
         /// MessageException on any problems
@@ -172,15 +172,19 @@ class Marshall
          *  Does not destroy the message, do the desctruction in the calling
          *  method
          */
-        void write( RefPtr<AutoMessage> msg );
+        void write( RefPtr<AutoMessage> msg, bool encrypted=false );
 
         template <typename T>
-        void writeMsg( T* msg )
+        void writeMsg( T* msg, bool encrypted=false )
         {
             AutoMessage* amsg = new AutoMessage();
             amsg->type = MessageTypeToId<T>::ID;
             amsg->msg  = msg;
-            write( amsg );
+
+            if( encrypted )
+                writeEnc(amsg);
+            else
+                write( amsg );
         }
 
         template <typename T>

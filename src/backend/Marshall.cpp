@@ -279,11 +279,17 @@ RefPtr<AutoMessage> Marshall::readEnc(  )
     return deserialize( m_plain );
 }
 
-RefPtr<AutoMessage> Marshall::read(  )
+RefPtr<AutoMessage> Marshall::read( bool encrypted  )
 {
     readSize();
     readData();
-    return deserialize( m_cipher );
+    if( encrypted )
+    {
+        decrypt();
+        return deserialize( m_plain );
+    }
+    else
+        return deserialize( m_cipher );
 }
 
 void Marshall::serialize( RefPtr<AutoMessage> msg, std::string& data )
@@ -420,9 +426,16 @@ void Marshall::writeEnc( RefPtr<AutoMessage> msg )
     writeData();
 }
 
-void Marshall::write( RefPtr<AutoMessage> msg )
+void Marshall::write( RefPtr<AutoMessage> msg, bool encrypted )
 {
-    serialize( msg, m_cipher );
+    if( encrypted )
+    {
+        serialize( msg, m_plain );
+        encrypt();
+    }
+    else
+        serialize( msg, m_cipher );
+
     writeSize();
     writeData();
 }

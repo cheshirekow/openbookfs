@@ -8,61 +8,35 @@
 # the machine hostname for this field
 displayName : "Nadie"
 
-# if passworth authentication is used, this is the password to use when
-# being authorized by with server
-password : "fabulous"
-
 # Storage location of client data. This is where the client will store files 
 # that it generates for persistence, like a database of unsent messages, the
 # real file sistem is also stored here
 dataDir : "${CMAKE_CURRENT_BINARY_DIR}/data"
 
-# Mount point. This is the location where we mount the FUSE file system
-rootDir : "${CMAKE_CURRENT_BINARY_DIR}/root"
+# local connections will be accepted on port number
+localSocket :
+    # Service to listen on, can be a service name if there is one registered
+    # in /etc/services or simply a port number 
+    service : 3031
 
-# Private keyfile. This is the private key that we use to authenticate
-# the with the server. It serves as our identity. The key must be an RSA key in 
-# DER format. You may generate such a key using OpenSSL with the following 
-# commands:
-#
-#   $ openssl genrsa -out id_rsa 3072
-#   $ openssl pkcs8 -nocrypt -in id_rsa -topk8 -outform DER -out id_rsa.der
-#
-# or you may let the system generate a key, which it will do if the key file
-# does not exist
-privKeyFile : "${CMAKE_CURRENT_BINARY_DIR}/rsa-openssl-priv.der"
+# remote connections will be accepted on this interface
+remoteSocket :
+    # Address family of interface to bind to. Options are AF_INET (IPv4) or 
+    # AF_INET6 (IPv6), or AF_UNSPEC to pick any one which matches the following
+    # criteria
+    family : AF_INET
+    
+    # Interface to bind to. This is the IP address that the client uses to 
+    # communicate with the server. You may enter a IPv4 (xxx.xxx.xxx.xxx) or IPv6 
+    # (xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx) address, a hostname 
+    # (obfs.openbk.net), or the string "any" to bind to any available interface
+    node : any
+    
+    # Service to listen on, can be a service name if there is one registered
+    # in /etc/services or simply a port number 
+    service : 3032
 
-# Public keyfile. This serves as the clients's "identity" and is used to
-# verify that the client is who he says he is. The key must be
-# an RSA key in DER format. You may generate such a key using OpenSSL with the
-# following commands:
-#
-#   $ openssl genrsa -out id_rsa 3072
-#   $ openssl rsa -in id_rsa -pubout -outform DER -out id_rsa_pub.der
-#
-# or you may let the system generate a key, which it will do if the key file
-# does not exist
-pubKeyFile  : "${CMAKE_CURRENT_BINARY_DIR}/rsa-openssl-pub.der"
-
-# Address family of interface to bind to. Options are AF_INET (IPv4) or 
-# AF_INET6 (IPv6), or AF_UNSPEC to pick any one which matches the following
-# criteria
-addressFamily : AF_INET
-
-# Interface to bind to. This is the IP address that the client uses to 
-# communicate with the server. You may enter a IPv4 (xxx.xxx.xxx.xxx) or IPv6 
-# (xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx:xxxx) address, a hostname 
-# (obfs.openbk.net), or the string "any" to bind to any available interface
-iface : any
-
-# Server location in [HOSTNAME]:[PORT] format. 
-server : localhost:3031
-
-# DEPRECATED: we are now using one worker per connection, may be re-enabled
-# for long-jobs in the future
-#
-# Size of the worker pool. The worker pool does work. Work is usually rather
-# short so this doesn't have to be too large.
-maxWorkers : 20
+# maximum number of peer connections
+maxConnections : 20
 
 
