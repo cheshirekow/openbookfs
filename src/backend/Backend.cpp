@@ -399,7 +399,6 @@ void Backend::setMaxConnections( int maxConnections )
 
 void Backend::loadConfig( const std::string& filename )
 {
-    pthreads::ScopedLock lock(m_mutex);
     namespace fs = boost::filesystem;
 
     // verify that the config file exists
@@ -838,8 +837,12 @@ int Backend::run(int argc, char** argv)
         for(int i=0; i < NUM_LISTENERS; i++)
             m_listenThreads[i].launch( SocketListener::start, m_listeners+i );
 
+        // set their interfaces
         for(int i=0; i < NUM_LISTENERS; i++)
             m_listeners[i].setInterface( "localhost", 3030+i);
+
+        // star the long job worker
+        m_jobThread.launch( JobWorker::dispatch_main, &m_jobWorker );
     }
 
     sleep(1);
@@ -847,10 +850,16 @@ int Backend::run(int argc, char** argv)
     // scope
     loadConfig( m_configFile );
 
+    // wait for termination
     SelectSpec selectme;
     selectme.gen()( g_termNote->readFd(), select_spec::READ );
     selectme.wait();
 
+    // kill the job worker
+    m_jobWorker.enqueue( new JobKiller() );
+    m_jobThread.join();
+
+    // wait for listener threads to quit
     for(int i=0; i < NUM_LISTENERS; i++)
         m_listenThreads[i].join();
 

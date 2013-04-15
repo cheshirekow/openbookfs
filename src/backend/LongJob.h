@@ -64,6 +64,14 @@ class LongJob:
         virtual void go()=0;
 };
 
+/// special job which simply signals a shutdown for the worker
+struct JobKiller:
+    public LongJob
+{
+    virtual ~JobKiller(){}
+    virtual void go(){ throw JobQuitException(); }
+};
+
 
 /// maintains a queue of long jobs and has a thread which continuously
 /// works on that queue

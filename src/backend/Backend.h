@@ -32,6 +32,7 @@
 
 #include "Connection.h"
 #include "FileDescriptor.h"
+#include "LongJob.h"
 #include "MessageHandler.h"
 #include "NotifyPipe.h"
 #include "SocketListener.h"
@@ -79,6 +80,9 @@ class Backend
         int             m_maxPeers;     ///< maximum number of peers
         ConnPool_t      m_connPool;     ///< connection pool
         WorkerPool_t    m_workerPool;   ///< worker pool
+
+        pthreads::Thread    m_jobThread;    ///< for long jobs
+        JobWorker           m_jobWorker;    ///< for long jobs
 
 
         // for outgoing connections

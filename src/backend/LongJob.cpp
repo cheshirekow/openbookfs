@@ -45,7 +45,7 @@ JobWorker::~JobWorker()
 
 void JobWorker::enqueue( JobPtr_t job )
 {
-    pthreads::ScopedLock(m_mutex);
+    pthreads::ScopedLock lock(m_mutex);
 
     if( m_last )
         m_last->next = job;
@@ -89,7 +89,11 @@ void JobWorker::main()
             }
             // otherwise advance first
             else
-                m_first = m_first->next;
+            {
+                JobPtr_t next = m_first->next;
+                m_first->next.clear();
+                m_first = next;
+            }
         // release the lock so that other threads can add jobs while
         // we're working
         }
@@ -112,7 +116,20 @@ void JobWorker::main()
         }
     }
     std::cout << "JobWorker " << (void*)this
-                      << " exiting main loop\n";
+              << " destroying queued jobs\n";
+
+    pthreads::ScopedLock lock(m_mutex);
+    m_last.clear();
+    while(m_first)
+    {
+        JobPtr_t next = m_first->next;
+        m_first->next.clear();
+        m_first.clear();
+        m_first = next;
+    }
+
+    std::cout << "JobWorker " << (void*)this
+              << " exiting main loop\n";
 }
 
 
