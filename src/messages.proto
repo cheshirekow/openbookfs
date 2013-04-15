@@ -73,6 +73,11 @@ message AttemptConnection {
     optional string service = 2;    //< port number / service name
 }
 
+// response to UI Events
+message UserInterfaceReply {
+    optional bool   ok    = 1;  //< message was received and acted on
+    optional string msg   = 2;  //< message to display to user
+}
 
 
 // ----------------------------------------------------------------------------

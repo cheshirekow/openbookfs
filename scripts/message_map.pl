@@ -1,4 +1,4 @@
-#/usr/bin/perl
+#!/usr/bin/perl
 
 #  Copyright (C) 2012 Josh Bialkowski (jbialk@mit.edu)
 #
@@ -24,6 +24,10 @@
 #           of message ID'S, a templates for ID->type and type->ID maps,
 #           and an array of strings for printing the enum
 
+use POSIX qw(strftime);
+use File::Basename;
+my $dirname = dirname(__FILE__);
+
 # maps enum strings to class names
 $messageMap = 
 [
@@ -39,6 +43,7 @@ $messageMap =
     ['LOAD_CONFIG'       ,'LoadConfig'],
     ['SAVE_CONFIG'       ,'SaveConfig'], 
     ['ATTEMPT_CONNECT'   ,'AttemptConnection'],
+    ['UI_REPLY'          ,'UserInterfaceReply'],
     ['LEADER_ELECT'      ,'LeaderElect'],
     ['DH_PARAMS'         ,'DiffieHellmanParams'],
     ['KEY_EXCHANGE'      ,'KeyExchange'],
@@ -61,14 +66,89 @@ $messageMap =
 
 print "Enum String:\n";
 print enum_string();
+make_header("msg_gen","MessageId.h",enum_string());
+
 print "Map String: \n";
 print map_string();
+make_header("msg_gen","MessageMap.h",map_string());
+
 print "Name String: \n";
 print name_string();
+make_header("msg_gen","MessageStr.h","exter const char* g_msgStr[];");
+#make_source("msg_gen","MessageStr.cpp",name_string());
+
 print "Handler String: \n";
 print handler_string();
+make_header("msg_gen","MessageHandlerProto.h",handler_string());
+
+# creates a header file and puts boiler plate stuff in it along with
+# the argument 
+sub make_header()
+{
+	my $relDir   = $_[0];
+	my $fileName = $_[1];
+	my $content  = $_[2];
+	my $macro    = header_macro("$relDir/$fileName");
+	my $fh;
+	open ($fh, ">", "$dirname/../$relDir/$fileName" );
+	print $fh copyright_string();
+	print $fh filecomment_string("$relDir/$fileName");
+	print $fh "\n\n#ifndef $macro\n#define $macro\n\n";
+	print $fh $content;
+	print $fh "\n\n#endif //< $macro\n\n";
+	close($fh);
+}
+
+sub copyright_string()
+{
+	return <<'HERE'
+/*
+ *  Copyright (C) 2012 Josh Bialkowski (jbialk@mit.edu)
+ *
+ *  This file is part of openbook.
+ *
+ *  openbook is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  openbook is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
+ */
+HERE
 
 
+}
+
+sub filecomment_string()
+{
+	my $date = strftime("%b %d, %Y", localtime);
+	my $path = $_[0];
+    return <<"HERE"
+/**
+ *  \@file   $path
+ *
+ *  \@date   $date
+ *  \@author Josh Bialkowski (jbialk\@mit.edu)
+ *  \@brief  
+ */
+HERE
+;
+}
+
+sub header_macro()
+{
+	my $path = $_[0];
+	$path =~ s/[\W]/_/g;   # replace non alpha chars with underscore
+	$path = uc($path);     # make uppercase
+	$path = "OPENBOOK_FS_" . $path;    # append prefix
+	return $path
+}
 
 # returns a string in the form of:
 #	enum MessageId
