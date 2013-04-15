@@ -60,7 +60,7 @@ class Options
                 "client-iface",
                 "client network interface to use",
                 false,
-                "any",
+                "localhost",
                 "iface",
                 cmd
                 ),
