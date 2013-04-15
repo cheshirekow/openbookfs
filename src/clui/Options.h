@@ -50,25 +50,25 @@ class Options
                 "address family of interface to use: AF_[INET|INET6|UNIX|UNSPEC]",
                 false,
                 "AF_INET",
-                "enum",
+                "ai_family",
                 cmd
                 ),
             clientNode(
                 "i",
-                "iface",
+                "client-iface",
                 "client network interface to use",
                 false,
                 "any",
-                "string",
+                "iface",
                 cmd
                 ),
             clientService(
                 "p",
-                "port",
+                "client-port",
                 "client port number / service name to use",
                 false,
                 "3031",
-                "int/string",
+                "port",
                 cmd)
         {}
 
@@ -100,6 +100,23 @@ class Options
         std::string get_clientService()
         {
             return clientService.getValue();
+        }
+};
+
+
+class CmdLine:
+    public  TCLAP::CmdLine
+{
+    public:
+        CmdLine(const std::string& cmd,
+                const std::string& message,
+                const char delimiter = ' ',
+                const std::string& version = "none",
+                bool helpAndVersion = true
+                ):
+            TCLAP::CmdLine(message,delimiter,version,helpAndVersion)
+        {
+            _progName = "obfs " + cmd;
         }
 };
 

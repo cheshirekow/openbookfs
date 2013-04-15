@@ -47,7 +47,7 @@ class ConnectOptions:
                 "remote network interface to use",
                 true,
                 "any",
-                "string",
+                "host",
                 cmd
                 ),
             remoteService(
@@ -55,7 +55,7 @@ class ConnectOptions:
                 "remote port number / service name to use",
                 true,
                 "3031",
-                "int/string",
+                "port",
                 cmd)
         {}
 

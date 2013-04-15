@@ -83,28 +83,7 @@ void signal_callback( int signum )
 }
 
 // forward dec
-void dispatch( const std::string& cmd, int argc, char** argv,
-                bool help = false );
-
-
-
-
-
-
-
-
-
-void do_connect(ConnectOptions& )
-{
-
-}
-
-
-
-
-
-
-
+void dispatch( int argc, char** argv, bool help = false );
 
 
 
@@ -122,7 +101,7 @@ std::string copyright()
     strftime (currentYear,5,"%Y",timeinfo);
 
     std::stringstream sstream;
-    sstream << "Openbook Filesystem Backend\n"
+    sstream << "Openbook Filesystem Command Line Interface\n"
             << "Copyright (c) 2012-" << currentYear
             << " Josh Bialkowski <jbialk@mit.edu>\n";
 
@@ -143,25 +122,6 @@ void print_usage(const char* argv0 = 0 )
 }
 
 
-/// print help for specified arguments
-void parse_help(int argc, char** argv)
-{
-    if(argc < 1)
-    {
-        print_usage();
-        return;
-    }
-
-    // get the command that we wish to to get the help for
-    std::string subcmd = argv[0];
-    argc -= 1;
-    argv += 1;
-
-    // redispatch with help set to true
-    dispatch(subcmd,argc,argv,true);
-}
-
-
 template <typename Options_t>
 void parse_and_go(int argc, char** argv, bool help=false)
 {
@@ -171,7 +131,7 @@ void parse_and_go(int argc, char** argv, bool help=false)
     // delimiter (usually space) and the last one is the version number.
     // The CmdLine object parses the argv array based on the Arg objects
     // that it contains.
-    TCLAP::CmdLine cmd( copyright(), ' ', "0.1.0");
+    CmdLine cmd( argv[0], copyright(), ' ', "0.1.0");
     Options_t opts(cmd);
 
     // Parse the argv array.
@@ -188,14 +148,24 @@ void parse_and_go(int argc, char** argv, bool help=false)
 }
 
 
-void dispatch( const std::string& cmd, int argc, char** argv, bool help )
+void dispatch( int argc, char** argv, bool help )
 {
+   std::string cmd = argc > 0 ? argv[0] : "usage";
    if( cmd == "help" )
-        parse_help(argc,argv);
+   {
+       argc--;
+       argv++;
+       dispatch(argc,argv,true);
+   }
    else if( cmd == "connect" )
-        parse_and_go<ConnectOptions>(argc,argv);
-   else
+        parse_and_go<ConnectOptions>(argc,argv,help);
+   else if( cmd == "usage" )
         print_usage();
+   else
+   {
+       std::cout << "unrecognized command:" << cmd << "\n";
+       print_usage();
+   }
 }
 
 int main(int argc, char** argv)
@@ -211,18 +181,18 @@ int main(int argc, char** argv)
     // we need at least two arguments, command + subcommand
     if( argc < 2 )
     {
+        std::cout << "not enough parameters:\n";
         print_usage(argv[0]);
         return 0;
     }
 
     // parse commands and dispatch appropriate function
-    std::string subcmd = argv[0];
     argc -= 1;
     argv += 1;
 
     try
     {
-        dispatch(subcmd,argc,argv);
+        dispatch(argc,argv);
     }
     catch( std::exception& ex )
     {
