@@ -29,7 +29,7 @@
 #include "Backend.h"
 #include "MessageHandler.h"
 #include "Marshall.h"
-
+#include "jobs/PingJob.h"
 
 
 
@@ -58,11 +58,12 @@ void MessageHandler::init(Backend* backend, Pool_t* pool)
     returnToPool();
 }
 
-void MessageHandler::go( pthreads::Thread& thread, MsgQueue_t* in, MsgQueue_t* out )
+void MessageHandler::go( int peerId, MsgQueue_t* in, MsgQueue_t* out )
 {
     m_inboundQueue  = in;
     m_outboundQueue = out;
-    thread.launch(dispatch_main,this);
+    m_peerId        = peerId;
+    main();
 }
 
 void MessageHandler::returnToPool()
@@ -86,12 +87,6 @@ void MessageHandler::main()
     std::cout << "Message Handler " << (void*)this << "Shutting down\n";
 }
 
-void* MessageHandler::dispatch_main(void* vp_h )
-{
-    MessageHandler* handler = static_cast<MessageHandler*>(vp_h);
-    handler->main();
-    return vp_h;
-}
 
 
 
@@ -219,17 +214,16 @@ void MessageHandler::handleMessage( messages::Quit* msg )
 
 void MessageHandler::handleMessage( messages::Ping* msg )
 {
-    messages::Pong* pong = new messages::Pong();
-    pong->set_payload(0xdeadf00d);
-    TypedMessage pongMsg(MSG_PONG,pong);
-    m_outboundQueue->insert(new AutoMessage(pong));
+    std::cout << "Handling PING\n";
+    jobs::Pong* pong = new jobs::Pong(m_backend,m_peerId);
+    m_backend->jobs()->enqueue(pong);
 }
 
 void MessageHandler::handleMessage( messages::Pong* msg )
 {
-    messages::Ping* ping = new messages::Ping();
-    ping->set_payload(0xdeadf00d);
-    m_outboundQueue->insert(new AutoMessage(ping));
+    std::cout << "Handling PONG\n";
+    jobs::Pong* pong = new jobs::Pong(m_backend,m_peerId);
+    m_backend->jobs()->enqueue(pong);
 }
 
 

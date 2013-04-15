@@ -79,6 +79,7 @@ class MessageHandler
         typedef Queue< MsgPtr_t >    MsgQueue_t;
 
     private:
+        int                 m_peerId;           ///< id of the peer
         Backend*            m_backend;          ///< top-level object
         Pool_t*             m_pool;             ///< pool this object came from
         MsgQueue_t*         m_inboundQueue;     ///< messages to process
@@ -100,7 +101,7 @@ class MessageHandler
          *        thread. No reason for the caller to block and wait since
          *        the listener can just queue up the quit message himself
          */
-        void go( pthreads::Thread& thread, MsgQueue_t* in, MsgQueue_t* out );
+        void go( int peerId, MsgQueue_t* in, MsgQueue_t* out );
 
         /// returns this handler to the pool
         void returnToPool();
@@ -108,9 +109,6 @@ class MessageHandler
         /// main method of the job handler, waits for jobs in the queue and
         /// then does them
         void main();
-
-        /// static method for pthreads, calls main()
-        static void* dispatch_main( void* vp_h );
 
         /// for messages we dont expect to recieve
         template <typename Message_t>

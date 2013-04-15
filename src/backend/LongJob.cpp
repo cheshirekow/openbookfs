@@ -101,6 +101,7 @@ void JobWorker::main()
         try
         {
             // do the job
+            std::cout << "JobWorker: doing a job\n";
             job->go();
         }
         catch (const JobQuitException& ex )

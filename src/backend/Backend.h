@@ -47,10 +47,12 @@ namespace filesystem {
 class Backend
 {
     public:
-        typedef Pool<Connection>        ConnPool_t;
-        typedef Pool<MessageHandler>    WorkerPool_t;
-        typedef RefPtr<FileDescriptor>  FdPtr_t;
-        typedef boost::filesystem::path Path_t;
+        typedef Pool<Connection>            ConnPool_t;
+        typedef Pool<MessageHandler>        WorkerPool_t;
+        typedef RefPtr<FileDescriptor>      FdPtr_t;
+        typedef std::map<int,Connection*>   UnsyncedMap_t;
+        typedef Synchronized<UnsyncedMap_t> PeerMap_t;
+        typedef boost::filesystem::path     Path_t;
 
         enum Listeners
         {
@@ -84,11 +86,12 @@ class Backend
         pthreads::Thread    m_jobThread;    ///< for long jobs
         JobWorker           m_jobWorker;    ///< for long jobs
 
+        /// synchronized map from client id to connection objects
+        PeerMap_t   m_peerMap;
 
         // for outgoing connections
-        int         m_clientFamily;
-        std::string m_clientNode;
-
+        int         m_clientFamily; ///< address family AF_[INET|INET6|UNIX]
+        std::string m_clientNode;   ///< interface to use (if a specific one)
 
     public:
         /// sets sensable defaults
@@ -103,7 +106,8 @@ class Backend
 
         /// register and retrieve the peerId given the peers public key
         int registerPeer( const std::string& publicKey,
-                          const std::string& displayName);
+                          const std::string& displayName,
+                          Connection* conn );
 
         /// unregister a connected peer
         void unregisterPeer( int peerId );
@@ -113,6 +117,25 @@ class Backend
 
         /// callback for new peer connections
         void onConnect(FdPtr_t sockfd, bool remote);
+
+        /// send a message to a specific peer
+        template <typename Message_t>
+        void sendMessage( int peerId, Message_t* msg )
+        {
+            UnsyncedMap_t::iterator it = m_peerMap.lockFor()->find(peerId);
+            if( it == m_peerMap.subvert()->end() )
+            {
+                std::cout << "Backend: not sending "
+                          << messageIdToString( MessageTypeToId<Message_t>::ID )
+                          << " message b/c " << peerId
+                          << " isn't in map \n";
+                return;
+            }
+
+            it->second->enqueueMessage(peerId,msg);
+        }
+
+        JobWorker* jobs(){ return &m_jobWorker; }
 
         // -------- CONFIG OPS -----------
         // each of these can be called as the result of

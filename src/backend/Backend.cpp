@@ -99,7 +99,8 @@ const std::string& Backend::publicKey()
 }
 
 int Backend::registerPeer( const std::string& base64,
-                           const std::string& displayName )
+                           const std::string& displayName,
+                           Connection* conn )
 {
     // if public key is empty string then that means this is a GUI only
     // connection so we dont bother putting it in the map
@@ -114,47 +115,52 @@ int Backend::registerPeer( const std::string& base64,
            "VALUES ('"<< base64 << "','" << displayName << "')";
 
     // now select out the id
-    int clientId = 0;
+    int peerId = 0;
     sql << "SELECT client_id FROM known_clients WHERE client_key='"
         << base64 << "'",
-            soci::into(clientId);
+            soci::into(peerId);
 
     // update the client name
     sql << "UPDATE known_clients SET client_name='" << displayName
-        << "' WHERE client_id=" << clientId;
+        << "' WHERE client_id=" << peerId;
 
-//    // lock scope
-//    {
-//        // wait for a lock on the map
-//        pthreads::ScopedLock lock( m_clientMap->mutex() );
-//
-//        // now map the client id to this object
-//        // if another Connection is in the map for this client then we must
-//        // wait for it to remove itself before we put this in the map as the
-//        // handler for the client
-//        while( m_clientMap->subvert()->find(m_clientId)
-//                != m_clientMap->subvert()->end() )
-//        {
-//            // releases the lock, and then waits for someone else to aquire
-//            // and release it
-//            m_clientMap->wait();
-//        }
-//
-//        (*(m_clientMap->subvert()))[m_clientId] = this;
-//        m_clientMap->signal();
-//    }
-    return clientId;
+    // lock scope
+    {
+        // the map lock
+        pthreads::ScopedLock lock( m_peerMap.mutex() );
+
+        // now map the client id to this object
+        // if another Connection is in the map for this client then we must
+        // wait for it to remove itself before we put this in the map as the
+        // handler for the client
+        while( m_peerMap.subvert()->find(peerId)
+                != m_peerMap.subvert()->end() )
+        {
+            std::cout << "Backend: can't insert connection into the map for "
+                         "client " << peerId << ", waiting\n";
+
+            // releases the lock, and then waits for someone else to aquire
+            // and release it
+            m_peerMap.wait();
+        }
+
+        std::cout << "Backend: putting connection " << (void*)conn
+                  << " into the map for client " << peerId << "\n";
+        (*( m_peerMap.subvert() ))[peerId] = conn;
+        m_peerMap.signal();
+    }
+    return peerId;
 }
 
 void Backend::unregisterPeer( int peerId )
 {
-    if( peerId < 1 )
-        return;
+    std::cout << "Backend: removing " << peerId << "from map\n";
+    m_peerMap.lockFor()->erase(peerId);
 }
 
 std::string Backend::privateKeyFile()
 {
-    return "***noKeyFileSet***";
+    return m_privKey.string();
 }
 
 void Backend::onConnect(FdPtr_t sockfd, bool remote)
@@ -852,10 +858,12 @@ int Backend::run(int argc, char** argv)
 
     // wait for termination
     SelectSpec selectme;
-    selectme.gen()( g_termNote->readFd(), select_spec::READ );
-    selectme.wait();
+    selectme.gen()
+            ( g_termNote->readFd(), select_spec::READ );
+    selectme.wait(false);
 
     // kill the job worker
+    std::cout << "Backend: Killing job worker\n";
     m_jobWorker.enqueue( new JobKiller() );
     m_jobThread.join();
 

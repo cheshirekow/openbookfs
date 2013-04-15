@@ -76,7 +76,7 @@ void SelectSpec::setTimeout( const TimeVal& to )
     m_timeout = to;
 }
 
-int SelectSpec::wait()
+int SelectSpec::wait(bool withTimeout)
 {
     using namespace select_spec;
     for(int i=0; i < NUM_WHICH; i++)
@@ -88,14 +88,15 @@ int SelectSpec::wait()
     m_remainder = m_timeout;
     int result = select( m_maxfd + 1,
                     m_fdset[READ], m_fdset[WRITE], m_fdset[EXCEPT],
-                    m_remainder.ptr() );
+                    withTimeout ? m_remainder.ptr() : 0 );
 
-    if( result < 0 )
+    if( result < 0 && errno != EINTR)
         ex()() << "Problem with select, errno " << errno << " : "
                << strerror( errno );
 
     return result;
 }
+
 
 bool SelectSpec::ready( int fd, Which which )
 {

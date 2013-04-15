@@ -260,11 +260,6 @@ void Connection::main()
                   << " launching shout thread\n";
         m_writeThread.launch( dispatch_shout, this );
 
-        // start the worker
-        std::cout << "handler " << (void*)this
-                  << " launching worker thread\n";
-        m_worker->go(m_workerThread,&m_inboundMessages,&m_outboundMessages);
-
         // create a ping message for the client
         if( !m_isUI )
         {
@@ -282,6 +277,11 @@ void Connection::main()
         std::cerr << "Exception in handler " << (void*)this << " main():\n   "
                   << ex.what();
     }
+
+    // make this thread handle the queue
+    std::cout << "handler " << (void*)this
+              << " launching worker thread\n";
+    m_worker->go(m_peerId,&m_inboundMessages,&m_outboundMessages);
 
     m_readThread.join();
     std::cout << "handler " << (void*)this << " listen thread quit\n";
@@ -359,8 +359,8 @@ void Connection::handshake()
     std::string base64;
     std::string displayName;
     authenticatePeer(base64,displayName);
-    if( m_isUI )
-        m_peerId = m_backend->registerPeer(base64,displayName);
+    if( !m_isUI )
+        m_peerId = m_backend->registerPeer(base64,displayName,this);
 }
 
 bool Connection::leaderElect()
@@ -735,6 +735,8 @@ void Connection::listen()
                   << ex.what() << std::endl;
     }
 
+    // put a quit message in the queue so that the worker knows to quit
+    m_inboundMessages.insert( new AutoMessage(new messages::Quit()) );
 }
 
 
