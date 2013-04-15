@@ -98,29 +98,30 @@ const std::string& Backend::publicKey()
     return m_pubKey;
 }
 
-int Backend::connectPeer( const std::string& publicKey )
+int Backend::registerPeer( const std::string& base64,
+                           const std::string& displayName )
 {
     // if public key is empty string then that means this is a GUI only
     // connection so we dont bother putting it in the map
-    if( publicKey.size() < 1 )
-        return 0;
-//    std::cout << "Putting base64 client key into db: " << base64 << std::endl;
-//
-//    // create sqlite connection
-//    soci::session sql(soci::sqlite3,m_server->dbFile());
-//
-//    // insert the key into the database if it isn't already there
-//    sql << "INSERT OR IGNORE INTO known_clients (client_key, client_name) "
-//           "VALUES ('"<< base64 << "','" << displayName << "')";
-//
-//    // now select out the id
-//    sql << "SELECT client_id FROM known_clients WHERE client_key='"
-//        << base64 << "'",
-//            soci::into(m_clientId);
-//
-//    // update the client name
-//    sql << "UPDATE known_clients SET client_name='" << displayName
-//        << "' WHERE client_id=" << m_clientId;
+    std::cout << "Putting base64 client key into db:\n"
+              << base64 << std::endl;
+
+    // create sqlite connection
+    soci::session sql(soci::sqlite3, m_dbFile.string() );
+
+    // insert the key into the database if it isn't already there
+    sql << "INSERT OR IGNORE INTO known_clients (client_key, client_name) "
+           "VALUES ('"<< base64 << "','" << displayName << "')";
+
+    // now select out the id
+    int clientId = 0;
+    sql << "SELECT client_id FROM known_clients WHERE client_key='"
+        << base64 << "'",
+            soci::into(clientId);
+
+    // update the client name
+    sql << "UPDATE known_clients SET client_name='" << displayName
+        << "' WHERE client_id=" << clientId;
 
 //    // lock scope
 //    {
@@ -142,10 +143,10 @@ int Backend::connectPeer( const std::string& publicKey )
 //        (*(m_clientMap->subvert()))[m_clientId] = this;
 //        m_clientMap->signal();
 //    }
-    return 0;
+    return clientId;
 }
 
-void Backend::disconnectPeer( int peerId )
+void Backend::unregisterPeer( int peerId )
 {
     if( peerId < 1 )
         return;

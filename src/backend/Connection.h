@@ -117,6 +117,20 @@ class Connection
         /// client in a detached thread
         void handleClient( bool remote, FdPtr_t sockfd, MessageHandler* worker );
 
+        /// enqueues the message to be sent, called from long-jobs or workers
+        /// other than our own
+        /**
+         *  @param peerId   the peer that the caller is intending to send to
+         *  @param message  the message to send
+         */
+        template <typename Message_t>
+        void enqueueMessage( int peerId, Message_t* message )
+        {
+            pthreads::ScopedLock(m_mutex);
+            if( peerId == m_peerId )
+                m_outboundMessages.insert( new AutoMessage(message) );
+        }
+
     private:
         /// static method for pthreads, calls initDH()
         static void* dispatch_initDH( void* vp_h );
@@ -149,13 +163,6 @@ class Connection
         /// authorize each other by table lookup
         void handshake();
 
-        /// get pointer to inbound queue
-        MsgQueue_t* inboundQueue(){ return &m_inboundMessages; }
-
-        /// get pointer to outbound queue
-        MsgQueue_t* outboundQueue(){ return &m_outboundMessages; }
-
-    private:
         /// performs leader election in the handshake
         bool leaderElect();
         void keyExchange( CryptoPP::SecByteBlock& kek,
@@ -164,9 +171,9 @@ class Connection
                       CryptoPP::SecByteBlock& mack );
         void recvCEK( CryptoPP::SecByteBlock& kek,
                       CryptoPP::SecByteBlock& mack );
-        void authenticatePeer( std::string& base64 );
+        void authenticatePeer( std::string& base64,
+                               std::string& displayName);
 
-    public:
         /// listens for job messages from the client and adds them to the
         /// job queue
         void listen();

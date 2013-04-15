@@ -302,8 +302,12 @@ void Connection::main()
     // m_clientMap->lockFor()->erase(m_clientId);
 
     // now we do our cleanup, but first lock the object so that no one tries
-    // to modify us while we're doing this
+    // to put messages in our outgoing queue while we're cleaning up
     pthreads::ScopedLock lock(m_mutex);
+
+    // remove this peer from the map
+    if(m_peerId)
+        m_backend->unregisterPeer(m_peerId);
 
     // invalidate peer id so any jobs that finish after we die
     // don't get sent when this handler is reused later
@@ -353,9 +357,10 @@ void Connection::handshake()
     }
 
     std::string base64;
-    authenticatePeer(base64);
+    std::string displayName;
+    authenticatePeer(base64,displayName);
     if( m_isUI )
-        m_peerId = m_backend->connectPeer(base64);
+        m_peerId = m_backend->registerPeer(base64,displayName);
 }
 
 bool Connection::leaderElect()
@@ -578,7 +583,8 @@ void Connection::recvCEK( CryptoPP::SecByteBlock& kek,
 }
 
 
-void Connection::authenticatePeer(std::string& base64)
+void Connection::authenticatePeer(  std::string& base64,
+                                    std::string& displayName)
 {
     namespace msgs = messages;
     using namespace pthreads;
@@ -594,8 +600,8 @@ void Connection::authenticatePeer(std::string& base64)
     validate_message( recv, MSG_AUTH_REQ );
     authReq = static_cast<msgs::AuthRequest*>( recv->msg );
 
-    std::string displayName = authReq->display_name();
-    base64                  = authReq->public_key();
+    displayName = authReq->display_name();
+    base64      = authReq->public_key();
 
     // check to see if this is a user interface on a local connection
     if( !m_isRemote && authReq->public_key() == "UserInterface" )

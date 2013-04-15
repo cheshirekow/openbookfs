@@ -98,10 +98,11 @@ class Backend
         const std::string& publicKey();
 
         /// register and retrieve the peerId given the peers public key
-        int connectPeer( const std::string& publicKey );
+        int registerPeer( const std::string& publicKey,
+                          const std::string& displayName);
 
         /// unregister a connected peer
-        void disconnectPeer( int peerId );
+        void unregisterPeer( int peerId );
 
         /// return the path to the private key file
         std::string privateKeyFile();

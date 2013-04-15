@@ -95,6 +95,11 @@ class MessageHandler
 
         /// set the parent pointer and start DH parameter generation in
         /// detached thread
+        /**
+         *  todo: remove the tread parameter and just run in the callers
+         *        thread. No reason for the caller to block and wait since
+         *        the listener can just queue up the quit message himself
+         */
         void go( pthreads::Thread& thread, MsgQueue_t* in, MsgQueue_t* out );
 
         /// returns this handler to the pool
