@@ -628,7 +628,7 @@ void Backend::attemptConnection( bool isRemote,
     if( m_clientNode.size() < 1 )
     {
         sockfd = socket( hints.ai_family,
-                         hints.ai_socktype ,
+                         hints.ai_socktype,
                          hints.ai_protocol );
         if (sockfd < 0)
             ex()() << "Failed to create a socket for 'any'";
@@ -728,6 +728,10 @@ void Backend::attemptConnection( bool isRemote,
 
     if( !addr )
         ex()() << "None of the matched server interfaces work";
+
+    // set the socket to nonblocking
+    int flags = fcntl(*clientfd, F_GETFL, 0);
+    fcntl(*clientfd, F_SETFL, flags | O_NONBLOCK);
 
     onConnect( clientfd, isRemote );
 }

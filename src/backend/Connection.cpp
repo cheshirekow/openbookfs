@@ -710,7 +710,6 @@ void Connection::authenticatePeer(  std::string& base64,
 
 void Connection::listen()
 {
-    using namespace CryptoPP;
     std::cout << "Starting client listener for handler" << (void*)this
               << " in thread "
               << pthreads::Thread::self().c_obj() << "\n";
@@ -743,7 +742,6 @@ void Connection::listen()
 
 void Connection::shout()
 {
-    using namespace CryptoPP;
     std::cout << "Starting client shouter for handler" << (void*)this
               << " in thread "
               << pthreads::Thread::self().c_obj() << "\n";

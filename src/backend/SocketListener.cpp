@@ -122,7 +122,7 @@ void SocketListener::mainLoop()
                 std::cout << msg.str();
 
                 int sockfd = socket(addr->ai_family,
-                                    addr->ai_socktype | O_NONBLOCK,
+                                    addr->ai_socktype | SOCK_NONBLOCK,
                                     addr->ai_protocol);
 
                 char host[NI_MAXHOST];
