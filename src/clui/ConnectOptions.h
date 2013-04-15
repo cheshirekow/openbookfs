@@ -67,10 +67,31 @@ class ConnectOptions:
             handshake(marshall);
 
             // send the message
+            messages::AttemptConnection* msg =
+                    new messages::AttemptConnection();
+            msg->set_node( remoteNode.getValue() );
+            msg->set_service( remoteService.getValue() );
+            marshall.writeMsg(msg);
 
             // wait for the reply
+            RefPtr<AutoMessage> reply = marshall.read();
 
             // print the result
+            if( reply->type != MSG_UI_REPLY )
+            {
+                std::cerr << "Unexpected reply of type: "
+                          << messageIdToString( reply->type )
+                          << "\n";
+            }
+            else
+            {
+                messages::UserInterfaceReply* msg =
+                        static_cast<messages::UserInterfaceReply*>(reply->msg);
+                std::cout << "Server reply: "
+                          << "\n    ok? : " << (msg->ok() ? "YES" : "NO")
+                          << "\nmessage : " << msg->msg()
+                          << "\n";
+            }
         }
 };
 

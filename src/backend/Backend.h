@@ -59,6 +59,7 @@ class Backend
         };
 
     private:
+        pthreads::Mutex  m_mutex;       ///< lock during callbacks
         std::string      m_configFile;  ///< configuration file to load
         NotifyPipe       m_termNote;    ///< globally signals termination
         std::string      m_displayName; ///< human readable string

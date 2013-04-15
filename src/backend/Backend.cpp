@@ -56,6 +56,7 @@ namespace filesystem {
 
 Backend::Backend()
 {
+    m_mutex.init();
     m_configFile  = "./obfs.yaml";
     m_displayName = "Anonymous";
     m_dataDir     = "./.obfs";
@@ -84,7 +85,7 @@ Backend::Backend()
 
 Backend::~Backend()
 {
-
+    m_mutex.destroy();
 }
 
 const std::string& Backend::displayName()
@@ -157,6 +158,9 @@ std::string Backend::privateKeyFile()
 
 void Backend::onConnect(FdPtr_t sockfd, bool remote)
 {
+    // note: pools are thread safe so theres no need to hold a lock here,
+    // we can simply do the work
+
     std::cout << "Backend assigning a connection object and handler to new "
               << ( remote ? "remote" : "local" )
               << " peer on sockfd " << sockfd << "\n";
@@ -170,7 +174,6 @@ void Backend::onConnect(FdPtr_t sockfd, bool remote)
             m_connPool.reassign(conn);
         if(worker)
             m_workerPool.reassign(worker);
-        close(sockfd);
         return;
     }
     else
@@ -179,12 +182,16 @@ void Backend::onConnect(FdPtr_t sockfd, bool remote)
 
 void Backend::setDisplayName( const std::string& name )
 {
+    pthreads::ScopedLock(m_mutex);
+
     std::cout << "Backend: setting display name: " << name << "\n";
     m_displayName = name;
 }
 
 void Backend::setDataDir( const std::string& dir )
 {
+    pthreads::ScopedLock(m_mutex);
+
     std::cout << "Backend: setting data dir: " << dir << "\n";
 
     m_dataDir = dir;
@@ -343,6 +350,8 @@ void Backend::setDataDir( const std::string& dir )
 
 void Backend::setLocalSocket( int port )
 {
+    pthreads::ScopedLock(m_mutex);
+
     std::cout << "Backend: setting local socket to port: " << port << "\n";
     m_listeners[LISTEN_LOCAL].setInterface( "localhost", port);
 }
@@ -351,6 +360,8 @@ void Backend::setRemoteSocket( int addressFamily,
                                 const std::string& node,
                                 const std::string& service )
 {
+    pthreads::ScopedLock(m_mutex);
+
     std::cout << "Backend: setting remote socket to : "
               << node << ":" << service << "\n";
     m_listeners[LISTEN_REMOTE].setInterface( addressFamily, node, service );
@@ -359,6 +370,8 @@ void Backend::setRemoteSocket( int addressFamily,
 void Backend::setClientSocket( int addressFamily,
                                 const std::string& node )
 {
+    pthreads::ScopedLock(m_mutex);
+
     std::cout << "Backend: setting client socket to : "
               << node << "\n";
     m_clientFamily = addressFamily;
@@ -367,6 +380,8 @@ void Backend::setClientSocket( int addressFamily,
 
 void Backend::setMaxConnections( int maxConnections )
 {
+    pthreads::ScopedLock(m_mutex);
+
     std::cout << "Backend: max connections: " << maxConnections << "\n";
     m_maxPeers = maxConnections;
     int toCreate = m_maxPeers - m_connPool.capacity();
@@ -383,6 +398,7 @@ void Backend::setMaxConnections( int maxConnections )
 
 void Backend::loadConfig( const std::string& filename )
 {
+    pthreads::ScopedLock(m_mutex);
     namespace fs = boost::filesystem;
 
     // verify that the config file exists
@@ -525,6 +541,7 @@ void Backend::loadConfig( const std::string& filename )
 
 void Backend::saveConfig( const std::string& filename )
 {
+    pthreads::ScopedLock(m_mutex);
     namespace fs = boost::filesystem;
 
     // verify that the config file exists
@@ -590,6 +607,8 @@ void Backend::saveConfig( const std::string& filename )
 void Backend::attemptConnection( const std::string& node,
                                  const std::string& service )
 {
+    pthreads::ScopedLock(m_mutex);
+
     // defaults
     addrinfo  hints;
     addrinfo* found;
@@ -805,19 +824,25 @@ void Backend::parse(int argc, char** argv)
 
 int Backend::run(int argc, char** argv)
 {
-    parse(argc, argv);
+    { // lock scope
+        pthreads::ScopedLock(m_mutex);
 
-    // for notifiying termination
-    g_termNote = &m_termNote;
+        parse(argc, argv);
 
-    // start the socket listeners
-    for(int i=0; i < NUM_LISTENERS; i++)
-        m_listenThreads[i].launch( SocketListener::start, m_listeners+i );
+        // for notifiying termination
+        g_termNote = &m_termNote;
 
-    for(int i=0; i < NUM_LISTENERS; i++)
-        m_listeners[i].setInterface( "localhost", 3030+i);
+        // start the socket listeners
+        for(int i=0; i < NUM_LISTENERS; i++)
+            m_listenThreads[i].launch( SocketListener::start, m_listeners+i );
 
-    sleep(2);
+        for(int i=0; i < NUM_LISTENERS; i++)
+            m_listeners[i].setInterface( "localhost", 3030+i);
+    }
+
+    sleep(1);
+    // note: loadConfig locks so make sure this is outside previous lock
+    // scope
     loadConfig( m_configFile );
 
     SelectSpec selectme;

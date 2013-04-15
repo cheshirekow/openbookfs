@@ -109,8 +109,7 @@ void MessageHandler::handleMessage( messages::SetDisplayName* msg)
 {
     m_backend->setDisplayName(
             msg->displayname());
-    // for now we'll ack by just sending the message right back to the
-    // client
+
     messages::UserInterfaceReply* reply = new messages::UserInterfaceReply();
     reply->set_ok(true);
     std::stringstream strm;
@@ -123,12 +122,22 @@ void MessageHandler::handleMessage( messages::SetDataDir* msg)
 {
     m_backend->setDataDir(
             msg->datadir() );
+
+    // for just send an empty OK response
+    messages::UserInterfaceReply* reply = new messages::UserInterfaceReply();
+    reply->set_ok(true);
+    m_outboundQueue->insert( new AutoMessage(reply) );
 }
 
 void MessageHandler::handleMessage( messages::SetLocalSocket* msg)
 {
     m_backend->setLocalSocket(
             msg->port());
+
+    // for just send an empty OK response
+    messages::UserInterfaceReply* reply = new messages::UserInterfaceReply();
+    reply->set_ok(true);
+    m_outboundQueue->insert( new AutoMessage(reply) );
 }
 
 void MessageHandler::handleMessage( messages::SetRemoteSocket* msg)
@@ -137,6 +146,11 @@ void MessageHandler::handleMessage( messages::SetRemoteSocket* msg)
             msg->addressfamily(),
             msg->node(),
             msg->service() );
+
+    // for just send an empty OK response
+    messages::UserInterfaceReply* reply = new messages::UserInterfaceReply();
+    reply->set_ok(true);
+    m_outboundQueue->insert( new AutoMessage(reply) );
 }
 
 void MessageHandler::handleMessage( messages::SetClientSocket* msg)
@@ -144,24 +158,44 @@ void MessageHandler::handleMessage( messages::SetClientSocket* msg)
     m_backend->setClientSocket(
             msg->addressfamily(),
             msg->node() );
+
+    // for just send an empty OK response
+    messages::UserInterfaceReply* reply = new messages::UserInterfaceReply();
+    reply->set_ok(true);
+    m_outboundQueue->insert( new AutoMessage(reply) );
 }
 
 void MessageHandler::handleMessage( messages::SetMaxConnections* msg)
 {
     m_backend->setMaxConnections(
             msg->maxconn() );
+
+    // for just send an empty OK response
+    messages::UserInterfaceReply* reply = new messages::UserInterfaceReply();
+    reply->set_ok(true);
+    m_outboundQueue->insert( new AutoMessage(reply) );
 }
 
 void MessageHandler::handleMessage( messages::LoadConfig* msg)
 {
     m_backend->loadConfig(
             msg->filename() );
+
+    // for just send an empty OK response
+    messages::UserInterfaceReply* reply = new messages::UserInterfaceReply();
+    reply->set_ok(true);
+    m_outboundQueue->insert( new AutoMessage(reply) );
 }
 
 void MessageHandler::handleMessage( messages::SaveConfig* msg)
 {
     m_backend->saveConfig(
             msg->filename() );
+
+    // for just send an empty OK response
+    messages::UserInterfaceReply* reply = new messages::UserInterfaceReply();
+    reply->set_ok(true);
+    m_outboundQueue->insert( new AutoMessage(reply) );
 }
 
 void MessageHandler::handleMessage( messages::AttemptConnection* msg )
@@ -169,6 +203,11 @@ void MessageHandler::handleMessage( messages::AttemptConnection* msg )
     m_backend->attemptConnection(
             msg->node(),
             msg->service() );
+
+    // for just send an empty OK response
+    messages::UserInterfaceReply* reply = new messages::UserInterfaceReply();
+    reply->set_ok(true);
+    m_outboundQueue->insert( new AutoMessage(reply) );
 }
 
 
