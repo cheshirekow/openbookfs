@@ -880,7 +880,12 @@ int Backend::run(int argc, char** argv)
     // wait for all connections to finish
     std::cout << "Backend: waiting for connections to finish\n";
     while(m_connPool.size() < m_connPool.capacity())
-        sleep(1);
+    {
+        std::cout << m_connPool.capacity() - m_connPool.size()
+                  << " to go\n";
+        sleep(5);
+    }
+
 
     return 0;
 }

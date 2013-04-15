@@ -91,7 +91,6 @@ class Connection
 
         pthreads::Thread    m_readThread;       ///< child thread for reading
         pthreads::Thread    m_writeThread;      ///< child thread for writing
-        pthreads::Thread    m_workerThread;     ///< child thread for jobs
 
         MessageHandler*     m_worker;           ///< worker assigned to us
 

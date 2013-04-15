@@ -46,6 +46,7 @@ JobWorker::~JobWorker()
 void JobWorker::enqueue( JobPtr_t job )
 {
     pthreads::ScopedLock lock(m_mutex);
+    std::cout << "JobWorker: Enqueing job\n";
 
     if( m_last )
         m_last->next = job;
@@ -76,7 +77,10 @@ void JobWorker::main()
 
             // wait until there is something to do
             while(!m_first)
+            {
+                std::cout << "JobWorker: No jobs, waiting\n";
                 m_cond.wait(m_mutex);
+            }
 
             // now that m_first is not null we can do the job
             job = m_first;

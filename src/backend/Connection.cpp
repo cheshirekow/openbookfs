@@ -294,9 +294,6 @@ void Connection::main()
 
     // put a quit message into the inbound queue so that the worker knows
     // it's time to quit
-    m_inboundMessages.insert( new AutoMessage(MSG_QUIT) );
-    m_workerThread.join();
-    std::cout << "handler " << (void*)this << " worker thread quit\n";
 
     // remove ourselves from the client map
     // m_clientMap->lockFor()->erase(m_clientId);
