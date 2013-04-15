@@ -144,7 +144,8 @@ class Backend
         void saveConfig(const std::string& filename);
 
         /// attempt to connect to a peer
-        void attemptConnection( const std::string& node,
+        void attemptConnection( bool isRemote,
+                                const std::string& node,
                                 const std::string& service );
 
     private:

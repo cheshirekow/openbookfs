@@ -604,7 +604,8 @@ void Backend::saveConfig( const std::string& filename )
     out << yaml.c_str();
 }
 
-void Backend::attemptConnection( const std::string& node,
+void Backend::attemptConnection( bool isRemote,
+                                 const std::string& node,
                                  const std::string& service )
 {
     pthreads::ScopedLock(m_mutex);
@@ -722,7 +723,7 @@ void Backend::attemptConnection( const std::string& node,
     if( !addr )
         ex()() << "None of the matched server interfaces work";
 
-    onConnect( clientfd, true );
+    onConnect( clientfd, isRemote );
 }
 
 

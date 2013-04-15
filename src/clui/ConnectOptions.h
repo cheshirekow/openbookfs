@@ -36,12 +36,18 @@ namespace       clui {
 class ConnectOptions:
     public Options
 {
+    TCLAP::SwitchArg                      isLocal;       ///< same host machine
     TCLAP::UnlabeledValueArg<std::string> remoteNode;    ///< remote address
     TCLAP::UnlabeledValueArg<std::string> remoteService; ///< remote port
 
     public:
         ConnectOptions( TCLAP::CmdLine& cmd ):
             Options(cmd),
+            isLocal("l",
+                "local",
+                "indicates that the remote interface is a local connection"
+                ", i.e localhost, 127.0.0.1, etc",
+                cmd),
             remoteNode(
                 "address",
                 "remote network interface to use",
@@ -69,6 +75,7 @@ class ConnectOptions:
             // send the message
             messages::AttemptConnection* msg =
                     new messages::AttemptConnection();
+            msg->set_isremote(!isLocal.getValue());
             msg->set_node( remoteNode.getValue() );
             msg->set_service( remoteService.getValue() );
             marshall.writeMsg(msg);

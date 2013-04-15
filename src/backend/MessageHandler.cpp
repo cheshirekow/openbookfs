@@ -201,6 +201,7 @@ void MessageHandler::handleMessage( messages::SaveConfig* msg)
 void MessageHandler::handleMessage( messages::AttemptConnection* msg )
 {
     m_backend->attemptConnection(
+            msg->isremote(),
             msg->node(),
             msg->service() );
 

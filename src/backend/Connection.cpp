@@ -85,6 +85,7 @@ void Connection::init( Backend* backend, Pool_t* pool )
     m_pool      = pool;
     m_peerId    = 0;
     m_isRemote  = false;
+    m_isUI      = false;
     m_worker    = 0;
 
     std::cout << "Initializing handler " << (void*)this << std::endl;
@@ -113,6 +114,7 @@ void Connection::handleClient( bool remote, FdPtr_t sockfd, MessageHandler* work
         ScopedLock lock(m_mutex);
         m_sockfd    = sockfd;
         m_isRemote  = remote;
+        m_isUI      = false;
         m_worker    = worker;
 
         Attr<Thread> attr;
@@ -264,7 +266,7 @@ void Connection::main()
         m_worker->go(m_workerThread,&m_inboundMessages,&m_outboundMessages);
 
         // create a ping message for the client
-        if( m_isRemote )
+        if( !m_isUI )
         {
             messages::Ping* ping = new messages::Ping();
             ping->set_payload(0xdeadf00d);
@@ -352,7 +354,7 @@ void Connection::handshake()
 
     std::string base64;
     authenticatePeer(base64);
-    if( base64 != "UserInterface" )
+    if( m_isUI )
         m_peerId = m_backend->connectPeer(base64);
 }
 
@@ -597,7 +599,10 @@ void Connection::authenticatePeer(std::string& base64)
 
     // check to see if this is a user interface on a local connection
     if( !m_isRemote && authReq->public_key() == "UserInterface" )
+    {
+        m_isUI = true;
         return;
+    }
 
     std::stringstream  inkey( base64 );
     FileSource keyFile(inkey,true);

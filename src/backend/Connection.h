@@ -84,6 +84,7 @@ class Connection
         Pool_t*             m_pool;             ///< pool to which this belongs
         pthreads::Thread    m_thread;           ///< the thread we're running in
         bool                m_isRemote;         ///< is not a local connection
+        bool                m_isUI;             ///< is a user interface
 
         MsgQueue_t          m_inboundMessages;  ///< received message queue
         MsgQueue_t          m_outboundMessages; ///< queue for messages to send

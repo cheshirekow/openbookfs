@@ -69,8 +69,10 @@ message SaveConfig {
 
 // attempt a connection to a peer
 message AttemptConnection {
-    optional string node = 1;       //< ip address / hostname
-    optional string service = 2;    //< port number / service name
+    optional bool   isRemote    = 1;    //< set to false if the remote 
+                                        //  interface is on the same host
+    optional string node        = 2;    //< ip address / hostname
+    optional string service     = 3;    //< port number / service name
 }
 
 // response to UI Events
