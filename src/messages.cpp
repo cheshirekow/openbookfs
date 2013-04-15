@@ -41,36 +41,47 @@ MessageId parseMessageId( char byte )
     }
 }
 
+const char* g_msgIdStr[] =
+{
+    "QUIT",
+    "PING",
+    "PONG",
+    "SET_DISPLAY_NAME",
+    "SET_DATA_DIR",
+    "SET_LOCAL_SOCKET",
+    "SET_REMOTE_SOCKET",
+    "SET_CLIENT_SOCKET",
+    "SET_MAX_CONN",
+    "LOAD_CONFIG",
+    "SAVE_CONFIG",
+    "ATTEMPT_CONNECT",
+    "LEADER_ELECT",
+    "DH_PARAMS",
+    "KEY_EXCHANGE",
+    "CEK",
+    "AUTH_REQ",
+    "AUTH_CHALLENGE",
+    "AUTH_SOLN",
+    "AUTH_RESULT",
+    "SUBSCRIBE",
+    "UNSUBSCRIBE",
+    "NEW_VERSION",
+    "REQUEST_FILE",
+    "FILE_INFO",
+    "FILE_CHUNK",
+    "DIR_INFO",
+    "DIR_CHUNK",
+    "INVALID",
+};
+
+
+
 const char* messageIdToString( MessageId id )
 {
-    const char* str[] =
-    {
-        "QUIT",
-        "PING",
-        "PONG",
-        "PENNIES",
-        "DH_PARAMS",
-        "KEY_EXCHANGE",
-        "CEK",
-        "AUTH_REQ",
-        "AUTH_CHALLENGE",
-        "AUTH_SOLUTION",
-        "AUTH_RESULT",
-        "SUBSCRIBE",
-        "UNSUBSCRIBE",
-        "NEW_VERSION",
-        "REQUEST_FILE",
-        "FILE_INFO",
-        "FILE_CHUNK",
-        "DIR_INFO",
-        "DIR_CHUNK",
-        "INVALID_ID"
-    };
-
     if( 0 < id && id < NUM_MSG )
-        return str[id];
+        return g_msgIdStr[id];
     else
-        return str[NUM_MSG];
+        return g_msgIdStr[NUM_MSG];
 }
 
 

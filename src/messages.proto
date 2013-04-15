@@ -6,15 +6,73 @@ package openbook.filesystem.messages;
 //             Virtual messages, aren't ever really used
 // ----------------------------------------------------------------------------
 
-// signals a thread to quit
+/// signals a thread to quit
 message Quit {
     optional int32  dummy = 1;  // no meaning
 }
 
-// something is wrong
+/// something is wrong
 message Invalid {
     optional int32  dummy = 1;  // no meaning
 }
+
+
+
+
+// ----------------------------------------------------------------------------
+//             User Interface Messages
+// ----------------------------------------------------------------------------
+// These correspond to public methods of the Backend class
+
+// set the human readable replica name
+message SetDisplayName {
+    optional string displayName = 1;
+}
+
+// change the data storage location
+message SetDataDir {
+    optional string dataDir = 1;
+}
+
+// change the local socket port number
+message SetLocalSocket {
+    optional int32 port = 1;
+}
+
+// change the remote socket interface to listen for client connections
+message SetRemoteSocket {
+    optional int32  addressFamily = 1;  //< AF_INET, AF_INET6, AF_UNIX
+    optional string node          = 2;  //< ip address / hostname
+    optional string service       = 3;  //< service / port number
+}
+
+// change the socket we use when connecting to peers
+message SetClientSocket {
+    optional int32  addressFamily = 1;  //< AF_INET, AF_INET6, AF_UNIX
+    optional string node          = 2;  //< ip address / hostname
+}
+   
+// set the size of the connection pool
+message SetMaxConnections {
+    optional int32  maxConn = 1;
+}
+
+// load a configuration file
+message LoadConfig {
+    optional string filename = 1;
+}
+
+// save configuration to file
+message SaveConfig {
+    optional string filename = 1;
+}
+
+// attempt a connection to a peer
+message AttemptConnection {
+    optional string node = 1;       //< ip address / hostname
+    optional string service = 2;    //< port number / service name
+}
+
 
 
 // ----------------------------------------------------------------------------

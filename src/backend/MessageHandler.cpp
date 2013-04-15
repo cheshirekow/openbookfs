@@ -103,12 +103,71 @@ void MessageHandler::handleMessage( messages::AuthChallenge* msg )      { except
 void MessageHandler::handleMessage( messages::AuthSolution* msg )       { exceptMessage(msg); }
 void MessageHandler::handleMessage( messages::AuthResult* msg )         { exceptMessage(msg); }
 
+void MessageHandler::handleMessage( messages::SetDisplayName* msg)
+{
+    m_backend->setDisplayName(
+            msg->displayname());
+}
+
+void MessageHandler::handleMessage( messages::SetDataDir* msg)
+{
+    m_backend->setDataDir(
+            msg->datadir() );
+}
+
+void MessageHandler::handleMessage( messages::SetLocalSocket* msg)
+{
+    m_backend->setLocalSocket(
+            msg->port());
+}
+
+void MessageHandler::handleMessage( messages::SetRemoteSocket* msg)
+{
+    m_backend->setRemoteSocket(
+            msg->addressfamily(),
+            msg->node(),
+            msg->service() );
+}
+
+void MessageHandler::handleMessage( messages::SetClientSocket* msg)
+{
+    m_backend->setClientSocket(
+            msg->addressfamily(),
+            msg->node() );
+}
+
+void MessageHandler::handleMessage( messages::SetMaxConnections* msg)
+{
+    m_backend->setMaxConnections(
+            msg->maxconn() );
+}
+
+void MessageHandler::handleMessage( messages::LoadConfig* msg)
+{
+    m_backend->loadConfig(
+            msg->filename() );
+}
+
+void MessageHandler::handleMessage( messages::SaveConfig* msg)
+{
+    m_backend->saveConfig(
+            msg->filename() );
+}
+
+void MessageHandler::handleMessage( messages::AttemptConnection* msg )
+{
+    m_backend->attemptConnection(
+            msg->node(),
+            msg->service() );
+}
+
+
 void MessageHandler::handleMessage( messages::Quit* msg )
 {
     m_shouldQuit = true;
 }
 
-void MessageHandler::handleMessage( messages::Ping*         msg )
+void MessageHandler::handleMessage( messages::Ping* msg )
 {
     messages::Pong* pong = new messages::Pong();
     pong->set_payload(0xdeadf00d);
@@ -116,7 +175,7 @@ void MessageHandler::handleMessage( messages::Ping*         msg )
     m_outboundQueue->insert(new AutoMessage(pong));
 }
 
-void MessageHandler::handleMessage( messages::Pong*         msg )
+void MessageHandler::handleMessage( messages::Pong* msg )
 {
     messages::Ping* ping = new messages::Ping();
     ping->set_payload(0xdeadf00d);
@@ -124,55 +183,55 @@ void MessageHandler::handleMessage( messages::Pong*         msg )
 }
 
 
-void MessageHandler::handleMessage( messages::Subscribe*    msg )
+void MessageHandler::handleMessage( messages::Subscribe* msg )
 {
 
 }
 
 
-void MessageHandler::handleMessage( messages::Unsubscribe*  msg )
+void MessageHandler::handleMessage( messages::Unsubscribe* msg )
 {
 
 }
 
 
-void MessageHandler::handleMessage( messages::NewVersion*   msg )
+void MessageHandler::handleMessage( messages::NewVersion* msg )
 {
 
 }
 
 
-void MessageHandler::handleMessage( messages::RequestFile*  msg )
+void MessageHandler::handleMessage( messages::RequestFile* msg )
 {
 
 }
 
 
-void MessageHandler::handleMessage( messages::FileInfo*     msg )
+void MessageHandler::handleMessage( messages::FileInfo* msg )
 {
 
 }
 
 
-void MessageHandler::handleMessage( messages::FileChunk*    msg )
+void MessageHandler::handleMessage( messages::FileChunk* msg )
 {
 
 }
 
 
-void MessageHandler::handleMessage( messages::DirInfo*      msg )
+void MessageHandler::handleMessage( messages::DirInfo* msg )
 {
 
 }
 
 
-void MessageHandler::handleMessage( messages::DirChunk*     msg )
+void MessageHandler::handleMessage( messages::DirChunk* msg )
 {
 
 }
 
 
-void MessageHandler::handleMessage( messages::Invalid*      msg )
+void MessageHandler::handleMessage( messages::Invalid* msg )
 {
 
 }
