@@ -51,10 +51,8 @@ void JobWorker::enqueue( JobPtr_t job )
     if( m_last )
         m_last->next = job;
     else
-    {
         m_first = job;
-        m_last  = job;
-    }
+    m_last = job;
 
     m_cond.signal();
 }
