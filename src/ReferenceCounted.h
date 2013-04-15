@@ -100,6 +100,31 @@ struct RefPtr
             return *this;
         }
 
+        bool operator==( const RefPtr<T>& other ) const
+        {
+            return m_ptr == other.m_ptr;
+        }
+
+        bool operator<( const RefPtr<T>& other ) const
+        {
+            return m_ptr < other.m_ptr;
+        }
+
+        bool operator<=( const RefPtr<T>& other ) const
+        {
+            return m_ptr <= other.m_ptr;
+        }
+
+        bool operator>=( const RefPtr<T>& other ) const
+        {
+            return m_ptr >= other.m_ptr;
+        }
+
+        bool operator>( const RefPtr<T>& other ) const
+        {
+            return m_ptr > other.m_ptr;
+        }
+
         T& operator*()
             { return *m_ptr; }
 

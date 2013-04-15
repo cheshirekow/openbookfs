@@ -183,7 +183,7 @@ void Backend::onConnect(FdPtr_t sockfd, bool remote)
 
 void Backend::setDisplayName( const std::string& name )
 {
-    pthreads::ScopedLock(m_mutex);
+    pthreads::ScopedLock lock(m_mutex);
 
     std::cout << "Backend: setting display name: " << name << "\n";
     m_displayName = name;
@@ -191,7 +191,7 @@ void Backend::setDisplayName( const std::string& name )
 
 void Backend::setDataDir( const std::string& dir )
 {
-    pthreads::ScopedLock(m_mutex);
+    pthreads::ScopedLock lock(m_mutex);
 
     std::cout << "Backend: setting data dir: " << dir << "\n";
 
@@ -351,7 +351,7 @@ void Backend::setDataDir( const std::string& dir )
 
 void Backend::setLocalSocket( int port )
 {
-    pthreads::ScopedLock(m_mutex);
+    pthreads::ScopedLock lock(m_mutex);
 
     std::cout << "Backend: setting local socket to port: " << port << "\n";
     m_listeners[LISTEN_LOCAL].setInterface( "localhost", port);
@@ -361,7 +361,7 @@ void Backend::setRemoteSocket( int addressFamily,
                                 const std::string& node,
                                 const std::string& service )
 {
-    pthreads::ScopedLock(m_mutex);
+    pthreads::ScopedLock lock(m_mutex);
 
     std::cout << "Backend: setting remote socket to : "
               << node << ":" << service << "\n";
@@ -371,7 +371,7 @@ void Backend::setRemoteSocket( int addressFamily,
 void Backend::setClientSocket( int addressFamily,
                                 const std::string& node )
 {
-    pthreads::ScopedLock(m_mutex);
+    pthreads::ScopedLock lock(m_mutex);
 
     std::cout << "Backend: setting client socket to : "
               << node << "\n";
@@ -381,7 +381,7 @@ void Backend::setClientSocket( int addressFamily,
 
 void Backend::setMaxConnections( int maxConnections )
 {
-    pthreads::ScopedLock(m_mutex);
+    pthreads::ScopedLock lock(m_mutex);
 
     std::cout << "Backend: max connections: " << maxConnections << "\n";
     m_maxPeers = maxConnections;
@@ -399,7 +399,7 @@ void Backend::setMaxConnections( int maxConnections )
 
 void Backend::loadConfig( const std::string& filename )
 {
-    pthreads::ScopedLock(m_mutex);
+    pthreads::ScopedLock lock(m_mutex);
     namespace fs = boost::filesystem;
 
     // verify that the config file exists
@@ -542,7 +542,7 @@ void Backend::loadConfig( const std::string& filename )
 
 void Backend::saveConfig( const std::string& filename )
 {
-    pthreads::ScopedLock(m_mutex);
+    pthreads::ScopedLock lock(m_mutex);
     namespace fs = boost::filesystem;
 
     // verify that the config file exists
@@ -609,7 +609,7 @@ void Backend::attemptConnection( bool isRemote,
                                  const std::string& node,
                                  const std::string& service )
 {
-    pthreads::ScopedLock(m_mutex);
+    pthreads::ScopedLock lock(m_mutex);
 
     // defaults
     addrinfo  hints;
@@ -827,7 +827,7 @@ void Backend::parse(int argc, char** argv)
 int Backend::run(int argc, char** argv)
 {
     { // lock scope
-        pthreads::ScopedLock(m_mutex);
+        pthreads::ScopedLock lock(m_mutex);
 
         parse(argc, argv);
 

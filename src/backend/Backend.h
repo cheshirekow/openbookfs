@@ -158,8 +158,9 @@ class Backend
         int run(int argc, char** argv);
 };
 
-}
-}
+
+} //< namespace filesystem
+} //< namespace openbook
 
 
 

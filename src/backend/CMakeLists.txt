@@ -61,6 +61,7 @@ if( (FUSE_FOUND)
                     main.cpp
                     Backend.cpp
                     Connection.cpp
+                    LongJob.cpp
                     MessageHandler.cpp
                     SocketListener.cpp
                     ../messages.cpp
