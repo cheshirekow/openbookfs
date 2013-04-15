@@ -140,6 +140,7 @@ void Connection::handleClient( bool remote, FdPtr_t sockfd, MessageHandler* work
 void* Connection::dispatch_initDH( void* vp_handler )
 {
     Connection* h = static_cast<Connection*>(vp_handler);
+    pthreads::ScopedLock lock(h->m_mutex);
     h->initDH();
     h->returnToPool();
     return vp_handler;
@@ -173,7 +174,6 @@ void* Connection::dispatch_shout( void* vp_handler )
 
 void Connection::initDH()
 {
-    pthreads::ScopedLock lock(m_mutex);
     std::cout << "Handler " << (void*) this
               << " generating DH parameters\n";
 
