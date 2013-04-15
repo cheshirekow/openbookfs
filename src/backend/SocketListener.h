@@ -95,7 +95,13 @@ class SocketListener
                     return "AF_UNSPEC";
             }
         }
-        const std::string& getNode(){ return m_node; }
+        std::string getNode()
+        {
+            if( m_node.size() < 1 )
+                return "any";
+            else
+                return m_node;
+        }
         const std::string& getService(){ return m_service; }
 
     private:

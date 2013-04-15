@@ -527,6 +527,24 @@ void Backend::saveConfig( const std::string& filename )
     if(!out)
         ex()() << "Failed to open " << filename << " for writing";
 
+    std::string clientFamily;
+    switch(m_clientFamily)
+    {
+        case AF_INET:
+            clientFamily = "AF_INET";
+            break;
+        case AF_INET6:
+            clientFamily = "AF_INET6";
+            break;
+        default:
+            clientFamily = "AF_UNSPEC";
+            break;
+    }
+
+    std::string clientNode = m_clientNode;
+    if( m_clientNode.size() < 1 )
+        clientNode = "any";
+
     YAML::Emitter yaml;
     yaml << YAML::BeginMap
          << YAML::Key   << "displayName"
@@ -534,11 +552,13 @@ void Backend::saveConfig( const std::string& filename )
          << YAML::Key   << "dataDir"
          << YAML::Value << m_dataDir.string()
          << YAML::Key   << "localSocket"
+         << YAML::Value
              << YAML::BeginMap
              << YAML::Key   << "service"
              << YAML::Value << m_listeners[LISTEN_LOCAL].getService()
              << YAML::EndMap
          << YAML::Key   << "remoteSocket"
+         << YAML::Value
              << YAML::BeginMap
              << YAML::Key   << "family"
              << YAML::Value << m_listeners[LISTEN_REMOTE].getFamily()
@@ -546,6 +566,14 @@ void Backend::saveConfig( const std::string& filename )
              << YAML::Value << m_listeners[LISTEN_REMOTE].getNode()
              << YAML::Key   << "service"
              << YAML::Value << m_listeners[LISTEN_REMOTE].getService()
+             << YAML::EndMap
+         << YAML::Key   << "clientSocket"
+         << YAML::Value
+             << YAML::BeginMap
+             << YAML::Key   << "family"
+             << YAML::Value << clientFamily
+             << YAML::Key   << "node"
+             << YAML::Value << clientNode
              << YAML::EndMap
          << YAML::Key   << "maxConnections"
          << YAML::Value << m_maxPeers
