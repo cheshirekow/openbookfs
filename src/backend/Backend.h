@@ -90,6 +90,9 @@ class Backend
         Backend();
         ~Backend();
 
+        /// get the display name
+        const std::string& displayName();
+
         /// get base64 encoded public key
         const std::string& publicKey();
 

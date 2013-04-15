@@ -264,13 +264,16 @@ void Connection::main()
         m_worker->go(m_workerThread,&m_inboundMessages,&m_outboundMessages);
 
         // create a ping message for the client
-        messages::Ping* ping = new messages::Ping();
-        ping->set_payload(0xdeadf00d);
-        m_outboundMessages.insert(new AutoMessage(ping));
+        if( m_isRemote )
+        {
+            messages::Ping* ping = new messages::Ping();
+            ping->set_payload(0xdeadf00d);
+            m_outboundMessages.insert(new AutoMessage(ping));
 
-        messages::Pong* pong = new messages::Pong();
-        pong->set_payload(0xdeadf00d);
-        m_outboundMessages.insert(new AutoMessage(pong));
+            messages::Pong* pong = new messages::Pong();
+            pong->set_payload(0xdeadf00d);
+            m_outboundMessages.insert(new AutoMessage(pong));
+        }
     }
     catch( std::exception& ex )
     {
@@ -581,7 +584,7 @@ void Connection::authenticatePeer(std::string& base64)
 
     // trade public keys
     msgs::AuthRequest* authReq = new msgs::AuthRequest();
-    authReq->set_display_name("DisplayName");
+    authReq->set_display_name(m_backend->displayName());
     authReq->set_public_key(m_backend->publicKey());
     m_marshall.writeMsg( authReq, m_isRemote );
 

@@ -87,6 +87,11 @@ Backend::~Backend()
 
 }
 
+const std::string& Backend::displayName()
+{
+    return m_displayName;
+}
+
 const std::string& Backend::publicKey()
 {
     return m_pubKey;

@@ -31,6 +31,8 @@
 #include <string>
 #include <tclap/CmdLine.h>
 
+#include "messages.h"
+
 namespace   openbook {
 namespace filesystem {
 namespace       clui {

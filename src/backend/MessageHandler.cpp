@@ -28,6 +28,7 @@
 #include <iostream>
 #include "Backend.h"
 #include "MessageHandler.h"
+#include "Marshall.h"
 
 
 
@@ -107,6 +108,10 @@ void MessageHandler::handleMessage( messages::SetDisplayName* msg)
 {
     m_backend->setDisplayName(
             msg->displayname());
+    // for now we'll ack by just sending the message right back to the
+    // client
+    messages::SetDisplayName* reply = new messages::SetDisplayName(*msg);
+    m_outboundQueue->insert( new AutoMessage(reply) );
 }
 
 void MessageHandler::handleMessage( messages::SetDataDir* msg)
