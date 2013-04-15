@@ -872,6 +872,12 @@ int Backend::run(int argc, char** argv)
         m_listenThreads[i].join();
 
     saveConfig( m_configFile );
+
+    // wait for all connections to finish
+    std::cout << "Backend: waiting for connections to finish\n";
+    while(m_connPool.size() < m_connPool.capacity())
+        sleep(1);
+
     return 0;
 }
 
