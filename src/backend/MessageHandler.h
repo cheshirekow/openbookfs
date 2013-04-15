@@ -118,35 +118,8 @@ class MessageHandler
         }
 
         /// typed message  handlers
-        void handleMessage( messages::Quit*                msg);
-        void handleMessage( messages::Ping*                msg);
-        void handleMessage( messages::Pong*                msg);
-        void handleMessage( messages::SetDisplayName*      msg);
-        void handleMessage( messages::SetDataDir*          msg);
-        void handleMessage( messages::SetLocalSocket*      msg);
-        void handleMessage( messages::SetRemoteSocket*     msg);
-        void handleMessage( messages::SetClientSocket*     msg);
-        void handleMessage( messages::SetMaxConnections*   msg);
-        void handleMessage( messages::LoadConfig*          msg);
-        void handleMessage( messages::SaveConfig*          msg);
-        void handleMessage( messages::AttemptConnection*   msg);
-        void handleMessage( messages::LeaderElect*         msg);
-        void handleMessage( messages::DiffieHellmanParams* msg);
-        void handleMessage( messages::KeyExchange*         msg);
-        void handleMessage( messages::ContentKey*          msg);
-        void handleMessage( messages::AuthRequest*         msg);
-        void handleMessage( messages::AuthChallenge*       msg);
-        void handleMessage( messages::AuthSolution*        msg);
-        void handleMessage( messages::AuthResult*          msg);
-        void handleMessage( messages::Subscribe*           msg);
-        void handleMessage( messages::Unsubscribe*         msg);
-        void handleMessage( messages::NewVersion*          msg);
-        void handleMessage( messages::RequestFile*         msg);
-        void handleMessage( messages::FileInfo*            msg);
-        void handleMessage( messages::FileChunk*           msg);
-        void handleMessage( messages::DirInfo*             msg);
-        void handleMessage( messages::DirChunk*            msg);
-        void handleMessage( messages::Invalid*             msg);
+#include "msg_gen/MessageHandler.inc"
+
 
 };
 

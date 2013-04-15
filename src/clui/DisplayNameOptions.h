@@ -67,14 +67,21 @@ class DisplayNameOptions:
             RefPtr<AutoMessage> reply = marshall.read();
 
             // print the result
-            if( reply->type != MSG_SET_DISPLAY_NAME )
+            if( reply->type != MSG_UI_REPLY )
             {
                 std::cerr << "Unexpected reply of type: "
                           << messageIdToString( reply->type )
                           << "\n";
             }
             else
-                std::cout << "Ok!\n";
+            {
+                messages::UserInterfaceReply* msg =
+                        static_cast<messages::UserInterfaceReply*>(reply->msg);
+                std::cout << "Server reply: "
+                          << "\n    ok? : " << (msg->ok() ? "YES" : "NO")
+                          << "\nmessage : " << msg->msg()
+                          << "\n";
+            }
         }
 };
 

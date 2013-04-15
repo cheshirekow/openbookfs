@@ -66,37 +66,200 @@ $messageMap =
 
 print "Enum String:\n";
 print enum_string();
-make_header("msg_gen","MessageId.h",enum_string());
+create_MessageId_h();
 
 print "Map String: \n";
 print map_string();
-make_header("msg_gen","MessageMap.h",map_string());
+create_MessageMap_h();
 
 print "Name String: \n";
 print name_string();
-make_header("msg_gen","MessageStr.h","exter const char* g_msgStr[];");
-#make_source("msg_gen","MessageStr.cpp",name_string());
+create_MessageStr_h();
+create_MessageStr_cpp();
 
 print "Handler String: \n";
 print handler_string();
-make_header("msg_gen","MessageHandlerProto.h",handler_string());
+create_MessageHandler_inc();
 
-# creates a header file and puts boiler plate stuff in it along with
-# the argument 
-sub make_header()
+# creats MessageId enum header file
+sub create_MessageId_h()
 {
-	my $relDir   = $_[0];
-	my $fileName = $_[1];
-	my $content  = $_[2];
-	my $macro    = header_macro("$relDir/$fileName");
-	my $fh;
-	open ($fh, ">", "$dirname/../$relDir/$fileName" );
-	print $fh copyright_string();
-	print $fh filecomment_string("$relDir/$fileName");
-	print $fh "\n\n#ifndef $macro\n#define $macro\n\n";
-	print $fh $content;
-	print $fh "\n\n#endif //< $macro\n\n";
-	close($fh);
+    my $relDir   = "msg_gen";
+    my $fileName = "MessageId.h";
+    my $macro    = header_macro("$relDir/$fileName");
+    my $fullpath = "$dirname/../src/$relDir/$fileName";
+    my $copyright= copyright_string();
+    my $comment  = filecomment_string("$relDir/$fileName");
+    my $content  = enum_string();
+    my $fh;
+    open ($fh, ">", $fullpath ) 
+       or die "Failed to open $fullpath for writing\n";
+    print $fh <<"HERE"
+$copyright
+$comment
+#ifndef $macro
+#define $macro
+
+namespace   openbook {
+namespace filesystem {
+	
+$content
+	
+} //< namespace filesystem 
+} //< namespace openbook
+
+#endif //< $macro
+        
+HERE
+;
+    close($fh);
+}
+
+
+# creats MessageId enum header file
+sub create_MessageMap_h()
+{
+    my $relDir   = "msg_gen";
+    my $fileName = "MessageMap.h";
+    my $macro    = header_macro("$relDir/$fileName");
+    my $fullpath = "$dirname/../src/$relDir/$fileName";
+    my $copyright= copyright_string();
+    my $comment  = filecomment_string("$relDir/$fileName");
+    my $content  = map_string();
+    my $fh;
+    open ($fh, ">", $fullpath ) 
+       or die "Failed to open $fullpath for writing\n";
+    print $fh <<"HERE"
+$copyright
+$comment
+#ifndef $macro
+#define $macro
+
+#include "msg_gen/MessageId.h"
+#include "messages.pb.h"
+
+namespace   openbook {
+namespace filesystem {
+    
+/// maps MessageId to the message type
+template < MessageId ID > struct MessageType;
+
+/// maps message type to MessageId
+template < typename T > struct MessageTypeToId;
+
+/// \@cond MessageTypeTemplateInstantiations
+#define MAP_MSG_TYPE(MID,TYPE)                      \\
+template <> struct MessageType<MSG_##MID>           \\
+    { typedef messages::TYPE type; };               \\
+template <> struct MessageTypeToId<messages::TYPE>  \\
+    { static const MessageId ID = MSG_##MID; };     \\
+
+$content
+
+/// \@endcond MessageTypeTemplateInstantiations
+    
+} //< namespace filesystem 
+} //< namespace openbook
+
+#endif //< $macro
+        
+HERE
+;
+    close($fh);
+}
+
+
+# creats messageIdToString function header file
+sub create_MessageStr_h()
+{
+    my $relDir   = "msg_gen";
+    my $fileName = "MessageStr.h";
+    my $macro    = header_macro("$relDir/$fileName");
+    my $fullpath = "$dirname/../src/$relDir/$fileName";
+    my $copyright= copyright_string();
+    my $comment  = filecomment_string("$relDir/$fileName");
+    my $fh;
+    open ($fh, ">", $fullpath ) 
+       or die "Failed to open $fullpath for writing\n";
+    print $fh <<"HERE"
+$copyright
+$comment
+#ifndef $macro
+#define $macro
+
+#include "msg_gen/MessageId.h"
+
+namespace   openbook {
+namespace filesystem {
+    
+const char* messageIdToString( MessageId id );
+
+    
+} //< namespace filesystem 
+} //< namespace openbook
+
+#endif //< $macro
+        
+HERE
+;
+    close($fh);
+}
+
+# creats MessageId enum header file
+sub create_MessageStr_cpp()
+{
+    my $relDir   = "msg_gen";
+    my $fileName = "MessageStr.cpp";
+    my $macro    = header_macro("$relDir/$fileName");
+    my $fullpath = "$dirname/../src/$relDir/$fileName";
+    my $copyright= copyright_string();
+    my $comment  = filecomment_string("$relDir/$fileName");
+    my $content  = name_string();
+    my $fh;
+    open ($fh, ">", $fullpath ) 
+       or die "Failed to open $fullpath for writing\n";
+    print $fh <<"HERE"
+$copyright
+$comment
+
+#include "msg_gen/MessageId.h"
+#include "msg_gen/MessageStr.h"
+
+namespace   openbook {
+namespace filesystem {
+    
+$content
+
+const char* messageIdToString( MessageId id )
+{
+    if( 0 < id && id < NUM_MSG )
+        return g_msgIdStr[id];
+    else
+        return g_msgIdStr[NUM_MSG];
+}
+
+    
+} //< namespace filesystem 
+} //< namespace openbook
+
+        
+HERE
+;
+    close($fh);
+}
+
+
+# creats MessageId enum header file
+sub create_MessageHandler_inc()
+{
+    my $relDir   = "msg_gen";
+    my $fileName = "MessageHandler.inc";
+    my $fullpath = "$dirname/../src/$relDir/$fileName";
+    my $fh;
+    open ($fh, ">", $fullpath ) 
+       or die "Failed to open $fullpath for writing\n";
+    print $fh handler_string();
+    close($fh);
 }
 
 sub copyright_string()
@@ -135,7 +298,7 @@ sub filecomment_string()
  *
  *  \@date   $date
  *  \@author Josh Bialkowski (jbialk\@mit.edu)
- *  \@brief  
+ *  \@brief  Generated by message_map.pl
  */
 HERE
 ;

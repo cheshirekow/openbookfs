@@ -103,6 +103,7 @@ void MessageHandler::handleMessage( messages::AuthRequest* msg )        { except
 void MessageHandler::handleMessage( messages::AuthChallenge* msg )      { exceptMessage(msg); }
 void MessageHandler::handleMessage( messages::AuthSolution* msg )       { exceptMessage(msg); }
 void MessageHandler::handleMessage( messages::AuthResult* msg )         { exceptMessage(msg); }
+void MessageHandler::handleMessage( messages::UserInterfaceReply*  msg) { exceptMessage(msg); }
 
 void MessageHandler::handleMessage( messages::SetDisplayName* msg)
 {
@@ -110,7 +111,11 @@ void MessageHandler::handleMessage( messages::SetDisplayName* msg)
             msg->displayname());
     // for now we'll ack by just sending the message right back to the
     // client
-    messages::SetDisplayName* reply = new messages::SetDisplayName(*msg);
+    messages::UserInterfaceReply* reply = new messages::UserInterfaceReply();
+    reply->set_ok(true);
+    std::stringstream strm;
+    strm << "Changed display name to: " << msg->displayname();
+    reply->set_msg(strm.str());
     m_outboundQueue->insert( new AutoMessage(reply) );
 }
 
