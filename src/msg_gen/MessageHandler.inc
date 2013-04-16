@@ -10,6 +10,8 @@ void handleMessage( messages::SetMaxConnections*   msg);
 void handleMessage( messages::LoadConfig*          msg);
 void handleMessage( messages::SaveConfig*          msg);
 void handleMessage( messages::AttemptConnection*   msg);
+void handleMessage( messages::AddMountPoint*       msg);
+void handleMessage( messages::RemoveMountPoint*    msg);
 void handleMessage( messages::UserInterfaceReply*  msg);
 void handleMessage( messages::LeaderElect*         msg);
 void handleMessage( messages::DiffieHellmanParams* msg);

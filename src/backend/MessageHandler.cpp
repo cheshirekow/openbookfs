@@ -206,13 +206,73 @@ void MessageHandler::handleMessage( messages::AttemptConnection* msg )
                 msg->service() );
         reply->set_ok(true);
     }
-    catch (std::exception& ex)
+    catch (const std::exception& ex)
     {
         reply->set_ok(false);
         reply->set_msg(ex.what());
     }
 
     m_outboundQueue->insert( new AutoMessage(reply) );
+}
+
+void MessageHandler::handleMessage( messages::AddMountPoint* msg)
+{
+    // for just send an empty OK response
+    messages::UserInterfaceReply* reply = new messages::UserInterfaceReply();
+
+    const int   nargs =100;
+    const int   nchars=256;
+    char        argBuf[nchars]; //< buffer for arguments
+    int         argw = 0;       //< write offset
+    char*       argv[nargs];    //< argument index
+    int         argc = 0;       //< number of arguments
+
+    // zero out contents for ease of debugging, and to implicitly
+    // set null terminals for strings
+    memset(argBuf,0,sizeof(argBuf));
+    memset(argv,0,sizeof(argv));
+
+    char*   pwrite = argBuf; //< write head
+    // for each argument in the sequence
+    for(int i=0; i < msg->argv_size(); i++)
+    {
+        // retrieve the argument into a string
+        std::string arg = msg->argv(i);
+
+        // number of chars left in buffer
+        int remainder = nchars - (pwrite - argBuf);
+
+        // if we dont have room for the argument then quit
+        if( arg.length() + 1 > remainder )
+            break;
+
+        argv[argc++] = pwrite;  //< point the j'th argument to
+                                //  current write head
+        arg.copy(pwrite,arg.length(),0);    //< copy the argument
+        pwrite += arg.length() + 1;   //< advance the write head
+    }
+
+    try
+    {
+        m_backend->mount(
+                msg->path(),
+                msg->relpath(),
+                argc,
+                argv);
+        reply->set_ok(true);
+    }
+    catch( const std::exception& ex)
+    {
+        reply->set_ok(false);
+        reply->set_msg(ex.what());
+    }
+
+    m_outboundQueue->insert( new AutoMessage(reply) );
+}
+
+void MessageHandler::handleMessage( messages::RemoveMountPoint* msg)
+{
+
 }
 
 

@@ -43,6 +43,8 @@ $messageMap =
     ['LOAD_CONFIG'       ,'LoadConfig'],
     ['SAVE_CONFIG'       ,'SaveConfig'], 
     ['ATTEMPT_CONNECT'   ,'AttemptConnection'],
+    ['ADD_MOUNT_POINT'   ,'AddMountPoint'],
+    ['REMOVE_MOUNT_POINT','RemoveMountPoint'],
     ['UI_REPLY'          ,'UserInterfaceReply'],
     ['LEADER_ELECT'      ,'LeaderElect'],
     ['DH_PARAMS'         ,'DiffieHellmanParams'],
