@@ -58,6 +58,7 @@ namespace       clui {
  *  boiler-plate code for the go() method of derived classes. See
  *  ConnectOptions or DisplayNameOptions for a concrete example.
  *
+ *@code
         FdPtr_t sockfd = connectToClient(*this);    //< create a connection
         Marshall marshall;        //< create a marshaller
         marshall.setFd(*sockfd);  //< tell the marshaller the socket to use
@@ -70,7 +71,6 @@ namespace       clui {
         msg->set_variableA(0);
         msg->set_variableB(0);
         // etc...
-         *
 
         // send the message to the backend
         marshall.writeMsg(msg);
@@ -96,6 +96,7 @@ namespace       clui {
                       << "\nmessage : " << msg->msg()
                       << "\n";
         }
+@endcode
  *
  *
  *
