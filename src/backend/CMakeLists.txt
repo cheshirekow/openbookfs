@@ -65,6 +65,7 @@ if( (FUSE_FOUND)
                     FuseContext.cpp
                     LongJob.cpp
                     MessageHandler.cpp
+                    MountPoint.cpp
                     SocketListener.cpp
                     ../messages.cpp
                     ../FdSet.cpp
