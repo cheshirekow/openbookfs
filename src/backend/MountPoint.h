@@ -40,20 +40,26 @@ class Backend;
 /// for the fuse filesystem mounted at that point
 class MountPoint
 {
+    public:
+        typedef std::vector<std::string> argv_t;
+
     private:
         pthreads::Thread  m_thread;   ///< the thread we run in
-        std::string       m_path;     ///< path to the mount point
+        std::string       m_mount;    ///< path to the mount point
         fuse_chan*        m_fuseChan; ///< channel from fuse_mount
         fuse*             m_fuse;     ///< fuse struct from fuse_new
         fuse_operations   m_ops;      ///< fuse operations
         bool              m_mt;       ///< use multi threaded loop
+        std::string       m_reldir;   ///< where to serve files from
+        argv_t            m_args;     ///< arguments passed to fuse
 
     public:
         /// initialize the structure
-        MountPoint( const std::string& path );
+        MountPoint( const std::string& mount );
 
         /// starts fuse in it's own thread
-        void mount(Backend* backend, int argc, char** argv);
+        void mount(Backend* backend, const std::string& reldir,
+                    int argc, char** argv);
 
         /// calls fusermount -u
         /**
@@ -66,6 +72,11 @@ class MountPoint
          *  see: http://sourceforge.net/mailarchive/message.php?msg_id=28221264
          */
         void unmount();
+
+        const std::string&      mountPoint() const { return m_mount;  }
+        const std::string&      relDir()     const { return m_reldir; }
+        argv_t::const_iterator  argv()       const { return m_args.begin(); }
+        argv_t::const_iterator  argv_end()   const { return m_args.end();   }
 
     private:
         static void* dispatch_main(void* vp_mountpoint);

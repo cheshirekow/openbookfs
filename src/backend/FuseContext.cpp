@@ -59,9 +59,14 @@ int FuseContext::result_or_errno(int result)
         return result;
 }
 
-FuseContext::FuseContext(Backend* backend)
+FuseContext::FuseContext(Backend* backend, const std::string& relpath)
 {
     m_backend  = backend;
+    m_dataDir  = backend->dataDir();
+    if( relpath.length() > 0 )
+        m_realRoot = backend->realRoot() / relpath;
+    else
+        m_realRoot = backend->realRoot();
 }
 
 

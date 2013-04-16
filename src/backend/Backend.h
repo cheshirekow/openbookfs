@@ -122,7 +122,9 @@ class Backend
         void onConnect(FdPtr_t sockfd, bool remote);
 
         /// add a mount point
-        void mount( const std::string& mountPoint, int argc, char** argv );
+        void mount( const std::string& mountPoint,
+                    const std::string& reldir,
+                    int argc, char** argv );
 
         /// remote a mount point by id
         void unmount( int id );

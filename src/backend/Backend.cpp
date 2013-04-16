@@ -187,17 +187,19 @@ void Backend::onConnect(FdPtr_t sockfd, bool remote)
         conn->handleClient(remote,sockfd,worker);
 }
 
-void Backend::mount( const std::string& path, int argc, char** argv )
+void Backend::mount( const std::string& path,
+                     const std::string& reldir,
+                     int argc, char** argv )
 {
     MountPoint* mp = new MountPoint(path);
     try
     {
-        mp->mount(this,argc,argv);
+        mp->mount(this,reldir,argc,argv);
 
         // lock access to m_mountPts
         m_mountPts.lockFor()->push_back(mp);
     }
-    catch( std::exception& ex )
+    catch( const std::exception& ex )
     {
         delete mp;
         throw;
@@ -582,6 +584,93 @@ void Backend::loadConfig( const std::string& filename )
         setMaxConnections( intVal );
     }
 
+    node = config.FindValue("mountPoints");
+    if( node )
+    {
+        for(int i=0; i < node->size(); i++)
+        {
+            const int   nargs =100;
+            const int   nchars=256;
+
+            std::string mountPoint;
+            std::string relDir;
+            char        argBuf[nchars]; //< buffer for arguments
+            int         argw = 0;       //< write offset
+            char*       argv[nargs];    //< argument index
+            int         argc = 0;       //< number of arguments
+
+            // zero out contents for ease of debugging, and to implicitly
+            // set null terminals for strings
+            memset(argBuf,0,sizeof(argBuf));
+            memset(argv,0,sizeof(argv));
+
+            const YAML::Node* node2;
+            node2 = (*node)[i].FindValue("mount");
+            if(node2)
+                (*node2) >> mountPoint;
+            else
+            {
+                std::cerr << "Backend::loadConfig: "
+                          << "mount point " << i << " is missing 'mount'\n";
+                continue;
+            }
+            node2 = (*node)[i].FindValue("relDir");
+            if(node2)
+            {
+                (*node2) >> relDir;
+                if( relDir == "/" || relDir == "~" )
+                    relDir = "";
+            }
+            else
+                relDir = "";
+
+
+            node2 = (*node)[i].FindValue("argv");
+            if(node2)
+            {
+                char*   pwrite = argBuf; //< write head
+
+                // for each argument in the sequence
+                for(int j=0; j < node2->size(); j++)
+                {
+                    // retrieve the argument into a string
+                    std::string arg;
+                    (*node2)[j] >> arg;
+
+                    // number of chars left in buffer
+                    int remainder = nchars - (pwrite - argBuf);
+
+                    // if we dont have room for the argument then quit
+                    if( arg.length() + 1 > remainder )
+                        break;
+
+                    argv[argc++] = pwrite;  //< point the j'th argument to
+                                            //  current write head
+                    arg.copy(pwrite,arg.length(),0);    //< copy the argument
+                    pwrite += arg.length() + 1;   //< advance the write head
+                }
+            }
+
+            try
+            {
+                std::cout << "Backend::loadConfig mounting:"
+                          << "\n  mount point: " << mountPoint
+                          << "\n relative dir: " << relDir
+                          << "\n         args: ";
+                for(int i=0; i < argc; i++)
+                    std::cout << "\n        " << argv[i];
+                std::cout << "\n";
+
+                mount(mountPoint,relDir,argc,argv);
+            }
+            catch( const std::exception& ex )
+            {
+                std::cerr << "Backend::loadConfig: Failed to mount "
+                          << mountPoint << "\n";
+            }
+        }
+    }
+
 
 }
 
@@ -645,7 +734,40 @@ void Backend::saveConfig( const std::string& filename )
              << YAML::EndMap
          << YAML::Key   << "maxConnections"
          << YAML::Value << m_maxPeers
-         << YAML::EndMap;
+         << YAML::Key   << "mountPoints"
+         << YAML::Value
+             << YAML::BeginSeq;
+
+    { // lock scope
+        pthreads::ScopedLock( m_mountPts.mutex() );
+        USMountMap_t& mountPts = *(m_mountPts.subvert());
+        for(int i=0; i < mountPts.size(); i++)
+        {
+            yaml << YAML::BeginMap
+                    << YAML::Key   << "mount"
+                    << YAML::Value << mountPts[i]->mountPoint()
+                    << YAML::Key   << "reldir"
+                    << YAML::Value << mountPts[i]->relDir()
+                    << YAML::Key   << "argv"
+                    << YAML::Value
+                        << YAML::BeginSeq;
+
+            MountPoint::argv_t::const_iterator iarg;
+            for( iarg = mountPts[i]->argv();
+                    iarg != mountPts[i]->argv_end();
+                    ++iarg)
+            {
+                yaml << *iarg;
+            }
+
+            yaml        << YAML::EndSeq
+                 << YAML::EndMap;
+        }
+    }
+
+
+    yaml     << YAML::EndSeq
+        << YAML::EndMap;
 
     out << yaml.c_str();
 }

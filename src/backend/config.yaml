@@ -53,4 +53,16 @@ clientSocket :
 # maximum number of peer connections
 maxConnections : 20
 
+# mount points to install on startup
+mountPoints :
+    - mount  :  ./mountPoint_1  # where to mount
+      reldir : /                # relative dir of real root to source files
+      argv   : ["-s", "-d"]     # arguments to pass to fuse
+    - mount  :  ./mountPoint_2  
+      reldir : /
+      argv   : ["-s", "-d"]
+
+
+
+
 

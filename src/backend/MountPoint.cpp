@@ -35,35 +35,41 @@
 namespace   openbook {
 namespace filesystem {
 
-MountPoint::MountPoint( const std::string& path ):
-    m_path(path),
+MountPoint::MountPoint( const std::string& mount):
+    m_mount(mount),
     m_fuseChan(0),
     m_fuse(0),
     m_mt(false)
 {}
 
-void MountPoint::mount(Backend* backend, int argc, char** argv)
+void MountPoint::mount(Backend* backend, const std::string& reldir,
+                        int argc, char** argv)
 {
+    // for UI and configuraiton files
+    m_reldir = reldir;
+
+    for(int i=0; i < argc; i++)
+        m_args.push_back(argv[i]);
+
     // fuse arguments
     fuse_args args = {argc,argv,0};
 
     // create the mount point
-    m_fuseChan = fuse_mount( m_path.c_str(), &args );
+    m_fuseChan = fuse_mount( m_mount.c_str(), &args );
     if(!m_fuseChan)
-        ex()() << "Failed to fuse_mount " << m_path;
+        ex()() << "Failed to fuse_mount " << m_mount;
 
     // initialize fuse_ops
     setFuseOps( m_ops );
 
     // create initializer object which is passed to fuse_ops::init
-    FuseContext_Init init;
-    init.backend = backend;
+    FuseContext* fctx = new FuseContext(backend,reldir);
 
     // initialize fuse
-    m_fuse = fuse_new(m_fuseChan,&args,&m_ops,sizeof(m_ops),&init);
+    m_fuse = fuse_new(m_fuseChan,&args,&m_ops,sizeof(m_ops),fctx);
     if( !m_fuse )
     {
-        fuse_unmount( m_path.c_str(), m_fuseChan );
+        fuse_unmount( m_mount.c_str(), m_fuseChan );
         m_fuseChan = 0;
         ex()() << "Failed to fuse_new";
     }
@@ -74,12 +80,12 @@ void MountPoint::mount(Backend* backend, int argc, char** argv)
 
 void MountPoint::unmount()
 {
-    std::string cmd = "fusermount -u " + m_path;
+    std::string cmd = "fusermount -u " + m_mount;
     std::cout << "Mointpoint::unmount: " << cmd;
 
     int result = system(cmd.c_str());
     if( result < 0 )
-        ex()() << "Failed to unmount " << m_path;
+        ex()() << "Failed to unmount " << m_mount;
 
     m_thread.join();
 }
@@ -100,7 +106,7 @@ void MountPoint::main()
         fuse_loop(m_fuse);
 
     std::cout << "MountPoint::main: " << (void*)this << "exiting fuse loop\n";
-    fuse_unmount(m_path.c_str(),m_fuseChan);
+    fuse_unmount(m_mount.c_str(),m_fuseChan);
     fuse_destroy(m_fuse);
 }
 

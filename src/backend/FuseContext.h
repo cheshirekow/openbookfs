@@ -56,7 +56,7 @@ class FuseContext
         int  result_or_errno(int result);
 
     public:
-        FuseContext(Backend*);
+        FuseContext(Backend*, const std::string& relpath );
 
         ~FuseContext();
 
@@ -467,11 +467,12 @@ class FuseContext
 /// simply stores initializer options for the OpenbookFS object
 struct FuseContext_Init
 {
-    Backend*             backend;
+    Backend*        backend;    //< backend object
+    std::string     reldir;     //< relative directory of logical fs
 
     FuseContext* create()
     {
-        return new FuseContext(backend);
+        return new FuseContext(backend,reldir);
     }
 };
 

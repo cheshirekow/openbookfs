@@ -384,8 +384,7 @@ void *init (struct fuse_conn_info *conn)
 {
     std::cout << "fuse_opts::init: INIT!!\n\n";
     fuse_context*       ctx  = fuse_get_context();
-    FuseContext_Init*   init = static_cast<FuseContext_Init*>(ctx->private_data);
-    return init ? init->create() : 0;
+    return ctx->private_data;
 }
 
 

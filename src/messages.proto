@@ -75,6 +75,18 @@ message AttemptConnection {
     optional string service     = 3;    //< port number / service name
 }
 
+// add a mount point 
+message AddMountPoint {
+    optional string  relpath = 1;   //< relative path in logical fs
+    optional string  path    = 2;   //< the path of the mount point
+    repeated string  argv    = 3;   //< arguments for fuse
+}
+
+// remove a mount point
+message RemoveMountPoint {
+    optional int32  imp     = 1;    //< index of mountpoint array to remove
+}
+
 // response to UI Events
 message UserInterfaceReply {
     optional bool   ok    = 1;  //< message was received and acted on
