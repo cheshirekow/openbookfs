@@ -227,6 +227,9 @@ void Backend::unmount( int imp )
 
     // actually do the unmount, will block
     mp->unmount();
+
+    // delete the structure
+    delete mp;
 }
 
 void Backend::setDisplayName( const std::string& name )
@@ -1037,7 +1040,28 @@ int Backend::run(int argc, char** argv)
     for(int i=0; i < NUM_LISTENERS; i++)
         m_listenThreads[i].join();
 
+    // shut down fuse
+    {
+        pthreads::ScopedLock lock(m_mountPts.mutex());
+        USMountMap_t& mountPts = *(m_mountPts.subvert());
+        for(int i=0; i < mountPts.size(); i++)
+            mountPts[i]->unmount();
+    }
+
+    // save the configuration
+    // todo: there is a race condition right here, it's possible for someone
+    // to modify the mountpoints while we're saving, perhaps change saveConfig
+    // to have an option which enables/disables locking during the function
     saveConfig( m_configFile );
+
+    // destroy mountpoints
+    {
+        pthreads::ScopedLock lock(m_mountPts.mutex());
+        USMountMap_t& mountPts = *(m_mountPts.subvert());
+        for(int i=0; i < mountPts.size(); i++)
+            delete mountPts[i];
+        mountPts.clear();
+    }
 
     // wait for all connections to finish
     std::cout << "Backend: waiting for connections to finish\n";
@@ -1045,7 +1069,7 @@ int Backend::run(int argc, char** argv)
     {
         std::cout << m_connPool.capacity() - m_connPool.size()
                   << " to go\n";
-        sleep(5);
+        sleep(2);
     }
 
 
