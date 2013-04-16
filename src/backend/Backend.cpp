@@ -187,6 +187,46 @@ void Backend::onConnect(FdPtr_t sockfd, bool remote)
         conn->handleClient(remote,sockfd,worker);
 }
 
+void Backend::mount( const std::string& path, int argc, char** argv )
+{
+    MountPoint* mp = new MountPoint(path);
+    try
+    {
+        mp->mount(this,argc,argv);
+
+        // lock access to m_mountPts
+        m_mountPts.lockFor()->push_back(mp);
+    }
+    catch( std::exception& ex )
+    {
+        delete mp;
+        throw;
+    }
+}
+
+void Backend::unmount( int imp )
+{
+    MountPoint* mp = 0;
+    if( imp < 0 )
+        ex()() << "Can't do anything with a negative index: " << imp;
+
+    { // critical section for atomic update to m_mountPts
+        pthreads::ScopedLock( m_mountPts.mutex() );
+
+        USMountMap_t& mountPts = *(m_mountPts.subvert());
+        if( imp >= mountPts.size() )
+            ex()() << "Invalid mount point index: " << imp
+                   << ", size: " << mountPts.size();
+        mp = mountPts[imp];
+        if( imp != mountPts.size() -1 )
+            mountPts[imp] = mountPts.back();
+        mountPts.pop_back();
+    }
+
+    // actually do the unmount, will block
+    mp->unmount();
+}
+
 void Backend::setDisplayName( const std::string& name )
 {
     pthreads::ScopedLock lock(m_mutex);

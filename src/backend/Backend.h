@@ -36,6 +36,7 @@
 #include "MessageHandler.h"
 #include "NotifyPipe.h"
 #include "SocketListener.h"
+#include "MountPoint.h"
 
 
 
@@ -50,8 +51,10 @@ class Backend
         typedef Pool<Connection>            ConnPool_t;
         typedef Pool<MessageHandler>        WorkerPool_t;
         typedef RefPtr<FileDescriptor>      FdPtr_t;
-        typedef std::map<int,Connection*>   UnsyncedMap_t;
-        typedef Synchronized<UnsyncedMap_t> PeerMap_t;
+        typedef std::map<int,Connection*>   USPeerMap_t;
+        typedef Synchronized<USPeerMap_t>   PeerMap_t;
+        typedef std::vector<MountPoint*>    USMountMap_t;
+        typedef Synchronized<USMountMap_t>  MountMap_t;
         typedef boost::filesystem::path     Path_t;
 
         enum Listeners
@@ -86,8 +89,8 @@ class Backend
         pthreads::Thread    m_jobThread;    ///< for long jobs
         JobWorker           m_jobWorker;    ///< for long jobs
 
-        /// synchronized map from client id to connection objects
-        PeerMap_t   m_peerMap;
+        PeerMap_t   m_peerMap;  ///< maps peer id to connection objects
+        MountMap_t  m_mountPts; ///< stores mount points
 
         // for outgoing connections
         int         m_clientFamily; ///< address family AF_[INET|INET6|UNIX]
@@ -118,11 +121,17 @@ class Backend
         /// callback for new peer connections
         void onConnect(FdPtr_t sockfd, bool remote);
 
+        /// add a mount point
+        void mount( const std::string& mountPoint, int argc, char** argv );
+
+        /// remote a mount point by id
+        void unmount( int id );
+
         /// send a message to a specific peer
         template <typename Message_t>
         void sendMessage( int peerId, Message_t* msg )
         {
-            UnsyncedMap_t::iterator it = m_peerMap.lockFor()->find(peerId);
+            USPeerMap_t::iterator it = m_peerMap.lockFor()->find(peerId);
             if( it == m_peerMap.subvert()->end() )
             {
                 std::cout << "Backend: not sending "
@@ -135,6 +144,8 @@ class Backend
             it->second->enqueueMessage(peerId,msg);
         }
 
+
+
         /// return a pointer to the job worker so that handlers can queue
         /// long jobs
         JobWorker* jobs(){ return &m_jobWorker; }
@@ -145,7 +156,9 @@ class Backend
         /// return the real root of the filesystem
         const Path_t realRoot(){ return m_rootDir; }
 
-        // -------- CONFIG OPS -----------
+
+
+        // -------- CONFIG/UI OPS -----------
         // each of these can be called as the result of
         //  1. loading a configuration file
         //  2. a gui message

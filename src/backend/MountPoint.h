@@ -46,15 +46,14 @@ class MountPoint
         fuse_chan*        m_fuseChan; ///< channel from fuse_mount
         fuse*             m_fuse;     ///< fuse struct from fuse_new
         fuse_operations   m_ops;      ///< fuse operations
-        Backend*          m_backend;  ///< the backend
         bool              m_mt;       ///< use multi threaded loop
 
     public:
         /// initialize the structure
-        MountPoint( Backend* backend, const std::string path );
+        MountPoint( const std::string& path );
 
         /// starts fuse in it's own thread
-        void mount(int argc, char** argv);
+        void mount(Backend* backend, int argc, char** argv);
 
         /// calls fusermount -u
         /**

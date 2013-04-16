@@ -35,15 +35,14 @@
 namespace   openbook {
 namespace filesystem {
 
-MountPoint::MountPoint( Backend* backend, const std::string path ):
+MountPoint::MountPoint( const std::string& path ):
     m_path(path),
     m_fuseChan(0),
     m_fuse(0),
-    m_backend(backend),
     m_mt(false)
 {}
 
-void MountPoint::mount(int argc, char** argv)
+void MountPoint::mount(Backend* backend, int argc, char** argv)
 {
     // fuse arguments
     fuse_args args = {argc,argv,0};
@@ -58,7 +57,7 @@ void MountPoint::mount(int argc, char** argv)
 
     // create initializer object which is passed to fuse_ops::init
     FuseContext_Init init;
-    init.backend = m_backend;
+    init.backend = backend;
 
     // initialize fuse
     m_fuse = fuse_new(m_fuseChan,&args,&m_ops,sizeof(m_ops),&init);
