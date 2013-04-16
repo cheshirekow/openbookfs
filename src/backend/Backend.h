@@ -135,7 +135,15 @@ class Backend
             it->second->enqueueMessage(peerId,msg);
         }
 
+        /// return a pointer to the job worker so that handlers can queue
+        /// long jobs
         JobWorker* jobs(){ return &m_jobWorker; }
+
+        /// return the the data directory of the backend
+        const Path_t dataDir(){ return m_dataDir; }
+
+        /// return the real root of the filesystem
+        const Path_t realRoot(){ return m_rootDir; }
 
         // -------- CONFIG OPS -----------
         // each of these can be called as the result of
