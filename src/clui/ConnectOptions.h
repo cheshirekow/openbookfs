@@ -43,17 +43,20 @@ class ConnectOptions:
     public:
         ConnectOptions( TCLAP::CmdLine& cmd ):
             Options(cmd),
-            isLocal("l",
-                "local",
+            isLocal("l",    //< short flag character, usage: "-l"
+                "local",    //< long flag, usage: "--local"
+                // help message
                 "indicates that the remote interface is a local connection"
-                ", i.e localhost, 127.0.0.1, etc",
-                cmd),
+                    ", i.e localhost, 127.0.0.1, etc",
+                cmd         //< parser to add this argument to
+                ),
             remoteNode(
-                "address",
+                "address",  //< unique name, not really used anywhere
+                // help message
                 "remote network interface to use",
-                true,
-                "any",
-                "host",
+                true,       //< required?
+                "any",      //< default value
+                "host",     //< placeholder for this argument in the help
                 cmd
                 ),
             remoteService(

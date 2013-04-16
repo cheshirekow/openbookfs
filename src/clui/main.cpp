@@ -123,6 +123,16 @@ void print_usage(const char* argv0 = 0 )
 }
 
 
+/// parses a command and then executes it
+/**
+ *  @tparam Options_t   derived class of Options which implements the
+ *                      command line parser and has a method go() which
+ *                      actually performs the command
+ *  @param  argc        number of arguments
+ *  @param  argv        argument vector
+ *  @param  help        if true, dont do actual work, simply print usage
+ *                      for the subcommand
+ */
 template <typename Options_t>
 void parse_and_go(int argc, char** argv, bool help=false)
 {
@@ -135,23 +145,43 @@ void parse_and_go(int argc, char** argv, bool help=false)
     CmdLine cmd( argv[0], copyright(), ' ', "0.1.0");
     Options_t opts(cmd);
 
-    // Parse the argv array.
-    // if we just need the help then
+    // if we just need the help then print usage/help for the subcommand
     if( help )
     {
         TCLAP::StdOutput out;
         out.usage(cmd);
-        return;
     }
-
-    cmd.parse( argc, argv );
-    opts.go();
+    else
+    {
+        // otherwise parse the command line into the Options_t object
+        // and then run the command
+        cmd.parse( argc, argv );
+        opts.go();
+    }
 }
 
 
+/// parses the first argument of argv (the subcommand name) and then calls
+/// the apropriate function to actually do the work
+/**
+ *  @param argc number of arguments
+ *  @param argv argument vector, argv[0] is subcommand name
+ *  @param help if true, don't do any actual work but instead just print the
+ *         help for the subcommand
+ *
+ *  todo: Bruno, you may want to consider making "set" a subcommand which
+ *        takes an additional argument being the variable name, instead of
+ *        having separate commands for set_displayName, set_clientInterface,
+ *        etc.... If you choose to go this route you may want a separate
+ *        dispatch function which looks just like this one but switches on
+ *        variable names
+ */
 void dispatch( int argc, char** argv, bool help )
 {
    std::string cmd = argc > 0 ? argv[0] : "usage";
+
+   // if the command is help, we simply pop off the first argv (the "help"
+   // string) and then recurse on dispatch but with help set to true
    if( cmd == "help" )
    {
        argc--;
@@ -171,13 +201,22 @@ void dispatch( int argc, char** argv, bool help )
    }
 }
 
+
+/// main entry point into the command line user interface
+/**
+ *  usage:
+ *      obfs <command> [command options]
+ */
 int main(int argc, char** argv)
 {
-    // for cancellation
+    // for cancellation, opens an unnamed pipe that can be select()'ed to
+    // preempt any socket calls
     NotifyPipe termNote;
     g_termNote = &termNote;
 
-    // install signal handlers
+    // install signal handlers, when SIGINT is signalled (i.e. ctrl+c in the
+    // terminal) the termNote is signalled any any blocking network calls
+    // will break out, allowing the program to terminate
     signal(SIGINT,signal_callback);
     signal(SIGPIPE,signal_callback);
 
@@ -189,12 +228,16 @@ int main(int argc, char** argv)
         return 0;
     }
 
-    // parse commands and dispatch appropriate function
+    // argv[0] is the name of the command that started this program, so we
+    // advance the argv pointer to the next argument and reduce the argument
+    // count by one
     argc -= 1;
     argv += 1;
 
     try
     {
+        // dispatch switches on the subcommand and calls the appropriate
+        // function
         dispatch(argc,argv);
     }
     catch( std::exception& ex )
