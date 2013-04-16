@@ -195,14 +195,23 @@ void MessageHandler::handleMessage( messages::SaveConfig* msg)
 
 void MessageHandler::handleMessage( messages::AttemptConnection* msg )
 {
-    m_backend->attemptConnection(
-            msg->isremote(),
-            msg->node(),
-            msg->service() );
-
     // for just send an empty OK response
     messages::UserInterfaceReply* reply = new messages::UserInterfaceReply();
-    reply->set_ok(true);
+
+    try
+    {
+        m_backend->attemptConnection(
+                msg->isremote(),
+                msg->node(),
+                msg->service() );
+        reply->set_ok(true);
+    }
+    catch (std::exception& ex)
+    {
+        reply->set_ok(false);
+        reply->set_msg(ex.what());
+    }
+
     m_outboundQueue->insert( new AutoMessage(reply) );
 }
 
