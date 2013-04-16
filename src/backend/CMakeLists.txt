@@ -59,6 +59,7 @@ if( (FUSE_FOUND)
         
     add_executable( obfs_backend 
                     main.cpp
+                    fuse_operations.cpp
                     Backend.cpp
                     Connection.cpp
                     FuseContext.cpp
