@@ -40,6 +40,12 @@ class MetaFile
         /// add an entry to the file list for
         void mknod( const std::string& path, mode_t type, mode_t mode );
 
+        /// remove an entry from the file list
+        void unlink( const std::string& path );
+
+        /// increase the version vector for entry 0 (this)
+        void incrementVersion();
+
 
 };
 

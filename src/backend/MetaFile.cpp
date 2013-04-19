@@ -45,7 +45,7 @@ void MetaFile::init()
 
     // create
     m_sql << "CREATE TABLE IF NOT EXISTS version ("
-            "client TEXT UNIQUE NOT NULL, "
+            "client INTEGER UNIQUE NOT NULL, "
             "version INTEGER NOT NULL) ";
 
     // insert the version entry for "me"
@@ -101,6 +101,18 @@ void MetaFile::mknod( const std::string& path, mode_t type, mode_t mode )
     // update subscription to the file
     m_sql << "UPDATE entries SET subscribed=1 WHERE path='"
           << path << "'";
+    incrementVersion();
+}
+
+void MetaFile::unlink( const std::string& path )
+{
+    m_sql << "DELETE FROM entries WHERE path='" << path << "'";
+    incrementVersion();
+}
+
+void MetaFile::incrementVersion()
+{
+    m_sql << "UPDATE version SET version=version+1 WHERE client=0";
 }
 
 

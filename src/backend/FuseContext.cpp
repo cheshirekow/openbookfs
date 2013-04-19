@@ -457,30 +457,60 @@ int FuseContext::readlink (const char *path, char *buf, size_t bufsize)
 
 int FuseContext::mkdir (const char *path, mode_t mode)
 {
+    namespace fs = boost::filesystem;
     Path_t wrapped = m_realRoot / path;
-
     std::cerr << "FuseContext::mkdir: "
               << path
               << "(" << wrapped << ")\n";
 
-    return ::mkdir(  wrapped.c_str() , mode|S_IFDIR ) ? -errno : 0;
+
+    // first we make sure that the parent directory exists
+    Path_t parent   = wrapped.parent_path();
+    Path_t filename = wrapped.filename();
+
+    if( !fs::exists(parent) )
+      return -ENOENT;
+
+    // create the directory
+    int result = ::mkdir( wrapped.c_str(), mode );
+    if( result )
+        return -errno;
+
+    // add an entry to the directory listing
+    MetaFile parentMeta( parent );
+    parentMeta.mknod( filename.string(), S_IFDIR, mode );
+
+    // create the new meta file
+    MetaFile meta( wrapped );
+    meta.init();
+
+    return 0;
 }
 
 
 
 int FuseContext::unlink (const char *path)
 {
+    namespace fs = boost::filesystem;
     Path_t wrapped = m_realRoot / path;
     std::cerr << "FuseContext::unlink: "
               << path
               << "(" << wrapped << ")\n";
 
-    int result = ::unlink( wrapped.c_str() );
-    if( result )
-        return -errno;
+    // first we make sure that the parent directory exists
+    Path_t parent   = wrapped.parent_path();
+    Path_t filename = wrapped.filename();
 
-//    fs::path metaFile = m_realRoot / ( std::string(path) + ".obfsmeta" );
-//    result = ::unlink ( metaFile.c_str() );
+    if( !fs::exists(parent) )
+      return -ENOENT;
+
+    // unlink the directory holding the file contents, the meta file,
+    // and the staged file
+    fs::remove_all( wrapped );
+
+    // remove the entry from the parent
+    MetaFile parentMeta( parent );
+    parentMeta.unlink( filename.string() );
 
     return 0;
 }
@@ -489,13 +519,28 @@ int FuseContext::unlink (const char *path)
 
 int FuseContext::rmdir (const char *path)
 {
+    namespace fs = boost::filesystem;
     Path_t wrapped = m_realRoot / path;
-
     std::cerr << "rmdir: "
               << path
               << "(" << wrapped << ")\n";
 
-    return result_or_errno( ::rmdir(  wrapped.c_str()  ) );
+    // first we make sure that the parent directory exists
+    Path_t parent   = wrapped.parent_path();
+    Path_t filename = wrapped.filename();
+
+    if( !fs::exists(parent) )
+      return -ENOENT;
+
+    // unlink the directory holding the file contents, the meta file,
+    // and the staged file
+    fs::remove_all( wrapped );
+
+    // remove the entry from the parent
+    MetaFile parentMeta( parent );
+    parentMeta.unlink( filename.string() );
+
+    return 0;
 }
 
 
