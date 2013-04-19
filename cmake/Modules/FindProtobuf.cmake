@@ -72,6 +72,10 @@ function( protoc PROTO_FILES )
                 ${CMAKE_CURRENT_BINARY_DIR}/${SOURCE_FILE} )
 
         list( APPEND INPUT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/${PROTO_FILE} )
+        
+        message( STATUS "protoc:\n"
+          "INPUT_FILES   : ${INPUT_FILES}\n"
+          "OUTPUT_FILES  : ${OUTPUT_FILES}\n" )
 
         set_source_files_properties(
             ${CMAKE_CURRENT_BINARY_DIR}/${HEADER_FILE} GENERATED )        
