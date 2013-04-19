@@ -65,6 +65,7 @@ if( (FUSE_FOUND)
                     FuseContext.cpp
                     LongJob.cpp
                     MessageHandler.cpp
+                    MetaFile.cpp
                     MountPoint.cpp
                     SocketListener.cpp
                     ../messages.cpp
@@ -74,6 +75,7 @@ if( (FUSE_FOUND)
                     ../NotifyPipe.cpp
                     ../SelectSpec.cpp
                     ../TimeVal.cpp
+                    ../TimeSpec.cpp
                     ${MESSAGES_PB_CC}
                     )
                             

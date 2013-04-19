@@ -17,15 +17,15 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   src/TimeVal.h
+ *  @file   src/TimeSpec.h
  *
  *  @date   Feb 14, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_TIMEVAL_H_
-#define OPENBOOK_TIMEVAL_H_
+#ifndef OPENBOOK_TIMESPEC_H_
+#define OPENBOOK_TIMESPEC_H_
 
 #include <sys/time.h>
 
@@ -33,30 +33,29 @@ namespace   openbook {
 namespace filesystem {
 
 /// just a c timeval
-class TimeVal
+class TimeSpec
 {
     private:
-        timeval m_tv;
+        timespec m_tv;
 
     public:
-        TimeVal( int sec=0, int usec=0 );
-        operator timeval&();
-        operator const timeval&() const;
-        timeval* ptr();
+        TimeSpec( int sec=0, long int nsec=0 );
+        operator timespec&();
+        operator const timespec&() const;
+        timespec* ptr();
 
         long int& sec();
         const long int& sec() const;
-        long int& usec();
-        const long int& usec() const;
+        long int& nsec();
+        const long int& nsec() const;
 
-        TimeVal& operator+=( const TimeVal& other );
-        TimeVal& operator-=( const TimeVal& other );
+        TimeSpec& operator+=( const TimeSpec& other );
+        TimeSpec& operator-=( const TimeSpec& other );
 };
 
 
-TimeVal operator+( const TimeVal& a, const TimeVal& b );
-TimeVal operator-( const TimeVal& a, const TimeVal& b );
-
+TimeSpec operator+( const TimeSpec& a, const TimeSpec& b );
+TimeSpec operator-( const TimeSpec& a, const TimeSpec& b );
 
 
 
@@ -72,4 +71,4 @@ TimeVal operator-( const TimeVal& a, const TimeVal& b );
 
 
 
-#endif // TIMEVAL_H_
+#endif // TIMESPEC_H_

@@ -45,6 +45,7 @@
 
 #include "Backend.h"
 #include "FuseContext.h"
+#include "MetaFile.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -81,38 +82,44 @@ FuseContext::~FuseContext()
 
 int FuseContext::mknod (const char *path, mode_t mode, dev_t dev)
 {
+    namespace fs = boost::filesystem;
+
     Path_t wrapped = (m_realRoot / path);
     std::cerr << "FuseContext::mknod: " << path
               << "(" << (m_realRoot / path) << ")" << std::endl;
 
-    int result = ::mknod( wrapped.c_str(), mode, dev );
+    // we do not allow special files
+    if( mode & ( S_IFCHR | S_IFBLK ) )
+      return -EINVAL;
+
+    // first we make sure that the parent directory exists
+    Path_t parent   = wrapped.parent_path();
+    Path_t filename = wrapped.filename();
+
+    if( !fs::exists(parent) )
+      return -ENOENT;
+
+    // create a directory to hold the file, and then a real file to hold
+    // the contents
+    int result = ::mkdir( wrapped.c_str(), mode & 0777 );
     if( result )
         return -errno;
 
-//    // create meta data file
-//    fs::path metaPath = m_realRoot / (std::string(path) + ".obfsmeta");
-//
-//    try
-//    {
-//        MetaData metaData( metaPath );
-//        metaData.load();
-//        metaData.flush();
-//    }
-//    catch( std::exception& ex )
-//    {
-//        std::cerr << "Problem creating meta data: " << ex.what();
-//    }
+    // create the local version of the file
+    Path_t realFile = wrapped / "real";
+    result = ::mknod( realFile.c_str(), mode, 0 );
+    if( result )
+        return -errno;
 
-    // send message to server
-//    messages::NewVersion* msg = new messages::NewVersion();
-//    msg->set_job_id( m_client->nextId() );
-//    msg->set_base_version(0);
-//    msg->set_client_version(0);
-//    msg->set_path(path);
-//    msg->set_size(0);
-//
-//    TypedMessage tm(MSG_NEW_VERSION,msg);
-//    m_comm->sendMessage(tm);
+    // add an entry to the directory listing
+    mode_t modeMask = 0777;
+    mode_t typeMask = ~modeMask;
+    MetaFile parentMeta( parent );
+    parentMeta.mknod( filename.string(), mode & typeMask, mode & modeMask );
+
+    // create the new meta file
+    MetaFile meta( wrapped );
+    meta.init();
 
     return 0;
 }
@@ -124,40 +131,43 @@ int FuseContext::create (const char *path,
                             mode_t mode,
                             struct fuse_file_info *fi)
 {
+    namespace fs = boost::filesystem;
+
+    Path_t wrapped = (m_realRoot / path);
     std::cerr << "FuseContext::create: "
              << "\n   path: " << path
-             << "\n   real: " << (m_realRoot / path)
+             << "\n   real: " << wrapped
              << "\n   mode: " << std::hex << mode << std::dec
              << "\n";
 
-    Path_t wrapped = m_realRoot / path;
-    fi->fh = ::creat( wrapped.c_str() , mode );
-    if( fi->fh < 0 )
+    // first we make sure that the parent directory exists
+    Path_t parent   = wrapped.parent_path();
+    Path_t filename = wrapped.filename();
+
+    if( !fs::exists(parent) )
+      return -ENOENT;
+
+    // create a directory to hold the file, and then a real file to hold
+    // the contents
+    int result = ::mkdir( wrapped.c_str(), mode );
+    if( result )
         return -errno;
 
-//    fs::path metaPath = m_realRoot / (std::string(path) + ".obfsmeta");
-//
-//    try
-//    {
-//        MetaData metaData( metaPath );
-//        metaData.load();
-//        metaData.flush();
-//    }
-//    catch( std::exception& ex )
-//    {
-//        std::cerr << "Problem creating meta data: " << ex.what();
-//    }
+    // create the local version of the file
+    Path_t realFile = wrapped / "real";
+    result = ::creat( realFile.c_str(), mode );
+    if( result )
+        return -errno;
+    else
+        fi->fh = result;
 
-    // send message to server
-//    messages::NewVersion* msg = new messages::NewVersion();
-//    msg->set_job_id( m_client->nextId() );
-//    msg->set_base_version(0);
-//    msg->set_client_version(0);
-//    msg->set_path(path);
-//    msg->set_size(0);
+    // add an entry to the directory listing
+    MetaFile parentMeta( parent );
+    parentMeta.mknod( filename.string(), S_IFREG, mode );
 
-//    TypedMessage tm(MSG_NEW_VERSION,msg);
-//    m_comm->sendMessage(tm);
+    // create the new meta file
+    MetaFile meta( wrapped );
+    meta.init();
 
     return 0;
 }
@@ -167,30 +177,37 @@ int FuseContext::create (const char *path,
 
 int FuseContext::open (const char *path, struct fuse_file_info *fi)
 {
+    namespace fs = boost::filesystem;
+
     Path_t wrapped = m_realRoot / path;
     std::cerr << "FuseContext::open: "
               << "\n    path: " << path
               << "\n    real: " << wrapped
               << "\n";
 
-    // oen the file and get a file handle
-    int fh = ::open( wrapped.c_str(), fi->flags );
-    if( fh < 0 )
-        return -errno;
+    // first we make sure that the file exists
+    Path_t parent   = wrapped.parent_path();
+    Path_t filename = wrapped.filename();
 
-//    // mark the file descriptor as opened
-//    FileDescriptor* fd = (*m_fd)[fh];
-//
-//    // check to make sure we dont have too many files open already
-//    if(!fd)
-//    {
-//        std::cerr << "Not enough file descriptors available to open " << path;
-//        ::close(fh);
-//        return EMFILE;
-//    }
-//
-//    fd->open();
-    fi->fh = fh;
+    if( !fs::exists(parent) )
+      return -ENOENT;
+
+    // make sure that the directory holding the file exists
+    if( !fs::exists(wrapped) )
+    {
+        if( fi->flags | O_CREAT )
+            return this->create(path,0777,fi);
+        else
+            return -EEXIST;
+    }
+
+    // open the local version of the file
+    Path_t realFile = wrapped / "real";
+    int result = ::open( realFile.c_str(), fi->flags );
+    if( result )
+        return -errno;
+    else
+        fi->fh = result;
 
     return 0;
 }
@@ -205,8 +222,9 @@ int FuseContext::read (const char *path,
                         off_t offset,
                         struct fuse_file_info *fi)
 {
-    Path_t wrapped = m_realRoot / path;
+    namespace fs = boost::filesystem;
 
+    Path_t wrapped = (m_realRoot / path);
     std::cerr << "FuseContext::read: "
               << "\n    path: " << path
               << "\n    real: " << wrapped
@@ -215,7 +233,8 @@ int FuseContext::read (const char *path,
               << "\n      fh: " << fi->fh
               << "\n";
 
-    if(fi->fh)
+    // if fi has a file handle then we simply read from the file handle
+    if( fi->fh )
     {
         int result = ::pread(fi->fh,buf,bufsize,offset);
         if( result < 0 )
@@ -223,8 +242,37 @@ int FuseContext::read (const char *path,
         else
             return result;
     }
+    // otherwise we open the file and perform the read
     else
-        return -EBADF;
+    {
+        // first we make sure that the file exists
+        if( !fs::exists(wrapped) )
+          return -ENOTDIR;
+
+        // make sure that the directory holding the file exists
+            if( fi->flags | O_CREAT )
+                return this->create(path,0777,fi);
+            else
+                return -EEXIST;
+
+        // open the local version of the file
+        Path_t realFile = wrapped / "real";
+        int result = ::open( realFile.c_str(), fi->flags );
+        if( result < 0 )
+            return -errno;
+
+        int fh = result;
+
+        // perform the read
+        result = ::pread(fh,buf,bufsize,offset);
+
+        // close the file
+        ::close(fh);
+
+        return result_or_errno(result);
+    }
+
+
 }
 
 
@@ -235,41 +283,51 @@ int FuseContext::write (const char *path,
                         off_t offset,
                       struct fuse_file_info *fi)
 {
+    namespace fs = boost::filesystem;
+
+    Path_t wrapped = (m_realRoot / path);
     std::cerr << "FuseContext::write: "
               << "\n    path: " << path
-              << "\n        : " << (m_realRoot/path)
+              << "\n        : " << wrapped
               << "\n      fh: " << fi->fh
               << "\n";
 
-    if(fi->fh)
+    // if fi has a file handle then we simply read from the file handle
+    if( fi->fh )
     {
-//        // get the file descriptor
-//        FileDescriptor* fd = (*m_fd)[fi->fh];
-//
-//        if(!fd)
-//            return -EBADF;
-//
-//        /// lock during the write
-//        pthreads::ScopedLock lock(fd->mutex());
-
         int result = ::pwrite(fi->fh,buf,bufsize,offset);
         if( result < 0 )
             return -errno;
-
-//        // mark the file as changed
-//        fd->flag(fd::FLAG_CHANGED,true);
-
-        // return the result of the write
-        return result;
+        else
+            return result;
     }
+    // otherwise we open the file and perform the read
     else
     {
-        Path_t wrapped = m_realRoot / path;
-        int fh = ::open( wrapped.c_str(), O_WRONLY );
-        if( fh < 0 )
+        // first we make sure that the file exists
+        if( !fs::exists(wrapped) )
+          return -ENOTDIR;
+
+        // make sure that the directory holding the file exists
+            if( fi->flags | O_CREAT )
+                return this->create(path,0777,fi);
+            else
+                return -EEXIST;
+
+        // open the local version of the file
+        Path_t realFile = wrapped / "real";
+        int result = ::open( realFile.c_str(), fi->flags );
+        if( result < 0 )
             return -errno;
-        int result = ::pwrite(fi->fh,buf,bufsize,offset);
-        close(fh);
+
+        int fh = result;
+
+        // perform the read
+        result = ::pwrite(fh,buf,bufsize,offset);
+
+        // close the file
+        ::close(fh);
+
         return result_or_errno(result);
     }
 }
@@ -279,6 +337,8 @@ int FuseContext::write (const char *path,
 
 int FuseContext::truncate (const char *path, off_t length)
 {
+    namespace fs = boost::filesystem;
+
     Path_t wrapped = (m_realRoot / path).string();
     std::cerr << "FuseContext::truncate: "
               << "\n      path: " << path
@@ -286,39 +346,11 @@ int FuseContext::truncate (const char *path, off_t length)
               << "\n    length: " << length
               << "\n";
 
-    int result = ::truncate( wrapped.c_str(), length  );
+    Path_t realFile = wrapped / "real";
+    int result = ::truncate( realFile.c_str(), length  );
     if( result <  0 )
         return -errno;
 
-    // load the meta data file
-//    fs::path metaPath = m_realRoot / (std::string(path) + ".obfsmeta");
-
-    // send message to server
-//    messages::NewVersion* msg = new messages::NewVersion();
-//    msg->set_job_id( m_client->nextId() );
-//    msg->set_path(path);
-//    msg->set_size(length);
-//
-//    try
-//    {
-//        MetaData metaData( metaPath );
-//        metaData.load();
-//        // increment client version
-//        metaData.set_clientVersion( metaData.clientVersion() + 1 );
-//        msg->set_base_version(metaData.baseVersion());
-//        msg->set_client_version(metaData.clientVersion());
-//        metaData.flush();
-//
-//        // send the message
-//        TypedMessage tm(MSG_NEW_VERSION,msg);
-//        m_comm->sendMessage(tm);
-//    }
-//    catch( std::exception& ex )
-//    {
-//        std::cerr << "Problem creating updating meta data: "
-//                  << ex.what() << std::endl;
-//        delete msg;
-//    }
 
     return result;
 }
@@ -339,23 +371,9 @@ int FuseContext::ftruncate (const char *path,
 
     if(fi->fh)
     {
-//        // get the file descriptor
-//        FileDescriptor* fd = (*m_fd)[fi->fh];
-//
-//        if(!fd)
-//            return -EBADF;
-//
-//        /// lock during the write
-//        pthreads::ScopedLock lock(fd->mutex());
-
         int result = ::ftruncate(fi->fh, length);
         if( result < 0 )
             return -errno;
-
-//        // mark the file as changed
-//        fd->flag(fd::FLAG_CHANGED,true);
-
-        // return the result of the write
         return result;
     }
     else
@@ -376,62 +394,6 @@ int FuseContext::release (const char *path, struct fuse_file_info *fi)
 
     if(fi->fh)
     {
-//        // get the file descriptor
-//        FileDescriptor* fd = (*m_fd)[fi->fh];
-//
-//        if(!fd)
-//            return -EBADF;
-//
-//        /// lock during the write
-//        pthreads::ScopedLock lock(fd->mutex());
-//
-//        // if the file has changed then send update to the server
-//        if( fd->flag(fd::FLAG_CHANGED) )
-//        {
-//            fs::path metaPath = m_realRoot / (std::string(path) + ".obfsmeta");
-
-//            messages::NewVersion* msg = new messages::NewVersion();
-//            msg->set_job_id( m_client->nextId() );
-//            msg->set_path(path);
-//
-//            try
-//            {
-//                // stat the file to get the size
-//                struct stat fs;
-//                int result = ::fstat(fi->fh,&fs);
-//                if( result < 0 )
-//                    ex()() << "Failed to stat file " << path
-//                           << " after changes " ;
-//                msg->set_size(fs.st_size);
-//
-//                MetaData metaData( metaPath );
-//                metaData.load();
-//                // increment client version
-//                metaData.set_clientVersion( metaData.clientVersion() + 1 );
-//                msg->set_base_version(metaData.baseVersion());
-//                msg->set_client_version(metaData.clientVersion());
-//
-//                std::cout << "Sending new version message for " << path
-//                          << "\n     base: " << metaData.baseVersion()
-//                          << "\n   client: " << metaData.clientVersion()
-//                          << std::endl;
-//
-//                metaData.flush();
-//
-//                // send the message
-//                TypedMessage tm(MSG_NEW_VERSION,msg);
-//                m_comm->sendMessage(tm);
-//            }
-//            catch( std::exception& ex )
-//            {
-//                std::cerr << "Problem updating meta data: "
-//                          << ex.what() << std::endl;
-//                delete msg;
-//            }
-//        }
-
-//        // close the file and mark it as closed mark the fd as closed
-//        fd->flag(fd::FLAG_OPENED, false);
         int result = ::close(fi->fh);
         if( result < 0 )
             return -errno;
@@ -467,7 +429,8 @@ int FuseContext::getattr (const char *path, struct stat *out)
               << "\n translated: " << wrapped
               << "\n";
 
-    return ::lstat( wrapped.c_str(), out ) ? -errno : 0;
+    Path_t realFile = wrapped / "real";
+    return ::lstat( realFile.c_str(), out ) ? -errno : 0;
 }
 
 
@@ -480,7 +443,8 @@ int FuseContext::readlink (const char *path, char *buf, size_t bufsize)
               << path
               << "(" << wrapped << ")\n";
 
-    return ::readlink(  wrapped.c_str(), buf, bufsize ) ? -errno : 0;
+    Path_t realFile = wrapped / "real";
+    return ::readlink(  realFile.c_str(), buf, bufsize ) ? -errno : 0;
 }
 
 

@@ -28,8 +28,10 @@
 #define OPENBOOK_FS_FUSECONTEXT_H_
 
 #include <string>
+#include <sys/types.h>
 #include <boost/filesystem.hpp>
 #include "fuse_include.h"
+
 
 
 namespace   openbook {
@@ -62,14 +64,39 @@ class FuseContext
 
         /// Create a file node
         /**
+         *
+         * @param path	the path to the filesystem node
+         * @param mode  specifies both permission and type of file to create
+         * @param dev   version number if a special file
+         * @return 0 on success, -1 on error (and errno set)
+         *
+         * @see mknod(2): The system call mknod() creates a file system node
+         * (file, device special file or named pipe) named pathname, with
+         * attributes specified by mode and dev.
+         *
+         * @p mode specifies the file type by bitwise ORing one of the
+         * following:
+         *  bitflag   | meaning
+         *  ----------|----------------------------------
+         * 	S_IFREG   | regular file
+         * 	S_IFCHR   | character special file
+         * 	S_IFBLK   | block special file
+         * 	S_IFIFO   | named pipe
+         * 	S_IFSOCK  | unix domain socket
+         *
+         * @p dev is only used if @p mode is one of S_IFCHR or S_IFBLK, in which
+         * case it specifies the major and minor numbers of the newly created
+         * special block file
+         *
+         *
          * This is called for creation of all non-directory, non-symlink
          * nodes.  If the filesystem defines a create() method, then for
          * regular files that will be called instead.
          *
-         * The openbookfs also creates the file path.obfsmeta, which is where
+         * The openbookfs also creates the file obfs.sqlite, which is where
          * meta data is stored
          */
-        int mknod (const char *, mode_t, dev_t);
+        int mknod (const char * path, mode_t mode, dev_t dev);
 
         /// Create and open a file
         /**

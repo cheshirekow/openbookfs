@@ -17,84 +17,83 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   src/TimeVal.cpp
+ *  @file   src/TimeSpec.cpp
  *
  *  @date   Feb 14, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#include "TimeVal.h"
+#include "TimeSpec.h"
 
 namespace   openbook {
 namespace filesystem {
 
 
-TimeVal::TimeVal( int sec, int usec )
+TimeSpec::TimeSpec( int sec, long int nsec )
 {
-    m_tv.tv_sec = sec;
-    m_tv.tv_usec = usec;
+    m_tv.tv_sec  = sec;
+    m_tv.tv_nsec = nsec;
 }
 
-TimeVal::operator timeval&()
-{
-    return m_tv;
-}
-
-TimeVal::operator const timeval&() const
+TimeSpec::operator timespec&()
 {
     return m_tv;
 }
 
-timeval* TimeVal::ptr()
+TimeSpec::operator const timespec&() const
+{
+    return m_tv;
+}
+
+timespec* TimeSpec::ptr()
 {
     return &m_tv;
 }
 
-long int& TimeVal::sec()
+long int& TimeSpec::sec()
 {
     return m_tv.tv_sec;
 }
 
-const long int& TimeVal::sec() const
+const long int& TimeSpec::sec() const
 {
     return m_tv.tv_sec;
 }
 
-long int& TimeVal::usec()
+long int& TimeSpec::nsec()
 {
-    return m_tv.tv_usec;
+    return m_tv.tv_nsec;
 }
 
-const long int& TimeVal::usec() const
+const long int& TimeSpec::nsec() const
 {
-    return m_tv.tv_usec;
+    return m_tv.tv_nsec;
 }
 
 
-TimeVal operator+( const TimeVal& a, const TimeVal& b )
+TimeSpec operator+( const TimeSpec& a, const TimeSpec& b )
 {
-    TimeVal result( a.sec() + b.sec(), a.usec() + b.usec() );
-    if( result.usec() > 1000000 )
+    TimeSpec result( a.sec() + b.sec(), a.nsec() + b.nsec() );
+    if( result.nsec() > 1000000000 )
     {
         result.sec()++;
-        result.usec() -= 1000000;
+        result.nsec() -= 1000000000;
     }
 
     return result;
 }
 
-TimeVal operator-( const TimeVal& a, const TimeVal& b )
+TimeSpec operator-( const TimeSpec& a, const TimeSpec& b )
 {
-    TimeVal result(a.sec() - b.sec(),a .usec() - b.usec());
-    if( result.usec() < 0 )
+    TimeSpec result(a.sec() - b.sec(),a .nsec() - b.nsec());
+    if( result.nsec() < 0 )
     {
         result.sec()--;
-        result.usec() += 1000000;
+        result.nsec() += 1000000000;
     }
     return result;
 }
-
 
 
 
