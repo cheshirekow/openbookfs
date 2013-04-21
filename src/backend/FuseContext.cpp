@@ -101,7 +101,7 @@ int FuseContext::mknod (const char *path, mode_t mode, dev_t dev)
 
     // create a directory to hold the file, and then a real file to hold
     // the contents
-    int result = ::mkdir( wrapped.c_str(), mode & 0777 );
+    int result = ::mkdir( wrapped.c_str(), (mode | S_IXUSR | S_IXGRP) & 0777 );
     if( result )
         return -errno;
 
@@ -112,14 +112,26 @@ int FuseContext::mknod (const char *path, mode_t mode, dev_t dev)
         return -errno;
 
     // add an entry to the directory listing
-    mode_t modeMask = 0777;
-    mode_t typeMask = ~modeMask;
-    MetaFile parentMeta( parent );
-    parentMeta.mknod( filename.string(), mode & typeMask, mode & modeMask );
+    try
+    {
+        mode_t modeMask = 0777;
+        mode_t typeMask = ~modeMask;
+        MetaFile parentMeta( parent );
+        parentMeta.mknod( filename.string(), mode & typeMask, mode & modeMask );
 
-    // create the new meta file
-    MetaFile meta( wrapped );
-    meta.init();
+        // create the new meta file
+        MetaFile meta( wrapped );
+        meta.init();
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "FuseContext::mknod: "
+                  << "\n path: " << path
+                  << "\n real: " << wrapped
+                  << "\n  err: " << ex.what()
+                  << "\n";
+    }
+
 
     return 0;
 }
@@ -149,29 +161,29 @@ int FuseContext::create (const char *path,
 
     // create a directory to hold the file, and then a real file to hold
     // the contents
-    int result = ::mkdir( wrapped.c_str(), mode );
+    int result = ::mkdir( wrapped.c_str(), mode | S_IXUSR | S_IXGRP );
     if( result )
         return -errno;
 
     // create the local version of the file
     Path_t realFile = wrapped / "real";
     result = ::creat( realFile.c_str(), mode );
-    if( result )
+    if( result < 0 )
         return -errno;
-
-    // add an entry to the directory listing
-    MetaFile parentMeta( parent );
-    parentMeta.mknod( filename.string(), S_IFREG, mode );
-
-    // initialize the new meta file
-    MetaFile meta( wrapped );
-    meta.init();
 
     // create a file descriptor for the opened file
     int os_fd = result;
     int my_fd = -1;
     try
     {
+        // add an entry to the directory listing
+        MetaFile parentMeta( parent );
+        parentMeta.mknod( filename.string(), S_IFREG, mode );
+
+        // initialize the new meta file
+        MetaFile meta( wrapped );
+        meta.init();
+
         my_fd   = m_openedFiles.registerFile(wrapped,os_fd);
         result  = 0;
     }
@@ -180,6 +192,12 @@ int FuseContext::create (const char *path,
         my_fd   = -1;
         result  = -ENOMEM;
         ::close(os_fd);
+
+        std::cerr << "FuseContext::create: "
+             << "\n   path: " << path
+             << "\n   real: " << wrapped
+             << "\n   mode: " << std::hex << mode << std::dec
+             << "\n";
     }
 
     fi->fh = my_fd;
@@ -218,7 +236,7 @@ int FuseContext::open (const char *path, struct fuse_file_info *fi)
     // open the local version of the file
     Path_t realFile = wrapped / "real";
     int result = ::open( realFile.c_str(), fi->flags );
-    if( result )
+    if( result < 0 )
         return -errno;
 
     // create a file descriptor for the opened file
@@ -638,8 +656,19 @@ int FuseContext::unlink (const char *path)
     fs::remove_all( wrapped );
 
     // remove the entry from the parent
-    MetaFile parentMeta( parent );
-    parentMeta.unlink( filename.string() );
+    try
+    {
+        MetaFile parentMeta( parent );
+        parentMeta.unlink( filename.string() );
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "FuseContext::unlink: "
+                  << "\n path: " << path
+                  << "\n real: " << wrapped
+                  << "\n  err: " << ex.what()
+                  << "\n";
+    }
 
     return 0;
 }
