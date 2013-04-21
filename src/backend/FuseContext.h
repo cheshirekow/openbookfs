@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <boost/filesystem.hpp>
 #include "fuse_include.h"
+#include "FileContext.h"
 
 
 
@@ -54,6 +55,7 @@ class FuseContext
         Backend*    m_backend;
         Path_t      m_dataDir;
         Path_t      m_realRoot;
+        FileMap     m_openedFiles;
 
         int  result_or_errno(int result);
 

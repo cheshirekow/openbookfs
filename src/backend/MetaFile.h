@@ -9,8 +9,12 @@
 #ifndef METAFILE_H_
 #define METAFILE_H_
 
+#include <sys/types.h>
 #include <boost/filesystem.hpp>
 #include <soci/soci.h>
+
+#include "fuse_include.h"
+
 
 namespace   openbook {
 namespace filesystem {
@@ -42,6 +46,12 @@ class MetaFile
 
         /// remove an entry from the file list
         void unlink( const std::string& path );
+
+        /// change the size of a file
+        void truncate( const std::string& path, off_t size );
+
+        /// read directory entries into a fuse buffer
+        void readdir( void *buf, fuse_fill_dir_t filler, off_t offset );
 
         /// increase the version vector for entry 0 (this)
         void incrementVersion();

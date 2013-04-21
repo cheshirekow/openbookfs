@@ -158,6 +158,7 @@ void Backend::unregisterPeer( int peerId )
     m_peerMap.lockFor()->erase(peerId);
 }
 
+
 std::string Backend::privateKeyFile()
 {
     return m_privKey.string();

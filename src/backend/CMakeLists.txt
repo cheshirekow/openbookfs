@@ -62,6 +62,7 @@ if( (FUSE_FOUND)
                     fuse_operations.cpp
                     Backend.cpp
                     Connection.cpp
+                    FileContext.cpp
                     FuseContext.cpp
                     LongJob.cpp
                     MessageHandler.cpp

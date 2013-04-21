@@ -9,6 +9,9 @@
 #include <ctime>
 #include <fcntl.h>
 
+#include <boost/tuple/tuple.hpp>
+#include <soci/boost-tuple.h>
+#include <soci/soci.h>
 #include <soci/sqlite3/soci-sqlite3.h>
 
 #include "MetaFile.h"
@@ -108,6 +111,30 @@ void MetaFile::unlink( const std::string& path )
 {
     m_sql << "DELETE FROM entries WHERE path='" << path << "'";
     incrementVersion();
+}
+
+void MetaFile::truncate( const std::string& path, off_t size )
+{
+    m_sql << "UPDATE entries SET size=" << size
+          << " WHERE path='" << path << "'";
+}
+
+void MetaFile::readdir( void *buf, fuse_fill_dir_t filler, off_t offset )
+{
+    typedef boost::tuple<std::string,int> row_t;
+    typedef soci::rowset<row_t>           rowset_t;
+    rowset_t rs = m_sql.prepare
+        << "SELECT path,type FROM entries ORDER BY path LIMIT -1 OFFSET "
+        << offset;
+
+    for( auto& row : rs )
+    {
+        const std::string& path = row.get<0>();
+        const int          type = row.get<1>();
+
+        if( filler(buf,path.c_str(),NULL,++offset) )
+            return;
+    }
 }
 
 void MetaFile::incrementVersion()

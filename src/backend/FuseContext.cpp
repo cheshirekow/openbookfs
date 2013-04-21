@@ -158,18 +158,32 @@ int FuseContext::create (const char *path,
     result = ::creat( realFile.c_str(), mode );
     if( result )
         return -errno;
-    else
-        fi->fh = result;
 
     // add an entry to the directory listing
     MetaFile parentMeta( parent );
     parentMeta.mknod( filename.string(), S_IFREG, mode );
 
-    // create the new meta file
+    // initialize the new meta file
     MetaFile meta( wrapped );
     meta.init();
 
-    return 0;
+    // create a file descriptor for the opened file
+    int os_fd = result;
+    int my_fd = -1;
+    try
+    {
+        my_fd   = m_openedFiles.registerFile(wrapped,os_fd);
+        result  = 0;
+    }
+    catch( const std::exception& ex )
+    {
+        my_fd   = -1;
+        result  = -ENOMEM;
+        ::close(os_fd);
+    }
+
+    fi->fh = my_fd;
+    return result;
 }
 
 
@@ -206,10 +220,25 @@ int FuseContext::open (const char *path, struct fuse_file_info *fi)
     int result = ::open( realFile.c_str(), fi->flags );
     if( result )
         return -errno;
-    else
-        fi->fh = result;
 
-    return 0;
+    // create a file descriptor for the opened file
+    // create a file descriptor for the opened file
+    int os_fd = result;
+    int my_fd = -1;
+    try
+    {
+        my_fd   = m_openedFiles.registerFile(wrapped,os_fd);
+        result  = 0;
+    }
+    catch( const std::exception& ex )
+    {
+        my_fd   = -1;
+        result  = -ENOMEM;
+        ::close(os_fd);
+    }
+
+    fi->fh = my_fd;
+    return result;
 }
 
 
@@ -236,11 +265,17 @@ int FuseContext::read (const char *path,
     // if fi has a file handle then we simply read from the file handle
     if( fi->fh )
     {
-        int result = ::pread(fi->fh,buf,bufsize,offset);
-        if( result < 0 )
-            return -errno;
+        RefPtr<FileContext> file = m_openedFiles[fi->fh];
+        if(file)
+        {
+            int result = ::pread(file->fd(),buf,bufsize,offset);
+            if( result < 0 )
+                return -errno;
+            else
+                return result;
+        }
         else
-            return result;
+            return -EBADF;
     }
     // otherwise we open the file and perform the read
     else
@@ -250,10 +285,10 @@ int FuseContext::read (const char *path,
           return -ENOTDIR;
 
         // make sure that the directory holding the file exists
-            if( fi->flags | O_CREAT )
-                return this->create(path,0777,fi);
-            else
-                return -EEXIST;
+        if( fi->flags | O_CREAT )
+            return this->create(path,0777,fi);
+        else
+            return -EEXIST;
 
         // open the local version of the file
         Path_t realFile = wrapped / "real";
@@ -295,11 +330,20 @@ int FuseContext::write (const char *path,
     // if fi has a file handle then we simply read from the file handle
     if( fi->fh )
     {
-        int result = ::pwrite(fi->fh,buf,bufsize,offset);
-        if( result < 0 )
-            return -errno;
+        RefPtr<FileContext> file = m_openedFiles[fi->fh];
+        if(file)
+        {
+            int result = ::pwrite(file->fd(),buf,bufsize,offset);
+            if( result < 0 )
+                return -errno;
+            else
+            {
+                file->mark();
+                return result;
+            }
+        }
         else
-            return result;
+            return -EBADF;
     }
     // otherwise we open the file and perform the read
     else
@@ -322,11 +366,15 @@ int FuseContext::write (const char *path,
 
         int fh = result;
 
-        // perform the read
+        // perform the write
         result = ::pwrite(fh,buf,bufsize,offset);
 
         // close the file
         ::close(fh);
+
+        // increment the version
+        MetaFile meta( wrapped );
+        meta.incrementVersion();
 
         return result_or_errno(result);
     }
@@ -351,6 +399,8 @@ int FuseContext::truncate (const char *path, off_t length)
     if( result <  0 )
         return -errno;
 
+    MetaFile meta( wrapped.parent_path() );
+    meta.truncate( wrapped.filename().string(), length );
 
     return result;
 }
@@ -362,6 +412,9 @@ int FuseContext::ftruncate (const char *path,
                             off_t length,
                             struct fuse_file_info *fi)
 {
+    namespace fs = boost::filesystem;
+
+    Path_t wrapped = (m_realRoot / path).string();
     std::cerr << "FuseContext::ftruncate: "
               << "\n   path: " << path
               << "\n       : " << (m_realRoot / path)
@@ -371,10 +424,18 @@ int FuseContext::ftruncate (const char *path,
 
     if(fi->fh)
     {
-        int result = ::ftruncate(fi->fh, length);
-        if( result < 0 )
-            return -errno;
-        return result;
+        RefPtr<FileContext> file = m_openedFiles[fi->fh];
+        if(file)
+        {
+            int result = ::ftruncate(file->fd(), length);
+            if( result < 0 )
+                return -errno;
+
+            file->mark();
+            return result;
+        }
+        else
+            return -EBADF;
     }
     else
         return -EBADF;
@@ -394,12 +455,17 @@ int FuseContext::release (const char *path, struct fuse_file_info *fi)
 
     if(fi->fh)
     {
-        int result = ::close(fi->fh);
-        if( result < 0 )
-            return -errno;
-
-        // return the result of the write
-        return result;
+        RefPtr<FileContext> file = m_openedFiles[fi->fh];
+        if(file)
+        {
+            int result = ::close(file->fd());
+            if( result < 0 )
+                return -errno;
+            else
+                return result;
+        }
+        else
+            return -EBADF;
     }
     else
         return -EBADF;
@@ -748,15 +814,17 @@ int FuseContext::opendir (const char *path, struct fuse_file_info *fi)
               << "\n       : " << wrapped
               << "\n";
 
-    DIR* dir = ::opendir( wrapped.c_str() );
-
-    if(dir)
+    try
     {
-        fi->fh = (uint64_t)dir;
-        return 0;
+        int fd = m_openedFiles.registerFile( wrapped, -1 );
+        fi->fh = fd;
     }
-    else
-        return -errno;
+    catch( const std::exception& ex )
+    {
+        return -ENOMEM;
+    }
+
+    return 0;
 }
 
 
@@ -767,6 +835,7 @@ int FuseContext::readdir (const char *path,
                         off_t offset,
                         struct fuse_file_info *fi)
 {
+    Path_t wrapped = m_realRoot / path;
     std::cerr << "FuseContext::readdir" << std::endl;
     std::cerr << "readdir: "
                  "\n   this: " << (void*)this <<
@@ -776,31 +845,20 @@ int FuseContext::readdir (const char *path,
                  "\n     fh: " << fi->fh <<
                  std::endl;
 
-
-    DIR* dp = (DIR*) fi->fh;
-
-    struct dirent *de;
-    int retstat = 0;
-
-    // Every directory contains at least two entries: . and ..  If my
-    // first call to the system readdir() returns NULL I've got an
-    // error; near as I can tell, that's the only condition under
-    // which I can get an error from readdir()
-    de = ::readdir(dp);
-    if (de == 0)
-        return -errno;
-
-    // This will copy the entire directory into the buffer.  The loop exits
-    // when either the system readdir() returns NULL, or filler()
-    // returns something non-zero.  The first case just means I've
-    // read the whole directory; the second means the buffer is full.
-    do
+    RefPtr<FileContext> file;
+    if( fi->fh )
     {
-        if (filler(buf, de->d_name, NULL, 0) != 0)
-            return -ENOMEM;
-    } while ((de = ::readdir(dp)) != NULL);
+        file = m_openedFiles[fi->fh];
+        if(!file)
+            return -EBADF;
+    }
+    else
+    {
+        file = FileContext::create(wrapped,-1);
+    }
 
-    return retstat;
+    file->meta().readdir(buf,filler,offset);
+    return 0;
 }
 
 
@@ -816,10 +874,7 @@ int FuseContext::releasedir (const char *path,
               << "\n";
 
     if(fi->fh)
-    {
-        DIR* dp = (DIR*) fi->fh;
-        return result_or_errno( ::closedir(dp) );
-    }
+        m_openedFiles.unregisterFile(fi->fh);
     else
         return -EBADF;
 }
