@@ -23,7 +23,7 @@ namespace   openbook {
 namespace filesystem {
 
 MetaFile::MetaFile( const Path_t& path ):
-    m_sql(soci::sqlite3,path.string())
+    m_sql(soci::sqlite3, (path/"obfs.sqlite").string())
 {
 
 }
@@ -37,7 +37,7 @@ void MetaFile::init()
 {
     m_sql << "CREATE TABLE IF NOT EXISTS meta ("
                 "key TEXT UNIQUE NOT NULL, "
-                "value)";
+                "value TEXT NOT NULL)";
 
     // note: states are
     // 0: synced
@@ -64,13 +64,13 @@ void MetaFile::init()
     m_sql << "CREATE TABLE IF NOT EXISTS entries ("
             "path VARCHAR(255) UNIQUE NOT NULL, "
             "type INTEGER NOT NULL DEFAULT(1), "
-            "mode INTEGER NOT NULL",
+            "mode INTEGER NOT NULL, "
             "subscribed INTEGER NOT NULL, "
             "size INTEGER NOT NULL, "
             "ctime_sec INTEGER NOT NULL, "
             "ctime_nsec INTEGER NOT NULL, "
             "mtime_sec INTEGER NOT NULL, "
-            "mtime_nsec INTEGER NOT NULL) ";
+            "mtime_nsec INTEGER NOT NULL )";
 }
 
 void MetaFile::mknod( const std::string& path, mode_t type, mode_t mode )
@@ -88,7 +88,7 @@ void MetaFile::mknod( const std::string& path, mode_t type, mode_t mode )
                 "ctime_sec, "
                 "ctime_nsec, "
                 "mtime_sec, "
-                "mtime_nsec, "
+                "mtime_nsec "
                 ") VALUES ("
                 << "'" << path << "', "
                 << type << ", "

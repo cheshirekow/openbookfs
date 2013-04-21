@@ -212,6 +212,20 @@ class FuseContext
          */
         int getattr (const char *, struct stat *);
 
+        /**
+         * Get attributes from an open file
+         *
+         * This method is called instead of the getattr() method if the
+         * file information is available.
+         *
+         * Currently this is only called after the create() method if that
+         * is implemented (see above).  Later it may be called for
+         * invocations of fstat() too.
+         *
+         * Introduced in version 2.5
+         */
+        int fgetattr (const char *, struct stat *, struct fuse_file_info *);
+
         /** Read the target of a symbolic link
          *
          * The buffer should be filled with a null terminated string.  The
@@ -388,20 +402,6 @@ class FuseContext
 
 
 
-
-        /**
-         * Get attributes from an open file
-         *
-         * This method is called instead of the getattr() method if the
-         * file information is available.
-         *
-         * Currently this is only called after the create() method if that
-         * is implemented (see above).  Later it may be called for
-         * invocations of fstat() too.
-         *
-         * Introduced in version 2.5
-         */
-        int fgetattr (const char *, struct stat *, struct fuse_file_info *);
 
         /**
          * Perform POSIX file locking operation

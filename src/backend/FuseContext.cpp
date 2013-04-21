@@ -487,8 +487,8 @@ int FuseContext::release (const char *path, struct fuse_file_info *fi)
 
 int FuseContext::getattr (const char *path, struct stat *out)
 {
+    namespace fs = boost::filesystem;
     Path_t wrapped = m_realRoot / path;
-
     std::cerr << "FuseContext::getattr: "
               << "\n       this: " << (void*) this
               << "\n    request: " << path
@@ -496,7 +496,46 @@ int FuseContext::getattr (const char *path, struct stat *out)
               << "\n";
 
     Path_t realFile = wrapped / "real";
-    return ::lstat( realFile.c_str(), out ) ? -errno : 0;
+    if( fs::exists(realFile) )
+    {
+        int result = ::lstat( realFile.c_str(), out );
+        return result_or_errno( result );
+    }
+    else
+    {
+        int result = ::lstat( wrapped.c_str(), out );
+        return result_or_errno( result );
+    }
+}
+
+
+
+
+int FuseContext::fgetattr (const char *path,
+                            struct stat *out,
+                            struct fuse_file_info *fi)
+{
+    namespace fs = boost::filesystem;
+    Path_t wrapped = m_realRoot / path;
+    std::cerr << "FuseContext::fgetattr: "
+              << "\n       this: " << (void*) this
+              << "\n    request: " << path
+              << "\n translated: " << wrapped
+              << "\n";
+
+    if( fi->fh )
+    {
+        RefPtr<FileContext> file = m_openedFiles[fi->fh];
+        if(file)
+        {
+            int result = ::fstat(file->fd(),out);
+            return result_or_errno(result);
+        }
+        else
+            return -EBADF;
+    }
+    else
+        return -EBADF;
 }
 
 
@@ -537,18 +576,42 @@ int FuseContext::mkdir (const char *path, mode_t mode)
     if( !fs::exists(parent) )
       return -ENOENT;
 
+    try
+    {
+        // add an entry to the directory listing
+        MetaFile parentMeta( parent );
+        parentMeta.mknod( filename.string(), S_IFDIR, mode );
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "FuseContext::mkdir: "
+              << "\n path: " << path
+              << "\n real: " << wrapped
+              << "\n  err: " << ex.what()
+              << "\n";
+        return -EBADR;
+    }
+
     // create the directory
     int result = ::mkdir( wrapped.c_str(), mode );
     if( result )
         return -errno;
 
-    // add an entry to the directory listing
-    MetaFile parentMeta( parent );
-    parentMeta.mknod( filename.string(), S_IFDIR, mode );
-
-    // create the new meta file
-    MetaFile meta( wrapped );
-    meta.init();
+    try
+    {
+        // create the new meta file
+        MetaFile meta( wrapped );
+        meta.init();
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "FuseContext::mkdir: "
+              << "\n path: " << path
+              << "\n real: " << wrapped
+              << "\n  err: " << ex.what()
+              << "\n";
+        return -EBADR;
+    }
 
     return 0;
 }
@@ -809,11 +872,6 @@ int FuseContext::removexattr (const char *path, const char *key)
 int FuseContext::opendir (const char *path, struct fuse_file_info *fi)
 {
     Path_t wrapped = m_realRoot / path;
-    std::cerr << "FuseContext::opendir: "
-              << "\n   path: " << path
-              << "\n       : " << wrapped
-              << "\n";
-
     try
     {
         int fd = m_openedFiles.registerFile( wrapped, -1 );
@@ -821,6 +879,11 @@ int FuseContext::opendir (const char *path, struct fuse_file_info *fi)
     }
     catch( const std::exception& ex )
     {
+        std::cerr << "FuseContext::opendir: "
+          << "\n   path: " << path
+          << "\n   real: " << wrapped
+          << "\n  error: " << ex.what()
+          << "\n";
         return -ENOMEM;
     }
 
@@ -877,6 +940,8 @@ int FuseContext::releasedir (const char *path,
         m_openedFiles.unregisterFile(fi->fh);
     else
         return -EBADF;
+
+    return 0;
 }
 
 
@@ -915,23 +980,6 @@ int FuseContext::access (const char *path, int mode)
 
 
 
-
-
-
-int FuseContext::fgetattr (const char *path,
-                            struct stat *out,
-                            struct fuse_file_info *fi)
-{
-    Path_t wrapped = m_realRoot / path;
-
-    std::cerr << "FuseContext::fgetattr: "
-              << "\n       this: " << (void*) this
-              << "\n    request: " << path
-              << "\n translated: " << wrapped
-              << "\n";
-
-    return result_or_errno( ::fstat( fi->fh, out ) );
-}
 
 
 
