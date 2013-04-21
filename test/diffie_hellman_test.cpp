@@ -17,7 +17,7 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/test/diffie_hellman_test.cpp
+ *  @file   test/diffie_hellman_test.cpp
  *
  *  @date   Feb 12, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)

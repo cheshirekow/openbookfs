@@ -17,7 +17,7 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/backend/FuseContext.h
+ *  @file   src/backend/FuseContext.h
  *
  *  @date   Apr 16, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)

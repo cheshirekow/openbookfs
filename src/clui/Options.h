@@ -17,7 +17,7 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/clui/Options.h
+ *  @file   src/clui/Options.h
  *
  *  @date   Apr 14, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)

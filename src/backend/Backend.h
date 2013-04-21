@@ -17,7 +17,7 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/backend/Backend.h
+ *  @file   src/backend/Backend.h
  *
  *  @date   Apr 9, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
