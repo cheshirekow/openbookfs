@@ -1,0 +1,18 @@
+displayName: test_a
+dataDir: /home/josh/Codes/cpp/builds/openbookfs/test/backend/a/data
+localSocket:
+  service: 3030
+remoteSocket:
+  family: AF_INET
+  node: any
+  service: 3031
+clientSocket:
+  family: AF_INET
+  node: any
+maxConnections: 20
+mountPoints:
+  - mount: /home/josh/Codes/cpp/builds/openbookfs/test/backend/a/mountPoint
+    reldir: 
+    argv:
+      - -s
+      - -d
