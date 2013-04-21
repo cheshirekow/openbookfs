@@ -722,6 +722,7 @@ int FuseContext::symlink (const char *oldpath, const char *newpath)
 
 int FuseContext::rename (const char *oldpath, const char *newpath)
 {
+    namespace fs = boost::filesystem;
     Path_t oldwrap = m_realRoot / oldpath;
     Path_t newwrap = m_realRoot / newpath;
 
@@ -732,7 +733,33 @@ int FuseContext::rename (const char *oldpath, const char *newpath)
               << "\n      : " << newwrap
               << "\n";
 
-    return result_or_errno( ::rename( oldwrap.c_str(), newwrap.c_str() ) );
+    // if the move overwrites a file then copy data, increment version, and
+    // unlink the old file
+    Path_t oldreal = oldwrap / "real";
+    Path_t newreal = newwrap / "real";
+    if( fs::exists( oldreal ) )
+    {
+        if( fs::exists( newreal ) )
+        {
+            int result = ::rename( oldreal.c_str(), newreal.c_str() );
+            MetaFile(newwrap).incrementVersion();
+            MetaFile(oldwrap.parent_path()).unlink( oldwrap.filename().string() );
+            return result;
+        }
+        // otherwise try to move the containing directory
+        else
+        {
+            int result = ::rename( oldwrap.c_str(), newwrap.c_str() );
+            // todo: reinitialize the meta data
+            return result;
+        }
+    }
+    else
+    {
+        int result = ::rename( oldwrap.c_str(), newwrap.c_str() );
+        // todo: reinitialize the meta data
+        return result;
+    }
 }
 
 
@@ -756,6 +783,7 @@ int FuseContext::link (const char *oldpath, const char *newpath)
 
 int FuseContext::chmod (const char *path, mode_t mode)
 {
+    namespace fs = boost::filesystem;
     Path_t wrapped = m_realRoot / path;
     std::cerr << "FuseContext::chmod: "
               << "\n    path: " << path
@@ -763,14 +791,27 @@ int FuseContext::chmod (const char *path, mode_t mode)
               << "\n    mode: " << mode
               << "\n";
 
-    return result_or_errno( ::chmod( wrapped.c_str(), mode ) );
+    // if it's not a directory
+    Path_t realFile = wrapped / "real";
+    if( fs::exists(realFile) )
+    {
+        int result = ::chmod( realFile.c_str(), mode );
+        return result_or_errno( result );
+    }
+    // if it is a directory
+    else
+    {
+        int result = ::chmod( wrapped.c_str(), mode );
+        return result_or_errno( result );
+    }
 }
 
 
 
 int FuseContext::chown (const char *path, uid_t owner, gid_t group)
 {
-    std::string wrapped = (m_realRoot / path).string();
+    namespace fs = boost::filesystem;
+    Path_t wrapped = (m_realRoot / path);
     std::cerr << "FuseContext::chown: "
               << "\n    path: " << path
               << "\n        : " << (m_realRoot/path)
@@ -778,7 +819,19 @@ int FuseContext::chown (const char *path, uid_t owner, gid_t group)
               << "\n     gid: " << group
               << "\n";
 
-    return  result_or_errno( ::chown( wrapped.c_str(), owner, group ) );
+    // if it's not a directory
+    Path_t realFile = wrapped / "real";
+    if( fs::exists(realFile) )
+    {
+        int result = ::chown( realFile.c_str(), owner, group );
+        return result_or_errno( result );
+    }
+    // if it is a directory
+    else
+    {
+        int result = ::chown( wrapped.c_str(), owner, group);
+        return result_or_errno( result );
+    }
 }
 
 
@@ -844,14 +897,16 @@ int FuseContext::fsync (const char *path,
 
     if(fi->fh)
     {
-        if(datasync)
-            return result_or_errno(
-                    ::fdatasync(fi->fh)
-                     );
+        RefPtr<FileContext> file = m_openedFiles[fi->fh];
+        if( file )
+        {
+            if(datasync)
+                return result_or_errno( ::fdatasync(file->fd()) );
+            else
+                return result_or_errno( ::fsync(file->fd()) );
+        }
         else
-            return result_or_errno(
-                    ::fsync(fi->fh)
-                     );
+            return -EBADF;
     }
     else
         return -EBADF;
