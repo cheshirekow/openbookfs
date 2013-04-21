@@ -1,33 +1,18 @@
-find_package(Crypto++)
-                             
-                             
-if( (Crypto++_FOUND)
-    )
-                                                                    
-    include_directories( 
-        ${Crypto++_INCLUDE_DIR}
-        )
-    
-    
-    set(LIBS ${LIBS} 
-        ${Crypto++_LIBRARY}
-        )
-        
-    add_executable( diffie_hellman_test
-                    diffie_hellman_test.cpp
-                             )
-                            
-    target_link_libraries( diffie_hellman_test ${LIBS})
-    
-else() 
+add_subdirectory(diffie_hellman)
 
-    set(MISSING, "")
-    
-    if( NOT (Crypto++_FOUND) )
-        set(MISSING "${MISSING} crypto++,")
-    endif()
-    
-    message( WARNING "Can't build diffie_hellman_test, missing: ${MISSING}")
+file( MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/backend/a/data )
+file( MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/backend/a/mountPoint )
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/backend/a/obfs.yaml
+    ${CMAKE_CURRENT_BINARY_DIR}/backend/a/obfs.yaml )
+file( COPY        ${CMAKE_CURRENT_SOURCE_DIR}/backend/a/start.sh
+      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/backend/a )
 
-endif()
 
+file( MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/backend/b/data )
+file( MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/backend/b/mountPoint )
+configure_file(
+    ${CMAKE_CURRENT_SOURCE_DIR}/backend/b/obfs.yaml
+    ${CMAKE_CURRENT_BINARY_DIR}/backend/b/obfs.yaml )
+file( COPY        ${CMAKE_CURRENT_SOURCE_DIR}/backend/b/start.sh
+      DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/backend/b )

@@ -1,5 +1,5 @@
 displayName: test_b
-dataDir: /home/josh/Codes/cpp/builds/openbookfs/test/backend/b/data
+dataDir: ${CMAKE_CURRENT_BINARY_DIR}/backend/b/data
 localSocket:
   service: 3032
 remoteSocket:
@@ -11,7 +11,7 @@ clientSocket:
   node: any
 maxConnections: 20
 mountPoints:
-   - mount: /home/josh/Codes/cpp/builds/openbookfs/test/backend/b/mountPoint
+   - mount: ${CMAKE_CURRENT_BINARY_DIR}/backend/b/mountPoint
      reldir: /
      argv: ["-s", "-d"]
 
