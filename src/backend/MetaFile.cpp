@@ -51,7 +51,8 @@ void MetaFile::init()
     m_sql << "CREATE TABLE IF NOT EXISTS version ("
             "path VARCHAR (255) NOT NULL, "
             "client INTEGER NOT NULL, "
-            "version INTEGER NOT NULL) ";
+            "version INTEGER NOT NULL, "
+            "PRIMARY KEY (path,client) ) ";
 
     // insert the version entry for "me"
     m_sql << "INSERT OR IGNORE INTO version "
