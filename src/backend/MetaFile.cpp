@@ -22,10 +22,22 @@
 namespace   openbook {
 namespace filesystem {
 
-MetaFile::MetaFile( const Path_t& path ):
-    m_sql(soci::sqlite3, (path/"obfs.sqlite").string())
+MetaFile::MetaFile( const Path_t& path )
 {
+    namespace fs = boost::filesystem;
+    Path_t metapath;
 
+    if( fs::is_directory(path) )
+    {
+        metapath = path / "obfs.sqlite";
+        m_subpath = ".";
+    }
+    else
+    {
+        metapath = path.parent_path() / "obfs.sqlite";
+        m_subpath = path.filename().string();
+    }
+    m_sql.open( soci::sqlite3, metapath.string() );
 }
 
 MetaFile::~MetaFile()
@@ -103,7 +115,7 @@ void MetaFile::readdir( void *buf, fuse_fill_dir_t filler, off_t offset )
 
 void MetaFile::incrementVersion()
 {
-    m_sql << "UPDATE version SET version=version+1 WHERE path='.' AND client=0";
+    incrementVersion( m_subpath );
 }
 
 void MetaFile::incrementVersion( const std::string& path )

@@ -217,6 +217,11 @@ int FuseContext::open (const char *path, struct fuse_file_info *fi)
         my_fd   = -1;
         result  = -ENOMEM;
         ::close(os_fd);
+
+        std::cerr << "FuseContext::open"
+                  << "\n path: " << path
+                  << "\n real: " << wrapped
+                  << "\n  err: " << ex.what();
     }
 
     fi->fh = my_fd;

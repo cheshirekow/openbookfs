@@ -28,7 +28,8 @@ class MetaFile
         typedef soci::session           Session_t;
 
     private:
-        Session_t m_sql;
+        Session_t   m_sql;
+        std::string m_subpath;
 
     public:
         /// open a soci session to the sqlite meta file for the specified
