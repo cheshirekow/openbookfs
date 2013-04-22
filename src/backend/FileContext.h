@@ -54,6 +54,7 @@ class FileContext:
         FileContext( const Path_t& path, int fd );
 
     public:
+        /// closes the file, increments parent directory meta data if changed
         ~FileContext();
         int       fd()  { return m_fd; }
         MetaFile& meta(){ return m_meta; }

@@ -16,7 +16,7 @@
 
 #include "MetaFile.h"
 #include "TimeSpec.h"
-
+#include "ExceptionStream.h"
 
 
 namespace   openbook {
@@ -35,19 +35,9 @@ MetaFile::~MetaFile()
 
 void MetaFile::init()
 {
-    m_sql << "CREATE TABLE IF NOT EXISTS meta ("
-                "key TEXT UNIQUE NOT NULL, "
-                "value TEXT NOT NULL)";
-
-    // note: states are
-    // 0: synced
-    // 1: dirty
-    // 2: stale
-    // 3: conflict
-    m_sql << "INSERT OR IGNORE INTO meta (key,value) values ('state',0)";
-
     // create
     m_sql << "CREATE TABLE IF NOT EXISTS version ("
+            "path VARCHAR (255) NOT NULL, "
             "client INTEGER UNIQUE NOT NULL, "
             "version INTEGER NOT NULL) ";
 
@@ -63,60 +53,49 @@ void MetaFile::init()
     //          : hard link (not yet supported)
     m_sql << "CREATE TABLE IF NOT EXISTS entries ("
             "path VARCHAR(255) UNIQUE NOT NULL, "
-            "type INTEGER NOT NULL DEFAULT(1), "
-            "mode INTEGER NOT NULL, "
-            "subscribed INTEGER NOT NULL, "
-            "size INTEGER NOT NULL, "
-            "ctime_sec INTEGER NOT NULL, "
-            "ctime_nsec INTEGER NOT NULL, "
-            "mtime_sec INTEGER NOT NULL, "
-            "mtime_nsec INTEGER NOT NULL )";
+//            "type INTEGER NOT NULL DEFAULT(1), "
+//            "mode INTEGER NOT NULL, "
+            "subscribed INTEGER NOT NULL )";
 }
 
-void MetaFile::mknod( const std::string& path, mode_t type, mode_t mode )
+void MetaFile::mknod( const std::string& path ) //, mode_t type, mode_t mode )
 {
-    TimeSpec now;
-    clock_gettime( CLOCK_REALTIME, now.ptr() );
-
     // insert the entry if the file is in fact new
     m_sql << "INSERT OR IGNORE INTO entries ("
                 "path, "
-                "type, "
-                "mode, "
-                "subscribed, "
-                "size, "
-                "ctime_sec, "
-                "ctime_nsec, "
-                "mtime_sec, "
-                "mtime_nsec "
+//                "type, "
+//                "mode, "
+                "subscribed "
                 ") VALUES ("
                 << "'" << path << "', "
-                << type << ", "
-                << mode << ", "
-                << 0 << ", "
-                << 0 << ", "
-                << now.sec()  << ", "
-                << now.nsec() << ", "
-                << now.sec()  << ", "
-                << now.nsec() <<
+//                << type << ", "
+//                << mode << ", "
+                << 0    <<
                 ")";
 
     // update subscription to the file
     m_sql << "UPDATE entries SET subscribed=1 WHERE path='"
           << path << "'";
+
+    // set the initial version of the file
+    m_sql << "INSERT OR IGNORE INTO version ("
+                "path, "
+                "client, "
+                "version, "
+                ") VALUES ("
+                << "'" << path << "', "
+                << 0 << ", "
+                << 0 <<
+                ")";
+
     incrementVersion();
 }
 
 void MetaFile::unlink( const std::string& path )
 {
     m_sql << "DELETE FROM entries WHERE path='" << path << "'";
+    m_sql << "DELETE FROM version WHERE path='" << path << "'";
     incrementVersion();
-}
-
-void MetaFile::truncate( const std::string& path, off_t size )
-{
-    m_sql << "UPDATE entries SET size=" << size
-          << " WHERE path='" << path << "'";
 }
 
 void MetaFile::readdir( void *buf, fuse_fill_dir_t filler, off_t offset )
@@ -140,6 +119,12 @@ void MetaFile::readdir( void *buf, fuse_fill_dir_t filler, off_t offset )
 void MetaFile::incrementVersion()
 {
     m_sql << "UPDATE version SET version=version+1 WHERE client=0";
+}
+
+void MetaFile::incrementVersion( const std::string& path )
+{
+    m_sql << "UPDATE version SET version=version+1 WHERE path='"
+          << path << "' AND client=0";
 }
 
 

@@ -42,19 +42,19 @@ class MetaFile
         void init();
 
         /// add an entry to the file list for
-        void mknod( const std::string& path, mode_t type, mode_t mode );
+        void mknod( const std::string& path );//, mode_t type, mode_t mode );
 
         /// remove an entry from the file list
         void unlink( const std::string& path );
-
-        /// change the size of a file
-        void truncate( const std::string& path, off_t size );
 
         /// read directory entries into a fuse buffer
         void readdir( void *buf, fuse_fill_dir_t filler, off_t offset );
 
         /// increase the version vector for entry 0 (this)
         void incrementVersion();
+
+        /// increase the version for a child of the directory
+        void incrementVersion( const std::string& path );
 
 
 };

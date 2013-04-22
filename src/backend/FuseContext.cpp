@@ -85,8 +85,6 @@ int FuseContext::mknod (const char *path, mode_t mode, dev_t dev)
     namespace fs = boost::filesystem;
 
     Path_t wrapped = (m_realRoot / path);
-    std::cerr << "FuseContext::mknod: " << path
-              << "(" << (m_realRoot / path) << ")" << std::endl;
 
     // we do not allow special files
     if( mode & ( S_IFCHR | S_IFBLK ) )
@@ -96,18 +94,11 @@ int FuseContext::mknod (const char *path, mode_t mode, dev_t dev)
     Path_t parent   = wrapped.parent_path();
     Path_t filename = wrapped.filename();
 
-    if( !fs::exists(parent) )
+    if( !fs::exists(parent) || !fs::is_directory(parent) )
       return -ENOENT;
 
-    // create a directory to hold the file, and then a real file to hold
-    // the contents
-    int result = ::mkdir( wrapped.c_str(), (mode | S_IXUSR | S_IXGRP) & 0777 );
-    if( result )
-        return -errno;
-
     // create the local version of the file
-    Path_t realFile = wrapped / "real";
-    result = ::mknod( realFile.c_str(), mode, 0 );
+    int result = ::mknod( wrapped.c_str(), mode, 0 );
     if( result )
         return -errno;
 
@@ -117,11 +108,7 @@ int FuseContext::mknod (const char *path, mode_t mode, dev_t dev)
         mode_t modeMask = 0777;
         mode_t typeMask = ~modeMask;
         MetaFile parentMeta( parent );
-        parentMeta.mknod( filename.string(), mode & typeMask, mode & modeMask );
-
-        // create the new meta file
-        MetaFile meta( wrapped );
-        meta.init();
+        parentMeta.mknod( filename.string() );//, mode & typeMask, mode & modeMask );
     }
     catch( const std::exception& ex )
     {
@@ -144,30 +131,17 @@ int FuseContext::create (const char *path,
                             struct fuse_file_info *fi)
 {
     namespace fs = boost::filesystem;
-
     Path_t wrapped = (m_realRoot / path);
-    std::cerr << "FuseContext::create: "
-             << "\n   path: " << path
-             << "\n   real: " << wrapped
-             << "\n   mode: " << std::hex << mode << std::dec
-             << "\n";
 
     // first we make sure that the parent directory exists
     Path_t parent   = wrapped.parent_path();
     Path_t filename = wrapped.filename();
 
-    if( !fs::exists(parent) )
+    if( !fs::exists(parent) || !fs::is_directory(parent) )
       return -ENOENT;
 
-    // create a directory to hold the file, and then a real file to hold
-    // the contents
-    int result = ::mkdir( wrapped.c_str(), mode | S_IXUSR | S_IXGRP );
-    if( result )
-        return -errno;
-
     // create the local version of the file
-    Path_t realFile = wrapped / "real";
-    result = ::creat( realFile.c_str(), mode );
+    int result = ::creat( wrapped.c_str(), mode );
     if( result < 0 )
         return -errno;
 
@@ -177,12 +151,8 @@ int FuseContext::create (const char *path,
     try
     {
         // add an entry to the directory listing
-        MetaFile parentMeta( parent );
-        parentMeta.mknod( filename.string(), S_IFREG, mode );
-
-        // initialize the new meta file
-        MetaFile meta( wrapped );
-        meta.init();
+        MetaFile meta( parent );
+        meta.mknod( filename.string() );//, S_IFREG, mode );
 
         my_fd   = m_openedFiles.registerFile(wrapped,os_fd);
         result  = 0;
@@ -190,7 +160,7 @@ int FuseContext::create (const char *path,
     catch( const std::exception& ex )
     {
         my_fd   = -1;
-        result  = -ENOMEM;
+        result  = -EIO;
         ::close(os_fd);
 
         std::cerr << "FuseContext::create: "
@@ -210,12 +180,7 @@ int FuseContext::create (const char *path,
 int FuseContext::open (const char *path, struct fuse_file_info *fi)
 {
     namespace fs = boost::filesystem;
-
     Path_t wrapped = m_realRoot / path;
-    std::cerr << "FuseContext::open: "
-              << "\n    path: " << path
-              << "\n    real: " << wrapped
-              << "\n";
 
     // first we make sure that the file exists
     Path_t parent   = wrapped.parent_path();
@@ -224,7 +189,8 @@ int FuseContext::open (const char *path, struct fuse_file_info *fi)
     if( !fs::exists(parent) )
       return -ENOENT;
 
-    // make sure that the directory holding the file exists
+    // make sure that the file exists, if it doesn't exist check for the
+    // O_CREAT flag
     if( !fs::exists(wrapped) )
     {
         if( fi->flags | O_CREAT )
@@ -233,13 +199,11 @@ int FuseContext::open (const char *path, struct fuse_file_info *fi)
             return -EEXIST;
     }
 
-    // open the local version of the file
-    Path_t realFile = wrapped / "real";
-    int result = ::open( realFile.c_str(), fi->flags );
+    // open the file
+    int result = ::open( wrapped.c_str(), fi->flags );
     if( result < 0 )
         return -errno;
 
-    // create a file descriptor for the opened file
     // create a file descriptor for the opened file
     int os_fd = result;
     int my_fd = -1;
@@ -270,15 +234,7 @@ int FuseContext::read (const char *path,
                         struct fuse_file_info *fi)
 {
     namespace fs = boost::filesystem;
-
     Path_t wrapped = (m_realRoot / path);
-    std::cerr << "FuseContext::read: "
-              << "\n    path: " << path
-              << "\n    real: " << wrapped
-              << "\n    size: " << bufsize
-              << "\n     off: " << offset
-              << "\n      fh: " << fi->fh
-              << "\n";
 
     // if fi has a file handle then we simply read from the file handle
     if( fi->fh )
@@ -298,22 +254,12 @@ int FuseContext::read (const char *path,
     // otherwise we open the file and perform the read
     else
     {
-        // first we make sure that the file exists
-        if( !fs::exists(wrapped) )
-          return -ENOTDIR;
-
-        // make sure that the directory holding the file exists
-        if( fi->flags | O_CREAT )
-            return this->create(path,0777,fi);
-        else
-            return -EEXIST;
-
         // open the local version of the file
-        Path_t realFile = wrapped / "real";
-        int result = ::open( realFile.c_str(), fi->flags );
+        int result = ::open( wrapped.c_str(), O_RDONLY );
         if( result < 0 )
             return -errno;
 
+        // get the file andle
         int fh = result;
 
         // perform the read
@@ -322,7 +268,10 @@ int FuseContext::read (const char *path,
         // close the file
         ::close(fh);
 
-        return result_or_errno(result);
+        if( result < 0 )
+            return -errno;
+        else
+            return result;
     }
 
 
@@ -337,13 +286,7 @@ int FuseContext::write (const char *path,
                       struct fuse_file_info *fi)
 {
     namespace fs = boost::filesystem;
-
     Path_t wrapped = (m_realRoot / path);
-    std::cerr << "FuseContext::write: "
-              << "\n    path: " << path
-              << "\n        : " << wrapped
-              << "\n      fh: " << fi->fh
-              << "\n";
 
     // if fi has a file handle then we simply read from the file handle
     if( fi->fh )
@@ -363,25 +306,14 @@ int FuseContext::write (const char *path,
         else
             return -EBADF;
     }
-    // otherwise we open the file and perform the read
     else
     {
-        // first we make sure that the file exists
-        if( !fs::exists(wrapped) )
-          return -ENOTDIR;
-
-        // make sure that the directory holding the file exists
-            if( fi->flags | O_CREAT )
-                return this->create(path,0777,fi);
-            else
-                return -EEXIST;
-
-        // open the local version of the file
-        Path_t realFile = wrapped / "real";
-        int result = ::open( realFile.c_str(), fi->flags );
+        // otherwise open the file
+        int result = ::open( wrapped.c_str(), O_WRONLY );
         if( result < 0 )
             return -errno;
 
+        // get the file handle
         int fh = result;
 
         // perform the write
@@ -390,11 +322,15 @@ int FuseContext::write (const char *path,
         // close the file
         ::close(fh);
 
-        // increment the version
-        MetaFile meta( wrapped );
-        meta.incrementVersion();
+        // check for error
+        if( result < 0 )
+            return -errno;
 
-        return result_or_errno(result);
+        // increment the version
+        MetaFile meta( wrapped.parent_path() );
+        meta.incrementVersion(wrapped.filename().string());
+
+        return result;
     }
 }
 
@@ -404,21 +340,14 @@ int FuseContext::write (const char *path,
 int FuseContext::truncate (const char *path, off_t length)
 {
     namespace fs = boost::filesystem;
-
     Path_t wrapped = (m_realRoot / path).string();
-    std::cerr << "FuseContext::truncate: "
-              << "\n      path: " << path
-              << "\n          : " << wrapped
-              << "\n    length: " << length
-              << "\n";
-
-    Path_t realFile = wrapped / "real";
-    int result = ::truncate( realFile.c_str(), length  );
+    int result = ::truncate( wrapped.c_str(), length  );
     if( result <  0 )
         return -errno;
 
+    // update metadata
     MetaFile meta( wrapped.parent_path() );
-    meta.truncate( wrapped.filename().string(), length );
+    meta.incrementVersion( wrapped.filename().string() );
 
     return result;
 }
@@ -433,13 +362,6 @@ int FuseContext::ftruncate (const char *path,
     namespace fs = boost::filesystem;
 
     Path_t wrapped = (m_realRoot / path).string();
-    std::cerr << "FuseContext::ftruncate: "
-              << "\n   path: " << path
-              << "\n       : " << (m_realRoot / path)
-              << "\n    len: " << length
-              << "\n     fh: " << fi->fh
-              << "\n";
-
     if(fi->fh)
     {
         RefPtr<FileContext> file = m_openedFiles[fi->fh];
@@ -461,32 +383,47 @@ int FuseContext::ftruncate (const char *path,
 
 
 
-
-
-int FuseContext::release (const char *path, struct fuse_file_info *fi)
+int FuseContext::fsync (const char *path,
+                        int datasync,
+                        struct fuse_file_info *fi)
 {
-    std::cerr << "FuseContext::release: "
-              << "\n   path: " << path
-              << "\n       : " << (m_realRoot / path)
-              << "\n     fh: " << fi->fh
-              << "\n";
+    Path_t wrapped = m_realRoot / path;
 
     if(fi->fh)
     {
         RefPtr<FileContext> file = m_openedFiles[fi->fh];
-        if(file)
+        if( file )
         {
-            int result = ::close(file->fd());
-            if( result < 0 )
-                return -errno;
+            if(datasync)
+                return result_or_errno( ::fdatasync(file->fd()) );
             else
-                return result;
+                return result_or_errno( ::fsync(file->fd()) );
         }
         else
             return -EBADF;
     }
     else
         return -EBADF;
+}
+
+
+
+int FuseContext::flush (const char *path, struct fuse_file_info *fi)
+{
+    Path_t wrapped = m_realRoot / path;
+    return 0;
+}
+
+
+
+int FuseContext::release (const char *path, struct fuse_file_info *fi)
+{
+    if(fi->fh)
+        m_openedFiles.unregisterFile(fi->fh);
+    else
+        return -EBADF;
+
+    return 0;
 }
 
 
@@ -507,23 +444,12 @@ int FuseContext::getattr (const char *path, struct stat *out)
 {
     namespace fs = boost::filesystem;
     Path_t wrapped = m_realRoot / path;
-    std::cerr << "FuseContext::getattr: "
-              << "\n       this: " << (void*) this
-              << "\n    request: " << path
-              << "\n translated: " << wrapped
-              << "\n";
 
-    Path_t realFile = wrapped / "real";
-    if( fs::exists(realFile) )
-    {
-        int result = ::lstat( realFile.c_str(), out );
-        return result_or_errno( result );
-    }
-    else
-    {
-        int result = ::lstat( wrapped.c_str(), out );
-        return result_or_errno( result );
-    }
+    int result = ::lstat( wrapped.c_str(), out );
+    if( result < 0 )
+        return -errno;
+
+    return result;
 }
 
 
@@ -535,11 +461,6 @@ int FuseContext::fgetattr (const char *path,
 {
     namespace fs = boost::filesystem;
     Path_t wrapped = m_realRoot / path;
-    std::cerr << "FuseContext::fgetattr: "
-              << "\n       this: " << (void*) this
-              << "\n    request: " << path
-              << "\n translated: " << wrapped
-              << "\n";
 
     if( fi->fh )
     {
@@ -547,7 +468,10 @@ int FuseContext::fgetattr (const char *path,
         if(file)
         {
             int result = ::fstat(file->fd(),out);
-            return result_or_errno(result);
+            if( result < 0 )
+                return -errno;
+
+            return result;
         }
         else
             return -EBADF;
@@ -558,91 +482,12 @@ int FuseContext::fgetattr (const char *path,
 
 
 
-int FuseContext::readlink (const char *path, char *buf, size_t bufsize)
-{
-    Path_t wrapped = m_realRoot / path;
-
-    std::cerr << "FuseContext::readlink: "
-              << path
-              << "(" << wrapped << ")\n";
-
-    Path_t realFile = wrapped / "real";
-    return ::readlink(  realFile.c_str(), buf, bufsize ) ? -errno : 0;
-}
-
-
-
-
-
-
-
-
-
-int FuseContext::mkdir (const char *path, mode_t mode)
-{
-    namespace fs = boost::filesystem;
-    Path_t wrapped = m_realRoot / path;
-    std::cerr << "FuseContext::mkdir: "
-              << path
-              << "(" << wrapped << ")\n";
-
-
-    // first we make sure that the parent directory exists
-    Path_t parent   = wrapped.parent_path();
-    Path_t filename = wrapped.filename();
-
-    if( !fs::exists(parent) )
-      return -ENOENT;
-
-    try
-    {
-        // add an entry to the directory listing
-        MetaFile parentMeta( parent );
-        parentMeta.mknod( filename.string(), S_IFDIR, mode );
-    }
-    catch( const std::exception& ex )
-    {
-        std::cerr << "FuseContext::mkdir: "
-              << "\n path: " << path
-              << "\n real: " << wrapped
-              << "\n  err: " << ex.what()
-              << "\n";
-        return -EBADR;
-    }
-
-    // create the directory
-    int result = ::mkdir( wrapped.c_str(), mode );
-    if( result )
-        return -errno;
-
-    try
-    {
-        // create the new meta file
-        MetaFile meta( wrapped );
-        meta.init();
-    }
-    catch( const std::exception& ex )
-    {
-        std::cerr << "FuseContext::mkdir: "
-              << "\n path: " << path
-              << "\n real: " << wrapped
-              << "\n  err: " << ex.what()
-              << "\n";
-        return -EBADR;
-    }
-
-    return 0;
-}
-
 
 
 int FuseContext::unlink (const char *path)
 {
     namespace fs = boost::filesystem;
     Path_t wrapped = m_realRoot / path;
-    std::cerr << "FuseContext::unlink: "
-              << path
-              << "(" << wrapped << ")\n";
 
     // first we make sure that the parent directory exists
     Path_t parent   = wrapped.parent_path();
@@ -675,13 +520,14 @@ int FuseContext::unlink (const char *path)
 
 
 
-int FuseContext::rmdir (const char *path)
+
+
+
+
+int FuseContext::mkdir (const char *path, mode_t mode)
 {
     namespace fs = boost::filesystem;
     Path_t wrapped = m_realRoot / path;
-    std::cerr << "rmdir: "
-              << path
-              << "(" << wrapped << ")\n";
 
     // first we make sure that the parent directory exists
     Path_t parent   = wrapped.parent_path();
@@ -690,266 +536,46 @@ int FuseContext::rmdir (const char *path)
     if( !fs::exists(parent) )
       return -ENOENT;
 
-    // unlink the directory holding the file contents, the meta file,
-    // and the staged file
-    fs::remove_all( wrapped );
+    try
+    {
+        // add an entry to the directory listing
+        MetaFile parentMeta( parent );
+        parentMeta.mknod( filename.string() );//, S_IFDIR, mode );
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "FuseContext::mkdir: "
+              << "\n path: " << path
+              << "\n real: " << wrapped
+              << "\n  err: " << ex.what()
+              << "\n";
+        return -EINVAL;
+    }
 
-    // remove the entry from the parent
-    MetaFile parentMeta( parent );
-    parentMeta.unlink( filename.string() );
+    // create the directory
+    int result = ::mkdir( wrapped.c_str(), mode );
+    if( result )
+        return -errno;
+
+    try
+    {
+        // create the new meta file
+        MetaFile meta( wrapped );
+        meta.init();
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "FuseContext::mkdir: "
+              << "\n path: " << path
+              << "\n real: " << wrapped
+              << "\n  err: " << ex.what()
+              << "\n";
+        return -EINVAL;
+    }
 
     return 0;
 }
 
-
-
-int FuseContext::symlink (const char *oldpath, const char *newpath)
-{
-    Path_t oldwrap = m_realRoot / oldpath;
-    Path_t newwrap = m_realRoot / newpath;
-
-    std::cerr << "FuseContext::simlink: "
-              << "\n   old: " << oldpath
-              << "\n      : " << oldwrap
-              << "\n   new: " << newpath
-              << "\n      : " << newwrap
-              << "\n";
-
-    return result_or_errno( ::symlink( oldwrap.c_str(), newwrap.c_str() ) );
-}
-
-
-
-int FuseContext::rename (const char *oldpath, const char *newpath)
-{
-    namespace fs = boost::filesystem;
-    Path_t oldwrap = m_realRoot / oldpath;
-    Path_t newwrap = m_realRoot / newpath;
-
-    std::cerr << "FuseContext::rename: "
-              << "\n   old: " << oldpath
-              << "\n      : " << oldwrap
-              << "\n   new: " << newpath
-              << "\n      : " << newwrap
-              << "\n";
-
-    // if the move overwrites a file then copy data, increment version, and
-    // unlink the old file
-    Path_t oldreal = oldwrap / "real";
-    Path_t newreal = newwrap / "real";
-    if( fs::exists( oldreal ) )
-    {
-        if( fs::exists( newreal ) )
-        {
-            int result = ::rename( oldreal.c_str(), newreal.c_str() );
-            MetaFile(newwrap).incrementVersion();
-            MetaFile(oldwrap.parent_path()).unlink( oldwrap.filename().string() );
-            return result;
-        }
-        // otherwise try to move the containing directory
-        else
-        {
-            int result = ::rename( oldwrap.c_str(), newwrap.c_str() );
-            // todo: reinitialize the meta data
-            return result;
-        }
-    }
-    else
-    {
-        int result = ::rename( oldwrap.c_str(), newwrap.c_str() );
-        // todo: reinitialize the meta data
-        return result;
-    }
-}
-
-
-
-int FuseContext::link (const char *oldpath, const char *newpath)
-{
-    Path_t oldwrap = m_realRoot / oldpath;
-    Path_t newwrap = m_realRoot / newpath;
-
-    std::cerr << "FuseContext::link: "
-              << "\n   old: " << oldpath
-              << "\n      : " << oldwrap
-              << "\n   new: " << newpath
-              << "\n      : " << newwrap
-              << "\n";
-
-    return result_or_errno( ::link( oldwrap.c_str(), newwrap.c_str() ) );
-}
-
-
-
-int FuseContext::chmod (const char *path, mode_t mode)
-{
-    namespace fs = boost::filesystem;
-    Path_t wrapped = m_realRoot / path;
-    std::cerr << "FuseContext::chmod: "
-              << "\n    path: " << path
-              << "\n        : " << wrapped
-              << "\n    mode: " << mode
-              << "\n";
-
-    // if it's not a directory
-    Path_t realFile = wrapped / "real";
-    if( fs::exists(realFile) )
-    {
-        int result = ::chmod( realFile.c_str(), mode );
-        return result_or_errno( result );
-    }
-    // if it is a directory
-    else
-    {
-        int result = ::chmod( wrapped.c_str(), mode );
-        return result_or_errno( result );
-    }
-}
-
-
-
-int FuseContext::chown (const char *path, uid_t owner, gid_t group)
-{
-    namespace fs = boost::filesystem;
-    Path_t wrapped = (m_realRoot / path);
-    std::cerr << "FuseContext::chown: "
-              << "\n    path: " << path
-              << "\n        : " << (m_realRoot/path)
-              << "\n     uid: " << owner
-              << "\n     gid: " << group
-              << "\n";
-
-    // if it's not a directory
-    Path_t realFile = wrapped / "real";
-    if( fs::exists(realFile) )
-    {
-        int result = ::chown( realFile.c_str(), owner, group );
-        return result_or_errno( result );
-    }
-    // if it is a directory
-    else
-    {
-        int result = ::chown( wrapped.c_str(), owner, group);
-        return result_or_errno( result );
-    }
-}
-
-
-
-
-
-
-
-//int FuseContext::utime (const char *, struct utimbuf *)
-//{
-//
-//}
-
-
-
-
-
-
-
-
-
-int FuseContext::statfs (const char *path, struct statvfs *buf)
-{
-    Path_t wrapped = m_realRoot / path;
-    std::cerr << "FuseContext::statfs: "
-              << "\n   path: " << path
-              << "\n   real: " << wrapped
-              << "\n";
-
-    return result_or_errno( ::statvfs( wrapped.c_str(), buf ) );
-}
-
-
-
-int FuseContext::flush (const char *path, struct fuse_file_info *fi)
-{
-    Path_t wrapped = m_realRoot / path;
-    std::cerr << "FuseContext::flush: "
-              << "\n   path: " << path
-              << "\n   real: " << wrapped
-              << "\n     fh: " << fi->fh
-              << "\n";
-    return 0;
-}
-
-
-
-
-
-
-
-int FuseContext::fsync (const char *path,
-                        int datasync,
-                        struct fuse_file_info *fi)
-{
-    Path_t wrapped = m_realRoot / path;
-    std::cerr << "FuseContext::fsync: "
-              << "\n   path: " << path
-              << "\n       : " << wrapped
-              << "\n     ds: " << datasync
-              << "\n     fh: " << fi->fh
-              << "\n";
-
-    if(fi->fh)
-    {
-        RefPtr<FileContext> file = m_openedFiles[fi->fh];
-        if( file )
-        {
-            if(datasync)
-                return result_or_errno( ::fdatasync(file->fd()) );
-            else
-                return result_or_errno( ::fsync(file->fd()) );
-        }
-        else
-            return -EBADF;
-    }
-    else
-        return -EBADF;
-}
-
-
-
-int FuseContext::setxattr (const char *path,
-                            const char *key,
-                            const char *value,
-                            size_t bufsize,
-                            int unknown)
-{
-    std::cerr << "FuseContext::setxattr" << std::endl;
-    return 0;
-}
-
-
-
-int FuseContext::getxattr (const char *path,
-                            const char *key,
-                            char *value,
-                            size_t bufsize)
-{
-    std::cerr << "FuseContext::getxattr" << std::endl;
-    return 0;
-}
-
-
-
-int FuseContext::listxattr (const char *path, char *buf, size_t bufsize)
-{
-    std::cerr << "FuseContext::listxattr" << std::endl;
-    return 0;
-}
-
-
-
-int FuseContext::removexattr (const char *path, const char *key)
-{
-    std::cerr << "FuseContext::removexattr" << std::endl;
-    return 0;
-}
 
 
 
@@ -968,7 +594,7 @@ int FuseContext::opendir (const char *path, struct fuse_file_info *fi)
           << "\n   real: " << wrapped
           << "\n  error: " << ex.what()
           << "\n";
-        return -ENOMEM;
+        return -EINVAL;
     }
 
     return 0;
@@ -983,14 +609,14 @@ int FuseContext::readdir (const char *path,
                         struct fuse_file_info *fi)
 {
     Path_t wrapped = m_realRoot / path;
-    std::cerr << "FuseContext::readdir" << std::endl;
-    std::cerr << "readdir: "
-                 "\n   this: " << (void*)this <<
-                 "\n   path: " << path <<
-                 "\n       : " << (m_realRoot / path) <<
-                 "\n    off: " << offset <<
-                 "\n     fh: " << fi->fh <<
-                 std::endl;
+//    std::cerr << "FuseContext::readdir" << std::endl;
+//    std::cerr << "readdir: "
+//                 "\n   this: " << (void*)this <<
+//                 "\n   path: " << path <<
+//                 "\n       : " << (m_realRoot / path) <<
+//                 "\n    off: " << offset <<
+//                 "\n     fh: " << fi->fh <<
+//                 std::endl;
 
     RefPtr<FileContext> file;
     if( fi->fh )
@@ -1000,11 +626,10 @@ int FuseContext::readdir (const char *path,
             return -EBADF;
     }
     else
-    {
         file = FileContext::create(wrapped,-1);
-    }
 
     file->meta().readdir(buf,filler,offset);
+
     return 0;
 }
 
@@ -1014,11 +639,6 @@ int FuseContext::releasedir (const char *path,
                                 struct fuse_file_info *fi)
 {
     Path_t wrapped = m_realRoot / path;
-    std::cerr << "FuseContext::releasedir: "
-              << "\n   path: " << path
-              << "\n   real: " << wrapped
-              << "\n     fh: " << fi->fh
-              << "\n";
 
     if(fi->fh)
         m_openedFiles.unregisterFile(fi->fh);
@@ -1035,12 +655,6 @@ int FuseContext::fsyncdir (const char *path,
                             struct fuse_file_info *fi)
 {
     Path_t wrapped = m_realRoot / path;
-    std::cerr << "FuseContext::syncdir: "
-              << "\n   path: " << path
-              << "\n       : " << wrapped
-              << "\n     ds: " << datasync
-              << "\n     fh: " << fi->fh
-              << "\n";
     return 0;
 }
 
@@ -1048,16 +662,166 @@ int FuseContext::fsyncdir (const char *path,
 
 
 
+
+int FuseContext::rmdir (const char *path)
+{
+    namespace fs = boost::filesystem;
+    Path_t wrapped = m_realRoot / path;
+
+    // first we make sure that the parent directory exists
+    Path_t parent   = wrapped.parent_path();
+    Path_t filename = wrapped.filename();
+
+    if( !fs::exists(parent) )
+      return -ENOENT;
+
+    // unlink the directory holding the file contents, the meta file,
+    // and the staged file
+    fs::remove_all( wrapped );
+
+    try
+    {
+        // remove the entry from the parent
+        MetaFile parentMeta( parent );
+        parentMeta.unlink( filename.string() );
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "FuseContext::rmdir: "
+              << "\n path: " << path
+              << "\n real: " << wrapped
+              << "\n  err: " << ex.what()
+              << "\n";
+    }
+
+    return 0;
+}
+
+
+
+int FuseContext::symlink (const char *oldpath, const char *newpath)
+{
+    Path_t oldwrap = m_realRoot / oldpath;
+    Path_t newwrap = m_realRoot / newpath;
+
+    int result = ::symlink( oldwrap.c_str(), newwrap.c_str() );
+    if( result < 0 )
+        return -errno;
+
+    return result;
+}
+
+
+int FuseContext::readlink (const char *path, char *buf, size_t bufsize)
+{
+    Path_t wrapped = m_realRoot / path;
+    int result = ::readlink(  wrapped.c_str(), buf, bufsize );
+    if( result < 0 )
+        return -errno;
+
+    return result;
+}
+
+
+
+
+
+
+int FuseContext::link (const char *oldpath, const char *newpath)
+{
+    Path_t oldwrap = m_realRoot / oldpath;
+    Path_t newwrap = m_realRoot / newpath;
+
+    int result = ::link( oldwrap.c_str(), newwrap.c_str() );
+    if( result < 0 )
+        return -errno;
+
+    return result;
+}
+
+
+
+
+int FuseContext::rename (const char *oldpath, const char *newpath)
+{
+    namespace fs = boost::filesystem;
+    Path_t oldwrap = m_realRoot / oldpath;
+    Path_t newwrap = m_realRoot / newpath;
+
+    // if the move overwrites a file then copy data, increment version, and
+    // unlink the old file
+    if( fs::exists( newwrap ) )
+    {
+        // perform the move
+        int result = ::rename( oldwrap.c_str(), newwrap.c_str() );
+        if( result < 0 )
+            return -errno;
+
+        MetaFile(newwrap.parent_path())
+            .incrementVersion( newwrap.filename().string() );
+
+        MetaFile(oldwrap.parent_path())
+            .unlink( oldwrap.filename().string() );
+
+        return result;
+    }
+    else
+    {
+        int result = ::rename( oldwrap.c_str(), newwrap.c_str() );
+        if( result < 0 )
+            return -errno;
+
+        MetaFile(newwrap.parent_path())
+            .mknod( newwrap.filename().string() );
+
+        MetaFile(oldwrap.parent_path())
+            .unlink( oldwrap.filename().string() );
+
+        return result;
+    }
+}
+
+
+
+int FuseContext::chmod (const char *path, mode_t mode)
+{
+    namespace fs = boost::filesystem;
+    Path_t wrapped = m_realRoot / path;
+
+    // if it's not a directory
+    int result = ::chmod( wrapped.c_str(), mode );
+    if( result < 0 )
+        return -errno;
+
+    return result;
+}
+
+
+
+int FuseContext::chown (const char *path, uid_t owner, gid_t group)
+{
+    namespace fs = boost::filesystem;
+    Path_t wrapped = (m_realRoot / path);
+
+    int result = ::chown( wrapped.c_str(), owner, group);
+    if( result < 0 )
+        return -errno;
+
+    return result;
+}
+
+
+
+
 int FuseContext::access (const char *path, int mode)
 {
     Path_t wrapped = m_realRoot / path;
-    std::cerr << "FuseContext::access: "
-              << "\n   path: " << path
-              << "\n       : " << wrapped
-              << "\n   mode: " << mode
-              << "\n";
 
-    return result_or_errno( ::access( wrapped.c_str(), mode ) );
+    int result = ::access( wrapped.c_str(), mode );
+    if( result < 0 )
+        return -errno;
+
+    return result;
 }
 
 
@@ -1073,18 +837,19 @@ int FuseContext::lock (const char *path,
                         struct flock *fl)
 {
     Path_t wrapped = m_realRoot / path;
-    std::cerr << "FuseContext::lock: "
-              << "\n   path: " << path
-              << "\n       : " << wrapped
-              << "\n       : " << cmd
-              << "\n     fh: " << fi->fh
-              << "\n";
 
     if( fi->fh )
     {
-        return result_or_errno(
-                fcntl(fi->fh,cmd,fl)
-                );
+        RefPtr<FileContext> file = m_openedFiles[fi->fh];
+        if(file)
+        {
+            int result = fcntl(fi->fh,cmd,fl);
+            if( result < 0 )
+                return -errno;
+            return result;
+        }
+        else
+            return -EBADF;
     }
     else
         return -EBADF;
@@ -1094,12 +859,7 @@ int FuseContext::lock (const char *path,
 
 int FuseContext::utimens (const char *path, const struct timespec tv[2])
 {
-    std::cerr << "FuseContext::utimens: "
-              << "\n   path: " << path
-              << "\n       : " << (m_realRoot / path)
-              << "\n     t1: " << tv[0].tv_sec << " : " << tv[0].tv_nsec
-              << "\n     t2: " << tv[1].tv_sec << " : " << tv[1].tv_nsec
-              << "\n";
+    Path_t wrapped = m_realRoot / path;
 
     timeval times[2];
     for(int i=0; i < 2; i++)
@@ -1108,17 +868,113 @@ int FuseContext::utimens (const char *path, const struct timespec tv[2])
         times[i].tv_usec= tv[i].tv_nsec / 1000;
     }
 
-    return result_or_errno(
-            ::utimes(path,times)
-             );
+    int result = ::utimes( wrapped.c_str(), times );
+    if( result < 0 )
+        return -errno;
+
+    return result;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+int FuseContext::statfs (const char *path, struct statvfs *buf)
+{
+    Path_t wrapped = m_realRoot / path;
+    int result = ::statvfs( wrapped.c_str(), buf );
+    if( result < 0 )
+        return -errno;
+
+    return result;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+int FuseContext::setxattr (const char *path,
+                            const char *key,
+                            const char *value,
+                            size_t bufsize,
+                            int flags)
+{
+    Path_t wrapped = m_realRoot / path;
+    int result = ::setxattr( wrapped.c_str(), key, value, bufsize, flags );
+    if( result < 0 )
+        return -errno;
+
+    return result;
+}
+
+
+
+int FuseContext::getxattr (const char *path,
+                            const char *key,
+                            char *value,
+                            size_t bufsize)
+{
+    Path_t wrapped = m_realRoot / path;
+    int result = ::getxattr( wrapped.c_str(), key, value, bufsize );
+    if( result < 0 )
+        return -errno;
+
+    return result;
+}
+
+
+
+int FuseContext::listxattr (const char *path, char *buf, size_t bufsize)
+{
+    Path_t wrapped = m_realRoot / path;
+    int result = ::listxattr( wrapped.c_str(), buf, bufsize );
+    if( result < 0 )
+        return -errno;
+
+    return result;
+}
+
+
+
+int FuseContext::removexattr (const char *path, const char *key)
+{
+    Path_t wrapped = m_realRoot / path;
+    int result = ::removexattr( wrapped.c_str(), key );
+    if( result < 0 )
+        return -errno;
+
+    return result;
+}
+
+
+
+
+
+
+
 
 
 
 int FuseContext::bmap (const char *, size_t blocksize, uint64_t *idx)
 {
-    std::cerr << "FuseContext::bmap" << std::endl;
-    return 0;
+    return -EINVAL;
 }
 
 
@@ -1130,8 +986,7 @@ int FuseContext::ioctl (const char *path,
                         unsigned int flags,
                         void *data)
 {
-    std::cerr << "FuseContext::ioctl" << std::endl;
-    return 0;
+    return -EINVAL;
 }
 
 
@@ -1139,8 +994,7 @@ int FuseContext::ioctl (const char *path,
 int FuseContext::poll ( const char *, struct fuse_file_info *,
                       struct fuse_pollhandle *ph, unsigned *reventsp)
 {
-    std::cerr << "FuseContext::poll" << std::endl;
-    return 0;
+    return -EINVAL;
 }
 
 

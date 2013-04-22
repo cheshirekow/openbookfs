@@ -180,6 +180,40 @@ class FuseContext
          */
         int ftruncate (const char *, off_t, struct fuse_file_info *);
 
+        /** Synchronize file contents
+         *
+         * If the datasync parameter is non-zero, then only the user data
+         * should be flushed, not the meta data.
+         *
+         * Changed in version 2.2
+         */
+        int fsync (const char *, int, struct fuse_file_info *);
+
+        /** Possibly flush cached data
+         *
+         * BIG NOTE: This is not equivalent to fsync().  It's not a
+         * request to sync dirty data.
+         *
+         * Flush is called on each close() of a file descriptor.  So if a
+         * filesystem wants to return write errors in close() and the file
+         * has cached dirty data, this is a good place to write back data
+         * and return any errors.  Since many applications ignore close()
+         * errors this is not always useful.
+         *
+         * NOTE: The flush() method may be called more than once for each
+         * open().  This happens if more than one file descriptor refers
+         * to an opened file due to dup(), dup2() or fork() calls.  It is
+         * not possible to determine if a flush is final, so each flush
+         * should be treated equally.  Multiple write-flush sequences are
+         * relatively rare, so this shouldn't be a problem.
+         *
+         * Filesystems shouldn't assume that flush will always be called
+         * after some writes, or that if will be called at all.
+         *
+         * Changed in version 2.2
+         */
+        int flush (const char *, struct fuse_file_info *);
+
         /// Release an open file
         /**
          * Release is called when there are no more references to an open
@@ -226,15 +260,8 @@ class FuseContext
          */
         int fgetattr (const char *, struct stat *, struct fuse_file_info *);
 
-        /** Read the target of a symbolic link
-         *
-         * The buffer should be filled with a null terminated string.  The
-         * buffer size argument includes the space for the terminating
-         * null character.  If the linkname is too long to fit in the
-         * buffer, it should be truncated.  The return value should be 0
-         * for success.
-         */
-        int readlink (const char *, char *, size_t);
+        /** Remove a file */
+        int unlink (const char *);
 
         /* Deprecated, use readdir() instead */
         // int getdir (const char *, fuse_dirh_t, fuse_dirfil_t);
@@ -248,92 +275,6 @@ class FuseContext
          * correct directory type bits use  mode|S_IFDIR
          * */
         int mkdir (const char *, mode_t);
-
-        /** Remove a file */
-        int unlink (const char *);
-
-        /** Remove a directory */
-        int rmdir (const char *);
-
-        /** Create a symbolic link */
-        int symlink (const char *, const char *);
-
-        /** Rename a file */
-        int rename (const char *, const char *);
-
-        /** Create a hard link to a file */
-        int link (const char *, const char *);
-
-        /** Change the permission bits of a file */
-        int chmod (const char *, mode_t);
-
-        /** Change the owner and group of a file */
-        int chown (const char *, uid_t, gid_t);
-
-        /** Change the access and/or modification times of a file
-         *
-         * Deprecated, use utimens() instead.
-         */
-        //int utime (const char *, struct utimbuf *);
-
-
-
-
-
-        /** Get file system statistics
-         *
-         * The 'f_frsize', 'f_favail', 'f_fsid' and 'f_flag' fields are ignored
-         *
-         * Replaced 'struct statfs' parameter with 'struct statvfs' in
-         * version 2.5
-         */
-        int statfs (const char *, struct statvfs *);
-
-        /** Possibly flush cached data
-         *
-         * BIG NOTE: This is not equivalent to fsync().  It's not a
-         * request to sync dirty data.
-         *
-         * Flush is called on each close() of a file descriptor.  So if a
-         * filesystem wants to return write errors in close() and the file
-         * has cached dirty data, this is a good place to write back data
-         * and return any errors.  Since many applications ignore close()
-         * errors this is not always useful.
-         *
-         * NOTE: The flush() method may be called more than once for each
-         * open().  This happens if more than one file descriptor refers
-         * to an opened file due to dup(), dup2() or fork() calls.  It is
-         * not possible to determine if a flush is final, so each flush
-         * should be treated equally.  Multiple write-flush sequences are
-         * relatively rare, so this shouldn't be a problem.
-         *
-         * Filesystems shouldn't assume that flush will always be called
-         * after some writes, or that if will be called at all.
-         *
-         * Changed in version 2.2
-         */
-        int flush (const char *, struct fuse_file_info *);
-
-        /** Synchronize file contents
-         *
-         * If the datasync parameter is non-zero, then only the user data
-         * should be flushed, not the meta data.
-         *
-         * Changed in version 2.2
-         */
-        int fsync (const char *, int, struct fuse_file_info *);
-
-        /** Set extended attributes */
-        int setxattr (const char *, const char *, const char *, size_t, int);
-
-        /** Get extended attributes */
-        int getxattr (const char *, const char *, char *, size_t);
-
-        /** List extended attributes */
-        int listxattr (const char *, char *, size_t);
-
-        /** Remove extended attributes */
-        int removexattr (const char *, const char *);
 
         /** Open directory
          *
@@ -386,6 +327,46 @@ class FuseContext
          */
         int fsyncdir (const char *, int, struct fuse_file_info *);
 
+        /** Remove a directory */
+        int rmdir (const char *);
+
+
+
+        /** Create a symbolic link */
+        int symlink (const char *, const char *);
+
+         /** Read the target of a symbolic link
+         *
+         * The buffer should be filled with a null terminated string.  The
+         * buffer size argument includes the space for the terminating
+         * null character.  If the linkname is too long to fit in the
+         * buffer, it should be truncated.  The return value should be 0
+         * for success.
+         */
+        int readlink (const char *, char *, size_t);
+
+        /** Create a hard link to a file */
+        int link (const char *, const char *);
+
+
+
+
+
+        /** Rename a file */
+        int rename (const char *, const char *);
+
+        /** Change the permission bits of a file */
+        int chmod (const char *, mode_t);
+
+        /** Change the owner and group of a file */
+        int chown (const char *, uid_t, gid_t);
+
+        /** Change the access and/or modification times of a file
+         *
+         * Deprecated, use utimens() instead.
+         */
+        //int utime (const char *, struct utimbuf *);
+
         /**
          * Check file access permissions
          *
@@ -398,10 +379,6 @@ class FuseContext
          * Introduced in version 2.5
          */
         int access (const char *, int);
-
-
-
-
 
         /**
          * Perform POSIX file locking operation
@@ -445,6 +422,35 @@ class FuseContext
          * Introduced in version 2.6
          */
         int utimens (const char *, const struct timespec tv[2]);
+
+
+
+
+
+        /** Get file system statistics
+         *
+         * The 'f_frsize', 'f_favail', 'f_fsid' and 'f_flag' fields are ignored
+         *
+         * Replaced 'struct statfs' parameter with 'struct statvfs' in
+         * version 2.5
+         */
+        int statfs (const char *, struct statvfs *);
+
+        /** Set extended attributes */
+        int setxattr (const char *, const char *, const char *, size_t, int);
+
+        /** Get extended attributes */
+        int getxattr (const char *, const char *, char *, size_t);
+
+        /** List extended attributes */
+        int listxattr (const char *, char *, size_t);
+
+        /** Remove extended attributes */
+        int removexattr (const char *, const char *);
+
+
+
+
 
         /**
          * Map block index within file to block index within device

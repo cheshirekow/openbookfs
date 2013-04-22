@@ -41,6 +41,7 @@ FileContext::FileContext( const Path_t& path, int fd ):
 
 FileContext::~FileContext()
 {
+    ::close(m_fd);
     if(m_changed)
         m_meta.incrementVersion();
 }
