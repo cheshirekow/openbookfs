@@ -38,23 +38,16 @@ void MetaFile::init()
     // create
     m_sql << "CREATE TABLE IF NOT EXISTS version ("
             "path VARCHAR (255) NOT NULL, "
-            "client INTEGER UNIQUE NOT NULL, "
+            "client INTEGER NOT NULL, "
             "version INTEGER NOT NULL) ";
 
     // insert the version entry for "me"
-    m_sql << "INSERT INTO version (client,version) VALUES (0,0)";
+    m_sql << "INSERT OR IGNORE INTO version "
+                "(path,client,version) VALUES ('.',0,0)";
 
-    // note: file types are
-    // S_IFREG  : regular file
-    // S_IFDIR  : subdirectory
-    // S_IFIFO  : named pipe
-    // S_IFSOCK : unix socket
-    // S_IFSYM  : symbolic link
-    //          : hard link (not yet supported)
+    // create the directory entries
     m_sql << "CREATE TABLE IF NOT EXISTS entries ("
             "path VARCHAR(255) UNIQUE NOT NULL, "
-//            "type INTEGER NOT NULL DEFAULT(1), "
-//            "mode INTEGER NOT NULL, "
             "subscribed INTEGER NOT NULL )";
 }
 
@@ -63,13 +56,9 @@ void MetaFile::mknod( const std::string& path ) //, mode_t type, mode_t mode )
     // insert the entry if the file is in fact new
     m_sql << "INSERT OR IGNORE INTO entries ("
                 "path, "
-//                "type, "
-//                "mode, "
                 "subscribed "
                 ") VALUES ("
                 << "'" << path << "', "
-//                << type << ", "
-//                << mode << ", "
                 << 0    <<
                 ")";
 
@@ -103,7 +92,7 @@ void MetaFile::readdir( void *buf, fuse_fill_dir_t filler, off_t offset )
     typedef boost::tuple<std::string,int> row_t;
     typedef soci::rowset<row_t>           rowset_t;
     rowset_t rs = m_sql.prepare
-        << "SELECT path,type FROM entries ORDER BY path LIMIT -1 OFFSET "
+        << "SELECT path FROM entries ORDER BY path LIMIT -1 OFFSET "
         << offset;
 
     for( auto& row : rs )
@@ -118,7 +107,7 @@ void MetaFile::readdir( void *buf, fuse_fill_dir_t filler, off_t offset )
 
 void MetaFile::incrementVersion()
 {
-    m_sql << "UPDATE version SET version=version+1 WHERE client=0";
+    m_sql << "UPDATE version SET version=version+1 WHERE path='.' AND client=0";
 }
 
 void MetaFile::incrementVersion( const std::string& path )
