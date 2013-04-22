@@ -44,6 +44,7 @@
 #include <crypto++/base64.h>
 #include <soci/sqlite3/soci-sqlite3.h>
 #include "SelectSpec.h"
+#include "MetaFile.h"
 
 
 
@@ -366,37 +367,8 @@ void Backend::setDataDir( const std::string& dir )
     sql.close();
 
     // initialize the root directory if not already initialized
-    std::string rootMeta = (fs::path(m_rootDir) / "obfs.sqlite").string();
-    sql.open(sqlite3,rootMeta);
-
-    sql << "CREATE TABLE IF NOT EXISTS meta ("
-            "key TEXT UNIQUE NOT NULL, "
-            "value)";
-
-    // note: states are
-    // 0: synced
-    // 1: dirty
-    // 2: stale
-    // 3: conflict
-    sql << "INSERT OR IGNORE INTO meta (key,value) values ('state',0)";
-
-    sql << "CREATE TABLE IF NOT EXISTS version ("
-            "client TEXT UNIQUE NOT NULL, "
-            "version INTEGER NOT NULL) ";
-
-    // note: file types are
-    // 1: regular file
-    // 2: subdirectory
-    // 3: symbolic link
-    // 4: hard link (not yet supported)
-    sql << "CREATE TABLE IF NOT EXISTS entries ("
-            "path VARCHAR(255) UNIQUE NOT NULL, "
-            "type INTEGER NOT NULL DEFAULT(1), "
-            "subscribed INTEGER NOT NULL, "
-            "size INTEGER NOT NULL, "
-            "ctime INTEGER NOT NULL, "
-            "mtime INTEGER NOT NULL) ";
-    m_dataDir = dir;
+    MetaFile rootMeta( m_rootDir );
+    rootMeta.init();
 
     std::cout << "Done initializing\n";
 }

@@ -81,7 +81,7 @@ void MetaFile::mknod( const std::string& path ) //, mode_t type, mode_t mode )
     m_sql << "INSERT OR IGNORE INTO version ("
                 "path, "
                 "client, "
-                "version, "
+                "version "
                 ") VALUES ("
                 << "'" << path << "', "
                 << 0 << ", "
