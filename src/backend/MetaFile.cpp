@@ -89,17 +89,13 @@ void MetaFile::unlink( const std::string& path )
 
 void MetaFile::readdir( void *buf, fuse_fill_dir_t filler, off_t offset )
 {
-    typedef boost::tuple<std::string,int> row_t;
-    typedef soci::rowset<row_t>           rowset_t;
+    typedef soci::rowset<std::string> rowset_t;
     rowset_t rs = m_sql.prepare
         << "SELECT path FROM entries ORDER BY path LIMIT -1 OFFSET "
         << offset;
 
-    for( auto& row : rs )
+    for( auto& path : rs )
     {
-        const std::string& path = row.get<0>();
-        const int          type = row.get<1>();
-
         if( filler(buf,path.c_str(),NULL,++offset) )
             return;
     }
