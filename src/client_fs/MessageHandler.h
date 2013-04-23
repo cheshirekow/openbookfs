@@ -80,8 +80,8 @@ class MessageHandler
         /// typed message  handlers
         void handleMessage( TypedMessage msg, messages::Ping*         upcast );
         void handleMessage( TypedMessage msg, messages::Pong*         upcast );
-        void handleMessage( TypedMessage msg, messages::RequestChunk* upcast );
-        void handleMessage( TypedMessage msg, messages::Commit*       upcast );
+//        void handleMessage( TypedMessage msg, messages::RequestChunk* upcast );
+//        void handleMessage( TypedMessage msg, messages::Commit*       upcast );
 
 
 

@@ -327,8 +327,9 @@ void ClientHandler::handshake()
     // the client must respond with a key exchange
     std::cout << "Waiting for KEY_EXCHANGE message " << std::endl;
     char type = m_msg.read(m_fd);
-    if( type != MSG_KEY_EXCHANGE )
-        ex()() << "Received message : " << messageIdToString(type)
+    MessageId mid = parseMessageId(type);
+    if( mid != MSG_KEY_EXCHANGE )
+        ex()() << "Received message : " << messageIdToString(mid)
                << " (" << (int)type << ") "
                << "when expecting MSG_KEY_EXCHANGE, terminating client";
 
@@ -423,11 +424,12 @@ void ClientHandler::handshake()
     // read the client's public key
     std::cout << "Reading AUTH_REQ" << std::endl;
     type = m_msg.read(m_fd,dec);
+    mid = parseMessageId(type);
     dec.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
 
     if( type != MSG_AUTH_REQ )
         ex()() << "Protocol Error: expected AUTH_REQ from client, instead got"
-               << messageIdToString(type) << "(" << (int)type << ")";
+               << messageIdToString(mid) << "(" << (int)type << ")";
 
     msgs::AuthRequest* authReq =
             static_cast<msgs::AuthRequest*>( m_msg[MSG_AUTH_REQ] );
@@ -474,10 +476,11 @@ void ClientHandler::handshake()
     // read the challenge solution
     std::cout << "Waiting for AUTH_SOLUTION" << std::endl;
     type = m_msg.read(m_fd,dec);
+    mid = parseMessageId(type);
     dec.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
     if( type != MSG_AUTH_SOLN )
         ex()() << "Protocol error: Expected AUTH_SOLN, got "
-               << messageIdToString(type) << " (" << (int)type << ")";
+               << messageIdToString(mid) << " (" << (int)type << ")";
 
     msgs::AuthSolution* authSoln =
             static_cast<msgs::AuthSolution*>( m_msg[MSG_AUTH_SOLN]);
@@ -530,11 +533,12 @@ void ClientHandler::handshake()
 
         // read the users reply
         type = m_msg.read(m_fd,dec);
+        mid = parseMessageId(type);
         dec.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
 
         if( type != MSG_AUTH_SOLN )
             ex()() << "Protocol error, expected AUTH_SOLN but got "
-                   << messageIdToString(type) << " (" <<(int)type << ")";
+                   << messageIdToString(mid) << " (" <<(int)type << ")";
 
         // if wrongs size
         if( authSoln->solution().size() != SHA512::DIGESTSIZE )

@@ -43,7 +43,19 @@ class TimeVal
         operator timeval&();
         operator const timeval&() const;
         timeval* ptr();
+
+        long int& sec();
+        const long int& sec() const;
+        long int& usec();
+        const long int& usec() const;
+
+        TimeVal& operator+=( const TimeVal& other );
+        TimeVal& operator-=( const TimeVal& other );
 };
+
+
+TimeVal operator+( const TimeVal& a, const TimeVal& b );
+TimeVal operator-( const TimeVal& a, const TimeVal& b );
 
 
 

@@ -82,8 +82,8 @@ void* MessageHandler::main()
 
             MSG_HANDLE(MSG_PING)
             MSG_HANDLE(MSG_PONG)
-            MSG_HANDLE(MSG_REQUEST_CHUNK)
-            MSG_HANDLE(MSG_COMMIT)
+//            MSG_HANDLE(MSG_REQUEST_CHUNK)
+//            MSG_HANDLE(MSG_COMMIT)
 
             default:
             {
@@ -144,140 +144,140 @@ void MessageHandler::handleMessage(
     m_server->sendMessage(out);
 }
 
-void MessageHandler::handleMessage(
-        TypedMessage msg, messages::RequestChunk* upcast )
-{
-    namespace fs = boost::filesystem;
-
-    std::cout << "Handling request for file chunk"
-              << "\n      path: " << upcast->path()
-              << "\n   version: " << upcast->base_version()
-                                  << "." << upcast->client_version()
-              << "\n    offset: " << upcast->offset()
-              << "\n      size: " << upcast->size()
-              << std::endl;
-
-    fs::path filePath = fs::path(m_client->realRoot()) / (upcast->path());
-    fs::path metaPath = fs::path(m_client->realRoot()) / (upcast->path() + ".obfsmeta");
-
-    // create our response object
-    messages::FileChunk* chunk = new messages::FileChunk();
-    chunk->set_path(   upcast->path() );
-    chunk->set_msg_id( upcast->msg_id() );
-    chunk->set_offset( upcast->offset() );
-
-    // first open and lock the meta data file, this will prevent file
-    // deletion, modification, update while we're working
-    try
-    {
-        MetaData meta(metaPath);
-        meta.load();
-        chunk->set_client_version(meta.clientVersion());
-        chunk->set_base_version(meta.baseVersion());
-
-        // if the current version is higher than the requested version then
-        // we need to reply without data
-        if( upcast->base_version() == meta.baseVersion() &&
-                upcast->client_version() == meta.clientVersion() )
-        {
-            int fd = ::open( filePath.c_str(), O_RDWR );
-            if( fd < 0 )
-            {
-                meta.flush();
-                ex()() << "Failed to open file for reading a chunk: "
-                          << filePath << " (" << errno << ") : "
-                          << strerror(errno);
-            }
-
-            std::cout << "Opened the file" << std::endl;
-
-            off_t   off       = upcast->offset();           //< requested offset
-            off_t   pagesize  = sysconf(_SC_PAGE_SIZE);     //< system page size
-            off_t   off_n     = pagesize * (off/pagesize);  //< round down
-            off_t   extra     = off - off_n;
-            off_t   size      = upcast->size() + extra;
-
-            // map the file
-            void* ptr = mmap(0,size,PROT_READ|PROT_WRITE,MAP_SHARED,fd,off_n);
-            if( ptr == MAP_FAILED )
-            {
-                meta.flush();
-                ex()() << "Failed to map file " << filePath << " for reading "
-                       << "a chunk";
-            }
-
-            std::cout << "Mapped the file" << std::endl;
-
-            // copy contents into the message
-            chunk->set_data( (char*)ptr + extra, upcast->size() );
-
-            std::cout << "Copied the data" << std::endl;
-
-            // unmap and close the file
-            munmap(ptr,upcast->size());
-            ::close(fd);
-        }
-        meta.flush();
-    }
-    catch( std::exception& ex )
-    {
-        std::cerr << "Failed to deliver file chunk: " << ex.what();
-    }
-
-    // send the message
-    TypedMessage out( MSG_FILE_CHUNK, chunk );
-    m_server->sendMessage(out);
-
-    std::cout << "Sent reply message" << std::endl;
-}
-
-
-
-void MessageHandler::handleMessage(
-        TypedMessage msg, messages::Commit* upcast )
-{
-    namespace fs = boost::filesystem;
-
-    std::cout << "Handling commit of file " << upcast->path() << std::endl;
-
-    fs::path filePath = fs::path(m_client->realRoot()) / (upcast->path());
-    fs::path metaPath = fs::path(m_client->realRoot()) / (upcast->path() + ".obfsmeta");
-
-    // first open and lock the meta data file, this will prevent file
-    // deletion, modification, update while we're working
-    try
-    {
-        MetaData meta(metaPath);
-        meta.load();
-
-        // make sure this isn't a repeat message
-        if( upcast->base_version() != meta.baseVersion() )
-        {
-            meta.flush();
-            ex()() << "Received a commit message from "
-                   << upcast->base_version() << "." << upcast->client_version()
-                   << " to " << upcast->new_version() << ".0 but the client "
-                   << "version is " << meta.baseVersion() << "."
-                   << meta.clientVersion() << " so ignoring the message ";
-        }
-
-        meta.set_baseVersion(upcast->new_version());
-        meta.set_clientVersion( meta.clientVersion()
-                                - upcast->client_version() );
-
-        std::cout << "Updating meta data for " << filePath
-                  << "\n     base: " << meta.baseVersion()
-                  << "\n   client: " << meta.clientVersion()
-                  << std::endl;
-        meta.flush();
-    }
-    catch( std::exception& ex )
-    {
-        std::cerr << "Failed to commit new version: " << ex.what();
-    }
-
-    // todo: send ack
-}
+//void MessageHandler::handleMessage(
+//        TypedMessage msg, messages::RequestChunk* upcast )
+//{
+//    namespace fs = boost::filesystem;
+//
+//    std::cout << "Handling request for file chunk"
+//              << "\n      path: " << upcast->path()
+//              << "\n   version: " << upcast->base_version()
+//                                  << "." << upcast->client_version()
+//              << "\n    offset: " << upcast->offset()
+//              << "\n      size: " << upcast->size()
+//              << std::endl;
+//
+//    fs::path filePath = fs::path(m_client->realRoot()) / (upcast->path());
+//    fs::path metaPath = fs::path(m_client->realRoot()) / (upcast->path() + ".obfsmeta");
+//
+//    // create our response object
+//    messages::FileChunk* chunk = new messages::FileChunk();
+//    chunk->set_path(   upcast->path() );
+//    chunk->set_msg_id( upcast->msg_id() );
+//    chunk->set_offset( upcast->offset() );
+//
+//    // first open and lock the meta data file, this will prevent file
+//    // deletion, modification, update while we're working
+//    try
+//    {
+//        MetaData meta(metaPath);
+//        meta.load();
+//        chunk->set_client_version(meta.clientVersion());
+//        chunk->set_base_version(meta.baseVersion());
+//
+//        // if the current version is higher than the requested version then
+//        // we need to reply without data
+//        if( upcast->base_version() == meta.baseVersion() &&
+//                upcast->client_version() == meta.clientVersion() )
+//        {
+//            int fd = ::open( filePath.c_str(), O_RDWR );
+//            if( fd < 0 )
+//            {
+//                meta.flush();
+//                ex()() << "Failed to open file for reading a chunk: "
+//                          << filePath << " (" << errno << ") : "
+//                          << strerror(errno);
+//            }
+//
+//            std::cout << "Opened the file" << std::endl;
+//
+//            off_t   off       = upcast->offset();           //< requested offset
+//            off_t   pagesize  = sysconf(_SC_PAGE_SIZE);     //< system page size
+//            off_t   off_n     = pagesize * (off/pagesize);  //< round down
+//            off_t   extra     = off - off_n;
+//            off_t   size      = upcast->size() + extra;
+//
+//            // map the file
+//            void* ptr = mmap(0,size,PROT_READ|PROT_WRITE,MAP_SHARED,fd,off_n);
+//            if( ptr == MAP_FAILED )
+//            {
+//                meta.flush();
+//                ex()() << "Failed to map file " << filePath << " for reading "
+//                       << "a chunk";
+//            }
+//
+//            std::cout << "Mapped the file" << std::endl;
+//
+//            // copy contents into the message
+//            chunk->set_data( (char*)ptr + extra, upcast->size() );
+//
+//            std::cout << "Copied the data" << std::endl;
+//
+//            // unmap and close the file
+//            munmap(ptr,upcast->size());
+//            ::close(fd);
+//        }
+//        meta.flush();
+//    }
+//    catch( std::exception& ex )
+//    {
+//        std::cerr << "Failed to deliver file chunk: " << ex.what();
+//    }
+//
+//    // send the message
+//    TypedMessage out( MSG_FILE_CHUNK, chunk );
+//    m_server->sendMessage(out);
+//
+//    std::cout << "Sent reply message" << std::endl;
+//}
+//
+//
+//
+//void MessageHandler::handleMessage(
+//        TypedMessage msg, messages::Commit* upcast )
+//{
+//    namespace fs = boost::filesystem;
+//
+//    std::cout << "Handling commit of file " << upcast->path() << std::endl;
+//
+//    fs::path filePath = fs::path(m_client->realRoot()) / (upcast->path());
+//    fs::path metaPath = fs::path(m_client->realRoot()) / (upcast->path() + ".obfsmeta");
+//
+//    // first open and lock the meta data file, this will prevent file
+//    // deletion, modification, update while we're working
+//    try
+//    {
+//        MetaData meta(metaPath);
+//        meta.load();
+//
+//        // make sure this isn't a repeat message
+//        if( upcast->base_version() != meta.baseVersion() )
+//        {
+//            meta.flush();
+//            ex()() << "Received a commit message from "
+//                   << upcast->base_version() << "." << upcast->client_version()
+//                   << " to " << upcast->new_version() << ".0 but the client "
+//                   << "version is " << meta.baseVersion() << "."
+//                   << meta.clientVersion() << " so ignoring the message ";
+//        }
+//
+//        meta.set_baseVersion(upcast->new_version());
+//        meta.set_clientVersion( meta.clientVersion()
+//                                - upcast->client_version() );
+//
+//        std::cout << "Updating meta data for " << filePath
+//                  << "\n     base: " << meta.baseVersion()
+//                  << "\n   client: " << meta.clientVersion()
+//                  << std::endl;
+//        meta.flush();
+//    }
+//    catch( std::exception& ex )
+//    {
+//        std::cerr << "Failed to commit new version: " << ex.what();
+//    }
+//
+//    // todo: send ack
+//}
 
 void MessageHandler::init(
         Client*         client,

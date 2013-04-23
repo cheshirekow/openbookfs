@@ -28,34 +28,15 @@
 #define OPENBOOK_MESSAGES_H_
 
 #include "messages.pb.h"
+#include "msg_gen/MessageId.h"
+#include "msg_gen/MessageMap.h"
+#include "msg_gen/MessageStr.h"
 
 namespace   openbook {
 namespace filesystem {
 
-/// unique numeric identifiers for each message type
-enum MessageId
-{
-    MSG_QUIT=0,             ///< special message to quit
-    MSG_PING,
-    MSG_PONG,
-    MSG_DH_PARAMS,
-    MSG_KEY_EXCHANGE,
-    MSG_CEK,
-    MSG_AUTH_REQ,
-    MSG_AUTH_CHALLENGE,
-    MSG_AUTH_SOLN,
-    MSG_AUTH_RESULT,
-    MSG_JOB_FINISHED,
-    MSG_NEW_VERSION,
-    MSG_REQUEST_CHUNK,
-    MSG_FILE_CHUNK,
-    MSG_COMMIT,
-    INVALID_MESSAGE,
-    NUM_MSG = INVALID_MESSAGE,
-};
-
-/// returns a string corresponding to the specified message id
-const char* messageIdToString( char id );
+/// parses a byte into a MessageId
+MessageId parseMessageId( char byte );
 
 /// all messages are subclasses of googles protocol buffer messages
 typedef google::protobuf::Message Message;
@@ -68,23 +49,12 @@ struct TypedMessage
     Message*    msg;    ///< base class pointer to the message
 
     /// fill constructor with defaults
-    TypedMessage( MessageId type=INVALID_MESSAGE, Message* msg=0):
+    TypedMessage( MessageId type=MSG_INVALID, Message* msg=0):
         type(type),
         msg(msg)
     {}
 };
 
-/// maps MessageId to the message type
-template < MessageId ID > struct MessageType;
-
-/// @cond MessageTypeTemplateInstantiations
-template <> struct MessageType<MSG_PING>         { typedef messages::Ping         type; };
-template <> struct MessageType<MSG_PONG>         { typedef messages::Pong         type; };
-template <> struct MessageType<MSG_NEW_VERSION>  { typedef messages::NewVersion   type; };
-template <> struct MessageType<MSG_REQUEST_CHUNK>{ typedef messages::RequestChunk type; };
-template <> struct MessageType<MSG_FILE_CHUNK>   { typedef messages::FileChunk    type; };
-template <> struct MessageType<MSG_COMMIT>       { typedef messages::Commit       type; };
-/// @endcond MessageTypeTemplateInstantiations
 
 /// upcasts a generic message pointer to it's derived type
 template < MessageId ID >

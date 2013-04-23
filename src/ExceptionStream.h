@@ -61,7 +61,58 @@ class ExceptionStream :
 };
 
 
+/// an exception which carries a standard error code
+class CodedException :
+    public std::exception
+{
+    private:
+        int         m_code;
+        std::string m_message;
+
+    public:
+        CodedException( int code, const std::string& msg ):
+            m_code(code),
+            m_message(msg)
+        {}
+
+        virtual ~CodedException() throw() {}
+
+        int code(){ return m_code; }
+
+        virtual const char* what() const throw()
+        {
+            return m_message.c_str();
+        }
+};
+
+/// used to simplify the process of generating an exception message
+class CodedExceptionStream :
+    public std::stringstream
+{
+    private:
+        int     m_error;
+
+    public:
+        CodedExceptionStream( int error ):
+            m_error(error)
+        {}
+
+        ~CodedExceptionStream()
+        {
+            throw CodedException( m_error, str().c_str() );
+        }
+
+        std::ostream& operator()()
+        {
+            return *this;
+        }
+};
+
+
+
+
 typedef ExceptionStream<std::runtime_error> ex;
+typedef CodedExceptionStream codedExcept;
 
 
 } // namespace filesystem

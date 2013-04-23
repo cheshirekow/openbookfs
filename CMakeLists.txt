@@ -24,6 +24,11 @@ configure_file(
     "${PROJECT_SOURCE_DIR}/doxy.config.in"
     "${PROJECT_BINARY_DIR}/doxy.config" 
     )
+    
+configure_file( 
+    "${PROJECT_SOURCE_DIR}/doxystyle.css"
+    "${PROJECT_BINARY_DIR}/doxystyle.css" 
+    )
 
 # use Jan Woetzel's doxygen doc target
 include("TargetDoc" OPTIONAL)

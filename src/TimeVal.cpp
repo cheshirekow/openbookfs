@@ -51,6 +51,51 @@ timeval* TimeVal::ptr()
     return &m_tv;
 }
 
+long int& TimeVal::sec()
+{
+    return m_tv.tv_sec;
+}
+
+const long int& TimeVal::sec() const
+{
+    return m_tv.tv_sec;
+}
+
+long int& TimeVal::usec()
+{
+    return m_tv.tv_usec;
+}
+
+const long int& TimeVal::usec() const
+{
+    return m_tv.tv_usec;
+}
+
+
+TimeVal operator+( const TimeVal& a, const TimeVal& b )
+{
+    TimeVal result( a.sec() + b.sec(), a.usec() + b.usec() );
+    if( result.usec() > 1000000 )
+    {
+        result.sec()++;
+        result.usec() -= 1000000;
+    }
+
+    return result;
+}
+
+TimeVal operator-( const TimeVal& a, const TimeVal& b )
+{
+    TimeVal result(a.sec() - b.sec(),a .usec() - b.usec());
+    if( result.usec() < 0 )
+    {
+        result.sec()--;
+        result.usec() += 1000000;
+    }
+    return result;
+}
+
+
 
 
 } // namespace filesystem

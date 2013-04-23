@@ -319,7 +319,7 @@ void ServerHandler::createConnection()
     hints.ai_protocol = 0;
 
     if( m_client->addressFamily() == "AF_INET" )
-        hints.ai_family     = AF_INET;
+        hints.ai_family = AF_INET;
     else if( m_client->addressFamily() == "AF_INET6" )
         hints.ai_family = AF_INET6;
     else if( m_client->addressFamily() != "AF_UNSPEC" )
@@ -443,9 +443,10 @@ void ServerHandler::handshake()
 
     // first we receive a DH parameter messages
     type = m_msg.read(sockfd);
-    if( type != MSG_DH_PARAMS )
+    MessageId mid = parseMessageId( type );
+    if( mid != MSG_DH_PARAMS )
         ex()() << "Protocol error, first message received from server is "
-               << messageIdToString(type) << "(" << (int)type << "), "
+               << messageIdToString(mid) << "(" << (int)type << "), "
                << "expecting DH_PARAMS";
 
     msgs::DiffieHellmanParams* dhParams =
@@ -500,10 +501,10 @@ void ServerHandler::handshake()
     // send unencrypted key exchange
     m_msg.write(sockfd,MSG_KEY_EXCHANGE);
     type = m_msg.read(sockfd);
-
-    if( type != MSG_KEY_EXCHANGE )
+    mid = parseMessageId( type );
+    if( mid != MSG_KEY_EXCHANGE )
         ex()()  << "Protocol error: expected KEY_EXCHANGE message, got "
-                << messageIdToString(type);
+                << messageIdToString(mid);
 
     // read the servers keys
     cryp::SecByteBlock epubServer(
@@ -534,9 +535,10 @@ void ServerHandler::handshake()
 
     // receive the content encryption key from the server
     type = m_msg.read(sockfd);
-    if( type != MSG_CEK )
+    mid = parseMessageId( type );
+    if( mid != MSG_CEK )
         ex()() << "Protocol error: expected CEK message, instead got "
-               << messageIdToString(type) << "(" << (int)type << ") ";
+               << messageIdToString(mid) << "(" << (int)type << ") ";
 
     // verify message sizes
     msgs::ContentKey* contentKey =
@@ -619,9 +621,10 @@ void ServerHandler::handshake()
     // we expect a challenge
     type = m_msg.read(sockfd,dec);
     dec.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
+    mid = parseMessageId( type );
     if( type != MSG_AUTH_CHALLENGE )
         ex()() << "Protocol error: expected AUTH_CHALLENGE but received "
-               << messageIdToString(type) << " (" << (int)type << ")";
+               << messageIdToString(mid) << " (" << (int)type << ")";
 
     std::string solution;
     msgs::AuthChallenge* authChallenge =
@@ -646,10 +649,11 @@ void ServerHandler::handshake()
     enc.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
 
     type = m_msg.read(sockfd,dec);
+    mid = parseMessageId( type );
     dec.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
     if( type != MSG_AUTH_RESULT )
         ex()() << "Protocol Error: expected AUTH_RESULT but got "
-               << messageIdToString(type) << " (" << (int)type << ")";
+               << messageIdToString(mid) << " (" << (int)type << ")";
 
     msgs::AuthResult* authResult =
             static_cast<msgs::AuthResult*>( m_msg[MSG_AUTH_RESULT] );
@@ -658,11 +662,12 @@ void ServerHandler::handshake()
 
     // now we expect a authorization challenge
     type = m_msg.read(sockfd,dec);
+    mid = parseMessageId( type );
     dec.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
 
-    if( type != MSG_AUTH_CHALLENGE )
+    if( mid != MSG_AUTH_CHALLENGE )
         ex()() << "Protocol Error: expected AUTH_CHALLENGE but got "
-               << messageIdToString(type) << " (" << (int)type << ")";
+               << messageIdToString(mid) << " (" << (int)type << ")";
     if( authChallenge->type() != msgs::AuthChallenge::AUTHORIZE )
         ex()() << "Protocol Error: expected AUTHORIZE challenge";
     if( authChallenge->challenge().size() != cryp::SHA512::BLOCKSIZE )
@@ -694,11 +699,12 @@ void ServerHandler::handshake()
 
     // read response
     type = m_msg.read(sockfd,dec);
+    mid = parseMessageId( type );
     dec.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes() );
 
     if( type != MSG_AUTH_RESULT )
         ex()() << "Protocol Error: expected AUTH_RESULT but got "
-               << messageIdToString(type) << " (" << (int)type << ")";
+               << messageIdToString(mid) << " (" << (int)type << ")";
 
     if( authResult->response() )
         std::cout << "Authorized!!" << std::endl;

@@ -95,15 +95,15 @@ int OpenbookFS::mknod (const char *path, mode_t mode, dev_t dev)
     }
 
     // send message to server
-    messages::NewVersion* msg = new messages::NewVersion();
-    msg->set_job_id( m_client->nextId() );
-    msg->set_base_version(0);
-    msg->set_client_version(0);
-    msg->set_path(path);
-    msg->set_size(0);
-
-    TypedMessage tm(MSG_NEW_VERSION,msg);
-    m_comm->sendMessage(tm);
+//    messages::NewVersion* msg = new messages::NewVersion();
+//    msg->set_job_id( m_client->nextId() );
+//    msg->set_base_version(0);
+//    msg->set_client_version(0);
+//    msg->set_path(path);
+//    msg->set_size(0);
+//
+//    TypedMessage tm(MSG_NEW_VERSION,msg);
+//    m_comm->sendMessage(tm);
 
     return 0;
 }
@@ -142,15 +142,15 @@ int OpenbookFS::create (const char *path,
     }
 
     // send message to server
-    messages::NewVersion* msg = new messages::NewVersion();
-    msg->set_job_id( m_client->nextId() );
-    msg->set_base_version(0);
-    msg->set_client_version(0);
-    msg->set_path(path);
-    msg->set_size(0);
+//    messages::NewVersion* msg = new messages::NewVersion();
+//    msg->set_job_id( m_client->nextId() );
+//    msg->set_base_version(0);
+//    msg->set_client_version(0);
+//    msg->set_path(path);
+//    msg->set_size(0);
 
-    TypedMessage tm(MSG_NEW_VERSION,msg);
-    m_comm->sendMessage(tm);
+//    TypedMessage tm(MSG_NEW_VERSION,msg);
+//    m_comm->sendMessage(tm);
 
     return 0;
 }
@@ -281,31 +281,31 @@ int OpenbookFS::truncate (const char *path, off_t length)
     fs::path metaPath = m_realRoot / (std::string(path) + ".obfsmeta");
 
     // send message to server
-    messages::NewVersion* msg = new messages::NewVersion();
-    msg->set_job_id( m_client->nextId() );
-    msg->set_path(path);
-    msg->set_size(length);
-
-    try
-    {
-        MetaData metaData( metaPath );
-        metaData.load();
-        // increment client version
-        metaData.set_clientVersion( metaData.clientVersion() + 1 );
-        msg->set_base_version(metaData.baseVersion());
-        msg->set_client_version(metaData.clientVersion());
-        metaData.flush();
-
-        // send the message
-        TypedMessage tm(MSG_NEW_VERSION,msg);
-        m_comm->sendMessage(tm);
-    }
-    catch( std::exception& ex )
-    {
-        std::cerr << "Problem creating updating meta data: "
-                  << ex.what() << std::endl;
-        delete msg;
-    }
+//    messages::NewVersion* msg = new messages::NewVersion();
+//    msg->set_job_id( m_client->nextId() );
+//    msg->set_path(path);
+//    msg->set_size(length);
+//
+//    try
+//    {
+//        MetaData metaData( metaPath );
+//        metaData.load();
+//        // increment client version
+//        metaData.set_clientVersion( metaData.clientVersion() + 1 );
+//        msg->set_base_version(metaData.baseVersion());
+//        msg->set_client_version(metaData.clientVersion());
+//        metaData.flush();
+//
+//        // send the message
+//        TypedMessage tm(MSG_NEW_VERSION,msg);
+//        m_comm->sendMessage(tm);
+//    }
+//    catch( std::exception& ex )
+//    {
+//        std::cerr << "Problem creating updating meta data: "
+//                  << ex.what() << std::endl;
+//        delete msg;
+//    }
 
     return result;
 }
@@ -378,44 +378,44 @@ int OpenbookFS::release (const char *path, struct fuse_file_info *fi)
         {
             fs::path metaPath = m_realRoot / (std::string(path) + ".obfsmeta");
 
-            messages::NewVersion* msg = new messages::NewVersion();
-            msg->set_job_id( m_client->nextId() );
-            msg->set_path(path);
-
-            try
-            {
-                // stat the file to get the size
-                struct stat fs;
-                int result = ::fstat(fi->fh,&fs);
-                if( result < 0 )
-                    ex()() << "Failed to stat file " << path
-                           << " after changes " ;
-                msg->set_size(fs.st_size);
-
-                MetaData metaData( metaPath );
-                metaData.load();
-                // increment client version
-                metaData.set_clientVersion( metaData.clientVersion() + 1 );
-                msg->set_base_version(metaData.baseVersion());
-                msg->set_client_version(metaData.clientVersion());
-
-                std::cout << "Sending new version message for " << path
-                          << "\n     base: " << metaData.baseVersion()
-                          << "\n   client: " << metaData.clientVersion()
-                          << std::endl;
-
-                metaData.flush();
-
-                // send the message
-                TypedMessage tm(MSG_NEW_VERSION,msg);
-                m_comm->sendMessage(tm);
-            }
-            catch( std::exception& ex )
-            {
-                std::cerr << "Problem updating meta data: "
-                          << ex.what() << std::endl;
-                delete msg;
-            }
+//            messages::NewVersion* msg = new messages::NewVersion();
+//            msg->set_job_id( m_client->nextId() );
+//            msg->set_path(path);
+//
+//            try
+//            {
+//                // stat the file to get the size
+//                struct stat fs;
+//                int result = ::fstat(fi->fh,&fs);
+//                if( result < 0 )
+//                    ex()() << "Failed to stat file " << path
+//                           << " after changes " ;
+//                msg->set_size(fs.st_size);
+//
+//                MetaData metaData( metaPath );
+//                metaData.load();
+//                // increment client version
+//                metaData.set_clientVersion( metaData.clientVersion() + 1 );
+//                msg->set_base_version(metaData.baseVersion());
+//                msg->set_client_version(metaData.clientVersion());
+//
+//                std::cout << "Sending new version message for " << path
+//                          << "\n     base: " << metaData.baseVersion()
+//                          << "\n   client: " << metaData.clientVersion()
+//                          << std::endl;
+//
+//                metaData.flush();
+//
+//                // send the message
+//                TypedMessage tm(MSG_NEW_VERSION,msg);
+//                m_comm->sendMessage(tm);
+//            }
+//            catch( std::exception& ex )
+//            {
+//                std::cerr << "Problem updating meta data: "
+//                          << ex.what() << std::endl;
+//                delete msg;
+//            }
         }
 
         // close the file and mark it as closed mark the fd as closed

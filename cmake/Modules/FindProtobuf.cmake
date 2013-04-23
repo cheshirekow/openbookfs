@@ -72,6 +72,10 @@ function( protoc PROTO_FILES )
                 ${CMAKE_CURRENT_BINARY_DIR}/${SOURCE_FILE} )
 
         list( APPEND INPUT_FILES ${CMAKE_CURRENT_SOURCE_DIR}/${PROTO_FILE} )
+        
+        message( STATUS "protoc:\n"
+          "INPUT_FILES   : ${INPUT_FILES}\n"
+          "OUTPUT_FILES  : ${OUTPUT_FILES}\n" )
 
         set_source_files_properties(
             ${CMAKE_CURRENT_BINARY_DIR}/${HEADER_FILE} GENERATED )        
@@ -79,6 +83,9 @@ function( protoc PROTO_FILES )
             ${CMAKE_CURRENT_BINARY_DIR}/${SOURCE_FILE} GENERATED )
     endforeach()
     
+    message( STATUS "custom command:\n"
+          "OUTPUT  : ${OUTPUT_FILES}\n"
+          "command : ${Protobuf_COMPILER} ARGS -I=${CMAKE_CURRENT_SOURCE_DIR} --cpp_out=${CMAKE_CURRENT_BINARY_DIR} ${INPUT_FILES}\n" )
     add_custom_command( OUTPUT ${OUTPUT_FILES}
       COMMAND ${Protobuf_COMPILER} ARGS -I=${CMAKE_CURRENT_SOURCE_DIR} --cpp_out=${CMAKE_CURRENT_BINARY_DIR} ${INPUT_FILES}
       DEPENDS ${PROTO_FILES}

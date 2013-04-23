@@ -25,41 +25,23 @@
  */
 
 #include "messages.h"
+#include "ExceptionStream.h"
 
 namespace   openbook {
 namespace filesystem {
 
-
-const char* messageIdToString( char id )
+MessageId parseMessageId( char byte )
 {
-    const char* str[] =
-    {
-        "QUIT",
-        "PING",
-        "PONG",
-        "DH_PARAMS",
-        "KEY_EXCHANGE",
-        "CEK",
-        "AUTH_REQ",
-        "AUTH_CHALLENGE",
-        "AUTH_SOLUTION",
-        "AUTH_RESULT",
-        "JOB_FINISHED",
-        "NEW_VERSION",
-        "REQUEST_CHUNK",
-        "FILE_CHUNK",
-        "COMMIT",
-        "INVALID_ID"
-    };
-
-    if( 0 < id && id < NUM_MSG )
-        return str[id];
+    if( 0 < byte && byte < NUM_MSG )
+        return (MessageId)(byte);
     else
-        return str[NUM_MSG];
+    {
+        ex()() << "Invalid message type: " << (int)byte;
+        return MSG_INVALID;
+    }
 }
-
-
 
 } // namespace filesystem
 } // namespace openbook
 
+#include "msg_gen/MessageStr.cpp"

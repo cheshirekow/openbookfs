@@ -26,11 +26,13 @@
  *  10. libboost-filesystem-dev
  *  11. libfuse-dev
  *  12. libsqlite3-dev
+ *  13. libsigc++-dev
  *
  *  @verbatim
      $ sudo apt-get install build-essential cmake doxygen mercurial \
          sqlite3 libcrypto++-dev libtclap-dev libyaml-dev \
-         libboost-filesystem-dev  libfuse-dev libsqlite3-dev
+         libboost-filesystem-dev  libfuse-dev libsqlite3-dev\
+         libsigc++-dev
  @endverbatim
  *
  *  @subsection Build_protobuf Google Protocol Buffers

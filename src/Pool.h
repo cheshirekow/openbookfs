@@ -28,6 +28,7 @@
 #define OPENBOOK_POOL_H_
 
 #include <vector>
+#include <cpp-pthreads.h>
 
 namespace   openbook {
 namespace filesystem {
@@ -42,11 +43,18 @@ class Pool
 
     public:
         /// initializes the free store
-        Pool(unsigned int size)
+        Pool(unsigned int size=10)
         {
             m_mutex.init();
             pthreads::ScopedLock lock(m_mutex);
             m_available.reserve(size);
+        }
+
+        // increase the reserve
+        void reserve( int size )
+        {
+            if( size > m_available.capacity() )
+                m_available.reserve(size);
         }
 
         ~Pool()
@@ -87,6 +95,18 @@ class Pool
             {
                 pthreads::ScopedLock lock(m_mutex);
                 size = m_available.size();
+            }
+            return size;
+        }
+
+        int capacity()
+        {
+            int size = 0;
+
+            // lock scope
+            {
+                pthreads::ScopedLock lock(m_mutex);
+                size = m_available.capacity();
             }
             return size;
         }

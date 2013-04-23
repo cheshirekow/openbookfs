@@ -1,0 +1,18 @@
+displayName: test_a
+dataDir: ${CMAKE_CURRENT_BINARY_DIR}/backend/a/data
+localSocket:
+  service: 3030
+remoteSocket:
+  family: AF_INET
+  node: any
+  service: 3031
+clientSocket:
+  family: AF_INET
+  node: any
+maxConnections: 20
+mountPoints:
+  - mount: ${CMAKE_CURRENT_BINARY_DIR}/backend/a/mountPoint
+    reldir: 
+    argv:
+      - -s
+      - -d

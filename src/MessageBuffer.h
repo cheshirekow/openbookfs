@@ -170,6 +170,23 @@ class MessageBuffer
         void writeEnc( int fd[2] , TypedMessage msg );
 
 
+        /// read an encrypted message from a socket,
+        /**
+         *  Allocates an appropriate message and returns it in the result. An
+         *  exception will be thrown on any errors. The message is allocated
+         *  on the heap instead of using the internal buffers. The
+         *  allocated message pointer is owned by the caller
+         */
+        TypedMessage readPlain( int fd[2] );
+
+        /// write an encryupted message to a socket, will throw a
+        /// MessageException on any problems
+        /**
+         *  Does not destroy the message, do the desctruction in the calling
+         *  method
+         */
+        void writePlain( int fd[2] , TypedMessage msg );
+
 
 
 };

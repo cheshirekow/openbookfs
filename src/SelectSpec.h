@@ -103,8 +103,8 @@ class SelectSpec
         /// set the timeout of the spec
         void setTimeout( const TimeVal& to );
 
-        /// call select()
-        int wait();
+        /// call select() with timeout
+        int wait(bool withTimeout=true);
 
         /// returns whether the specified fd is ready for the requested
         /// operation

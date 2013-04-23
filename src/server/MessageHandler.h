@@ -84,8 +84,8 @@ class MessageHandler
         /// typed message  handler
         void handleMessage( TypedMessage msg, messages::Ping*       upcast );
         void handleMessage( TypedMessage msg, messages::Pong*       upcast );
-        void handleMessage( TypedMessage msg, messages::NewVersion* upcast );
-        void handleMessage( TypedMessage msg, messages::FileChunk*  upcast );
+//        void handleMessage( TypedMessage msg, messages::NewVersion* upcast );
+//        void handleMessage( TypedMessage msg, messages::FileChunk*  upcast );
 
 
 
