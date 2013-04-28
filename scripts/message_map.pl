@@ -56,11 +56,11 @@ $messageMap =
     ['AUTH_RESULT'       ,'AuthResult'],
     ['SUBSCRIBE'         ,'Subscribe'],
     ['UNSUBSCRIBE'       ,'Unsubscribe'],
+    ['ID_MAP'            ,'IdMap'],
+    ['NODE_INFO'         ,'NodeInfo'],
     ['NEW_VERSION'       ,'NewVersion'],
     ['REQUEST_FILE'      ,'RequestFile'],
-    ['FILE_INFO'         ,'FileInfo'],
     ['FILE_CHUNK'        ,'FileChunk'],
-    ['DIR_INFO'          ,'DirInfo'],
     ['DIR_CHUNK'         ,'DirChunk'],
     ['INVALID'           ,'Invalid'],
 ];

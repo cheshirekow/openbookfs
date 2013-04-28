@@ -23,11 +23,11 @@ void handleMessage( messages::AuthSolution*        msg);
 void handleMessage( messages::AuthResult*          msg);
 void handleMessage( messages::Subscribe*           msg);
 void handleMessage( messages::Unsubscribe*         msg);
+void handleMessage( messages::IdMap*               msg);
+void handleMessage( messages::NodeInfo*            msg);
 void handleMessage( messages::NewVersion*          msg);
 void handleMessage( messages::RequestFile*         msg);
-void handleMessage( messages::FileInfo*            msg);
 void handleMessage( messages::FileChunk*           msg);
-void handleMessage( messages::DirInfo*             msg);
 void handleMessage( messages::DirChunk*            msg);
 void handleMessage( messages::Invalid*             msg);
 

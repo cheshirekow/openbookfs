@@ -307,6 +307,16 @@ void MessageHandler::handleMessage( messages::Unsubscribe* msg )
 
 }
 
+void MessageHandler::handleMessage( messages::IdMap* msg )
+{
+
+}
+
+void MessageHandler::handleMessage( messages::NodeInfo* msg )
+{
+
+}
+
 
 void MessageHandler::handleMessage( messages::NewVersion* msg )
 {
@@ -320,22 +330,11 @@ void MessageHandler::handleMessage( messages::RequestFile* msg )
 }
 
 
-void MessageHandler::handleMessage( messages::FileInfo* msg )
-{
-
-}
-
-
 void MessageHandler::handleMessage( messages::FileChunk* msg )
 {
 
 }
 
-
-void MessageHandler::handleMessage( messages::DirInfo* msg )
-{
-
-}
 
 
 void MessageHandler::handleMessage( messages::DirChunk* msg )
