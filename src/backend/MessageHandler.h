@@ -77,6 +77,7 @@ class MessageHandler
         typedef Pool<MessageHandler> Pool_t;
         typedef RefPtr<AutoMessage>  MsgPtr_t;
         typedef Queue< MsgPtr_t >    MsgQueue_t;
+        typedef std::map<int,int>    PeerMap_t;
 
     private:
         int                 m_peerId;           ///< id of the peer
@@ -86,6 +87,10 @@ class MessageHandler
         MsgQueue_t*         m_outboundQueue;    ///< where we put messages
         pthreads::Mutex     m_mutex;            ///< locks this data
         bool                m_shouldQuit;       ///< main loop termination
+        PeerMap_t           m_peerMap;          ///< maps peer ids on the remote
+                                                ///  machine to ids on this
+                                                ///  machine
+
 
     public:
         MessageHandler();

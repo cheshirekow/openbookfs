@@ -56,6 +56,8 @@ class Backend
         typedef std::vector<MountPoint*>    USMountMap_t;
         typedef Synchronized<USMountMap_t>  MountMap_t;
         typedef boost::filesystem::path     Path_t;
+        typedef std::map<std::string,int>   USIdMap_t;
+        typedef Synchronized<USIdMap_t>     IdMap_t;
 
         enum Listeners
         {
@@ -91,6 +93,7 @@ class Backend
 
         PeerMap_t   m_peerMap;  ///< maps peer id to connection objects
         MountMap_t  m_mountPts; ///< stores mount points
+        IdMap_t     m_idMap;    ///< maps base64 public keys to ids
 
         // for outgoing connections
         int         m_clientFamily; ///< address family AF_[INET|INET6|UNIX]

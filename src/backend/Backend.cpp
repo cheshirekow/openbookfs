@@ -364,6 +364,18 @@ void Backend::setDataDir( const std::string& dir )
             "client_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
             "client_key TEXT NOT NULL UNIQUE, "
             "client_name TEXT NOT NULL) ";
+
+    // initialize the id map
+    std::string base64Key;
+    int         peerId;
+    typedef soci::rowset<soci::row>    rowset;
+    typedef std::pair<std::string,int> mapentry;
+    rowset rs =
+            ( sql.prepare << "select client_id,client_key FROM known_clients");
+    for( auto& row : rs )
+        m_idMap.lockFor()->insert(
+                mapentry(row.get<std::string>(1) ,row.get<int>(0) ) );
+
     sql.close();
 
     // initialize the root directory if not already initialized
