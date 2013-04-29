@@ -93,6 +93,43 @@ message UserInterfaceReply {
     optional string msg   = 2;  //< message to display to user
 }
 
+// simple message which requests info from the backend
+enum GetRequest
+{
+    PEERS           = 1;   // request list of connected peers
+    KNOWN_PEERS     = 2;   // list all known peers
+    MOUNT_POINTS    = 3;   // list all mount points and their status
+}
+
+// make a request to the backend
+message GetBackendInfo {
+    optional GetRequest req = 1;    //< the request
+}
+
+// an entry in a peer list
+message PeerEntry{
+    optional int32  peerId      = 1; //< backend-specific peer-id
+    optional string displayName = 2; //< configured display name
+    optional string publicKey   = 3; //< base64 encoded public key
+}
+
+// a list of peers sent back to the UI
+message PeerList {
+    repeated PeerEntry peers = 1; //< list of peers
+}
+
+// an entry in a list of mount points
+message MountPoint {
+    optional string  relpath = 1;   //< relative path in logical fs
+    optional string  path    = 2;   //< the path of the mount point
+    repeated string  argv    = 3;   //< arguments for fuse
+}
+
+// a list of mount points sent back to the UI
+message MountList {
+    repeated MountPoint mounts = 1; // < list of mount points
+}
+
 
 // ----------------------------------------------------------------------------
 //             Registered Client Authentication with Server

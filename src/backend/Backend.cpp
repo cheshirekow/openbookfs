@@ -925,7 +925,64 @@ void Backend::attemptConnection( bool isRemote,
     onConnect( clientfd, isRemote );
 }
 
+void Backend::getPeers( messages::PeerList* message )
+{
+    // create sqlite connection
+    soci::session sql(soci::sqlite3, m_dbFile.string() );
 
+    // now select out the id
+    typedef soci::rowset<soci::row> rowset;
+    rowset rs = ( sql.prepare << "SELECT client_id, client_key, client_name "
+                           "FROM known_clients" );
+
+    LockedPtr<USPeerMap_t> peerMap( &m_peerMap );
+
+    for( auto& row : rs )
+    {
+        if( peerMap->find( row.get<int>(0) ) != peerMap->end() )
+        {
+            messages::PeerEntry* entry = message->add_peers();
+            entry->set_peerid     ( row.get<int>(0)         );
+            entry->set_displayname( row.get<std::string>(1) );
+            entry->set_publickey  ( row.get<std::string>(2) );
+        }
+    }
+}
+
+void Backend::getKnownPeers( messages::PeerList* message )
+{
+    // create sqlite connection
+    soci::session sql(soci::sqlite3, m_dbFile.string() );
+
+    // now select out the id
+    typedef soci::rowset<soci::row> rowset;
+    rowset rs = ( sql.prepare << "SELECT client_id, client_key, client_name "
+                           "FROM known_clients" );
+
+    for( auto& row : rs )
+    {
+        messages::PeerEntry* entry = message->add_peers();
+        entry->set_peerid     ( row.get<int>(0)         );
+        entry->set_displayname( row.get<std::string>(1) );
+        entry->set_publickey  ( row.get<std::string>(2) );
+    }
+}
+
+void Backend::getMounts( messages::MountList* message )
+{
+    LockedPtr<USMountMap_t> mountMap( &m_mountPts );
+    for( auto& mount : *mountMap )
+    {
+        messages::MountPoint* entry = message->add_mounts();
+        entry->set_relpath( mount->relDir() );
+        entry->set_path( mount->mountPoint() );
+        for( auto& arg : mount->get_argv() )
+        {
+            std::string* arge = entry->add_argv();
+            *arge = arg;
+        }
+    }
+}
 
 
 void Backend::parse(int argc, char** argv)

@@ -206,6 +206,10 @@ class Backend
                                 const std::string& node,
                                 const std::string& service );
 
+        void getPeers( messages::PeerList* message );
+        void getKnownPeers( messages::PeerList* message );
+        void getMounts( messages::MountList* message );
+
     private:
         /// parses the command line
         void parse( int argc, char** argv );
