@@ -309,7 +309,8 @@ void MessageHandler::handleMessage( messages::Unsubscribe* msg )
 
 void MessageHandler::handleMessage( messages::IdMap* msg )
 {
-
+    for( int i=0; i < msg->peermap_size(); i++ )
+        m_backend->mapPeer( msg->peermap(i), m_peerMap );
 }
 
 void MessageHandler::handleMessage( messages::NodeInfo* msg )

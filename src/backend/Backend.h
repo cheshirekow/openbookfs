@@ -161,6 +161,9 @@ class Backend
         /// return the real root of the filesystem
         const Path_t realRoot(){ return m_rootDir; }
 
+        /// generate a mapping from remote peer id to local peer id
+        void mapPeer( const messages::IdMapEntry& entry, std::map<int,int>& map );
+
 
 
         // -------- CONFIG/UI OPS -----------
