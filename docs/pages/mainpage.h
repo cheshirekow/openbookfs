@@ -62,7 +62,7 @@
      $ hg checkout -r 0316abdc76a8
      $ mkdir build/yaml-cpp
      $ cd build/yaml-cpp
-     $ cmake ../../yaml-cpp
+     $ cmake ../../../yaml-cpp
      $ make
      $ sudo make install
  @endverbatim
