@@ -32,6 +32,7 @@
 #include "Pool.h"
 #include "Marshall.h"
 #include "Queue.h"
+#include "PriorityQueue.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -74,10 +75,10 @@ class MessageHandler
 //                            messages::AuthResult>
 {
     public:
-        typedef Pool<MessageHandler> Pool_t;
-        typedef RefPtr<AutoMessage>  MsgPtr_t;
-        typedef Queue< MsgPtr_t >    MsgQueue_t;
-        typedef std::map<int,int>    PeerMap_t;
+        typedef Pool<MessageHandler>        Pool_t;
+        typedef RefPtr<AutoMessage>         MsgPtr_t;
+        typedef PriorityQueue< MsgPtr_t >   MsgQueue_t;
+        typedef std::map<int,int>           PeerMap_t;
 
     private:
         int                 m_peerId;           ///< id of the peer

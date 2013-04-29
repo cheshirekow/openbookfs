@@ -136,8 +136,9 @@ class Backend
         template <typename Message_t>
         void sendMessage( int peerId, Message_t* msg )
         {
-            USPeerMap_t::iterator it = m_peerMap.lockFor()->find(peerId);
-            if( it == m_peerMap.subvert()->end() )
+            LockedPtr<USPeerMap_t> peerMap( &m_peerMap );
+            USPeerMap_t::iterator it = peerMap->find(peerId);
+            if( it == peerMap->end() )
             {
                 std::cout << "Backend: not sending "
                           << messageIdToString( MessageTypeToId<Message_t>::ID )
