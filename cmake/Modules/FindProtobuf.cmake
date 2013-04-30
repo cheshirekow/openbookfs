@@ -85,9 +85,9 @@ function( protoc PROTO_FILES )
     
     message( STATUS "custom command:\n"
           "OUTPUT  : ${OUTPUT_FILES}\n"
-          "command : ${Protobuf_COMPILER} ARGS -I=${CMAKE_CURRENT_SOURCE_DIR} --cpp_out=${CMAKE_CURRENT_BINARY_DIR} ${INPUT_FILES}\n" )
+          "command : ${Protobuf_COMPILER} -I=${CMAKE_CURRENT_SOURCE_DIR} --cpp_out=${CMAKE_CURRENT_BINARY_DIR} ${INPUT_FILES}\n" )
     add_custom_command( OUTPUT ${OUTPUT_FILES}
-      COMMAND ${Protobuf_COMPILER} ARGS -I=${CMAKE_CURRENT_SOURCE_DIR} --cpp_out=${CMAKE_CURRENT_BINARY_DIR} ${INPUT_FILES}
+      COMMAND ${Protobuf_COMPILER} -I=${CMAKE_CURRENT_SOURCE_DIR} --cpp_out=${CMAKE_CURRENT_BINARY_DIR} ${INPUT_FILES}
       DEPENDS ${PROTO_FILES}
     )
 endfunction()
