@@ -1,21 +1,19 @@
-#ifndef OPENBOOK_FS_CLUI_REMOTESOCKETOPTIONS_H_
-#define OPENBOOK_FS_CLUI_REMOTESOCKETOPTIONS_H_
-
-#include "Options.h"
+#include "connection.h"
+#include "global.h"
+#include "FileDescriptor.h"
+#include "ReferenceCounted.h"
+#include "ExceptionStream.h"
+#include "SetRemoteSocket.h"
 
 namespace   openbook {
 namespace filesystem {
 namespace       clui {
 
-class RemoteSocketOptions:
-	public Options
-{
-	TCLAP::UnlabeledValueArg<int> addressFamily;
-	TCLAP::UnlabeledValueArg<std::string> node;
-	TCLAP::UnlabeledValueArg<std::string> remoteService;
+
+	const std::string SetRemoteSocket::COMMAND = "set";
+    const std::string SetRemoteSocket::DESCRIPTION = "set remote socket";
 	
-	public:
-	RemoteSocketOptions(TCLAP::CmdLine& cmd):
+	SetRemoteSocket::SetRemoteSocket(TCLAP::CmdLine& cmd):
 	Options(cmd),
 	addressFamily(
 		"address family",
@@ -43,7 +41,7 @@ class RemoteSocketOptions:
 	{}
 	
 
-	void go(){
+void SetRemoteSocket::go(){
 		FdPtr_t sockfd = connectToClient(*this);    //< create a connection
         	Marshall marshall;        //< create a marshaller
        		marshall.setFd(*sockfd);  //< tell the marshaller the socket to use
@@ -81,11 +79,9 @@ class RemoteSocketOptions:
                       << "\nmessage : " << msg->msg()
                       << "\n";
 	        }
-	}
-};
+}
+
 
 }
 }
 }
-
-#endif

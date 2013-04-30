@@ -54,6 +54,7 @@
 #include "commands/ListKnownPeers.h"
 #include "commands/ListMounts.h"
 #include "commands/LoadConfig.h"
+#include "commands/SetRemoteSocket.h"
 
 
 namespace   openbook {
@@ -235,7 +236,8 @@ typedef DispatchList< ListKnownPeers,
 typedef DispatchList< SetClientSocket,
                       SetDataDir,
                       SetDisplayName,
-                      SetLocalSocket>  SetCommands;
+                      SetLocalSocket,
+                      SetRemoteSocket>  SetCommands;
 
 void print_usage(const char* argv0 )
 {
