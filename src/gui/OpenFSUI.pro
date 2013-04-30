@@ -15,14 +15,47 @@ TEMPLATE = app
 SOURCES += main.cpp\
         mainwindow.cpp \
     localclient.cpp \
-    info.cpp
+    info.cpp \
+    ../TimeVal.cpp \
+    ../TimeSpec.cpp \
+    ../SelectSpec.cpp \
+    ../NotifyPipe.cpp \
+    ../messages.cpp \
+    ../Marshall.cpp \
+    ../FileDescriptor.cpp \
+    ../FdSet.cpp \
+    ../msg_gen/MessageStr.cpp \
+    ../../../builds/openbookfs/src/messages.pb.cc
 
 HEADERS  += mainwindow.h \
     localclient.h \
-    info.h
+    info.h \
+    ../TimeVal.h \
+    ../TimeSpec.h \
+    ../SelectSpec.h \
+    ../ReferenceCounted.h \
+    ../NotifyPipe.h \
+    ../messages.h \
+    ../Marshall.h \
+    ../FileDescriptor.h \
+    ../FdSet.h \
+    ../ExceptionStream.h \
+    ../msg_gen/MessageStr.h \
+    ../msg_gen/MessageMap.h \
+    ../msg_gen/MessageId.h \
+    global.h \
+    ../../../builds/openbookfs/src/messages.pb.h
 
 FORMS    += mainwindow.ui \
     localclient.ui
 
 
-INCLUDEPATH += ../
+INCLUDEPATH += ../ \
+    /home/josh/Codes/cpp/builds/openbookfs/src/ \
+    /home/josh/devroot/usr/include/ \
+    /usr/local/include/google/
+
+
+unix|win32: LIBS += \
+    -lcrypto++ \
+    -lprotobuf
