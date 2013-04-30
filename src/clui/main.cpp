@@ -46,9 +46,9 @@
 #include "connection.h"
 #include "Options.h"
 #include "commands/Connect.h"
-#include "commands/DisplayNameOptions.h"
-#include "commands/ListKnownClientOptions.h"
-#include "commands/ListMountPointOptions.h"
+#include "commands/SetDisplayName.h"
+#include "commands/ListKnownPeers.h"
+#include "commands/ListMounts.h"
 
 
 namespace   openbook {
@@ -200,17 +200,29 @@ void dispatch( int argc, char** argv, bool help )
    {
        argc--;
        argv++;
-       if( cmd == DisplayNameOptions::COMMAND )
-           parse_and_go<DisplayNameOptions>(argc,argv,help);
+       std::string cmd = argc > 0 ? argv[0] : "usage";
+       if( cmd == SetDisplayName::COMMAND )
+           parse_and_go<SetDisplayName>(argc,argv,help);
+       else
+       {
+           std::cout << "unrecognized set command:" << cmd << "\n";
+           print_usage();
+       }
    }
    else if( cmd == "ls" )
    {
        argc--;
        argv++;
-       if( cmd == ListKnownClientOptions::COMMAND )
-           parse_and_go<ListKnownClientOptions>(argc,argv,help);
-       else if( cmd == ListKnownClientOptions::COMMAND )
-           parse_and_go<ListMountPointOptions>(argc,argv,help);
+       std::string cmd = argc > 0 ? argv[0] : "usage";
+       if( cmd == ListKnownPeers::COMMAND )
+           parse_and_go<ListKnownPeers>(argc,argv,help);
+       else if( cmd == ListKnownPeers::COMMAND )
+           parse_and_go<ListMounts>(argc,argv,help);
+       else
+       {
+           std::cout << "unrecognized ls command:" << cmd << "\n";
+           print_usage();
+       }
    }
    else
    {

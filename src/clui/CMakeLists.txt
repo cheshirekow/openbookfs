@@ -64,6 +64,9 @@ if( (Boost_FOUND)
                     ../TimeVal.cpp
                     ${MESSAGES_PB_CC}
                     commands/Connect.cpp
+                    commands/ListKnownPeers.cpp
+                    commands/ListMounts.cpp
+                    commands/SetDisplayName.cpp
                     )
                             
     set_target_properties( obfs
