@@ -58,7 +58,6 @@ class ListKnownClientOptions:
 
             std::size_t lenId   = 0;
             std::size_t lenName = 0;
-            std::size_t lenKey  = CryptoPP::SHA256::DIGESTSIZE*3/8;
 
             // compute field lengths
             for(int i=0; i < msg->peers_size(); i++)
@@ -68,6 +67,29 @@ class ListKnownClientOptions:
                 lenId   = std::max(lenId,   strm.str().length() );
                 lenName = std::max(lenName, msg->peers(i).displayname().length() );
             }
+
+            char idHeader[]   = "id";
+            char nameHeader[] = "name";
+            char fpHeader[]   = "fingerprint";
+
+            // print headers
+            if( lenId < sizeof(idHeader) )
+                lenId = sizeof(idHeader);
+
+            if( lenName < sizeof(nameHeader) )
+                lenName = sizeof(nameHeader);
+
+
+            std::cout << idHeader;
+            for(int i=0; i < 4 + lenId - sizeof(idHeader); i++)
+                std::cout << " ";
+
+            std::cout << nameHeader;
+            for(int i=0; i < 4 + lenName - sizeof(nameHeader); i++)
+                std::cout << " ";
+
+            std::cout << fpHeader;
+            std::cout <<"\n";
 
             // now print out data
             for(int i=0; i < msg->peers_size(); i++)
