@@ -49,6 +49,7 @@
 #include "Options.h"
 #include "ConnectOptions.h"
 #include "DisplayNameOptions.h"
+#include "ListKnownClientOptions.h"
 
 
 namespace   openbook {
@@ -118,6 +119,7 @@ void print_usage(const char* argv0 = 0 )
     std::cout << "command may be any of:"
         "\n help [command]   print help for any of the following commands"
         "\n connect          force connection attempt to a peer"
+        "\n ls_known_peers   list known peers"
         "\n set_displayName  set the display name"
         "\n";
 }
@@ -194,6 +196,8 @@ void dispatch( int argc, char** argv, bool help )
         print_usage();
    else if( cmd == "set_displayName" )
        parse_and_go<DisplayNameOptions>(argc,argv,help);
+   else if( cmd == "ls_known_peers" )
+       parse_and_go<ListKnownClientOptions>(argc,argv,help);
    else
    {
        std::cout << "unrecognized command:" << cmd << "\n";

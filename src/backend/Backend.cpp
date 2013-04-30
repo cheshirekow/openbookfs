@@ -932,7 +932,7 @@ void Backend::getPeers( messages::PeerList* message )
 
     // now select out the id
     typedef soci::rowset<soci::row> rowset;
-    rowset rs = ( sql.prepare << "SELECT client_id, client_key, client_name "
+    rowset rs = ( sql.prepare << "SELECT client_id, client_name, client_key "
                            "FROM known_clients" );
 
     LockedPtr<USPeerMap_t> peerMap( &m_peerMap );
@@ -956,7 +956,7 @@ void Backend::getKnownPeers( messages::PeerList* message )
 
     // now select out the id
     typedef soci::rowset<soci::row> rowset;
-    rowset rs = ( sql.prepare << "SELECT client_id, client_key, client_name "
+    rowset rs = ( sql.prepare << "SELECT client_id, client_name, client_key "
                            "FROM known_clients" );
 
     for( auto& row : rs )
