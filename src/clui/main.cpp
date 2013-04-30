@@ -46,9 +46,11 @@
 #include "connection.h"
 #include "Options.h"
 #include "commands/Connect.h"
+#include "commands/SaveConfig.h"
 #include "commands/SetClientSocket.h"
 #include "commands/SetDataDir.h"
 #include "commands/SetDisplayName.h"
+#include "commands/SetLocalSocket.h"
 #include "commands/ListKnownPeers.h"
 #include "commands/ListMounts.h"
 #include "commands/LoadConfig.h"
@@ -224,15 +226,16 @@ struct DispatchList<TFirst,TRest...>
 };
 
 typedef DispatchList< Connect, 
-                      LoadConfig >      SingleCommands;
+                      LoadConfig,
+                      SaveConfig>       SingleCommands;
 
 typedef DispatchList< ListKnownPeers,
                       ListMounts >      ListCommands;
 
-typedef DispatchList< SetDataDir,
+typedef DispatchList< SetClientSocket,
+                      SetDataDir,
                       SetDisplayName,
-                      SetClientSocket>  SetCommands;
-
+                      SetLocalSocket>  SetCommands;
 
 void print_usage(const char* argv0 )
 {
