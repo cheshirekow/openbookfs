@@ -165,6 +165,48 @@ void parse_and_go(int argc, char** argv, bool help=false)
 }
 
 
+
+
+template < typename ...TList >
+struct DispatchList;
+
+template < typename TFirst >
+struct DispatchList< TFirst >
+{
+    static bool dispatch( const std::string& cmd,
+                            int argc, char** argv, bool help )
+    {
+        if( cmd == TFirst::COMMAND )
+        {
+            parse_and_go<TFirst>(argc,argv,help);
+            return true;
+        }
+        return false;
+    }
+};
+
+template < typename TFirst, typename ...TRest >
+struct DispatchList<TFirst,TRest...>
+{
+    static bool dispatch( const std::string& cmd,
+                            int argc, char** argv, bool help )
+    {
+        if( DispatchList<TFirst>::dispatch(cmd,argc,argv,help) )
+            return true;
+        if( DispatchList<TRest...>::dispatch(cmd,argc,argv,help) )
+            return true;
+        return false;
+    }
+};
+
+typedef DispatchList< Connect >         SingleCommands;
+typedef DispatchList< ListKnownPeers,
+                      ListMounts >      ListCommands;
+typedef DispatchList< SetDisplayName >  SetCommands;
+
+
+
+
 /// parses the first argument of argv (the subcommand name) and then calls
 /// the apropriate function to actually do the work
 /**
@@ -192,8 +234,6 @@ void dispatch( int argc, char** argv, bool help )
        argv++;
        dispatch(argc,argv,true);
    }
-   else if( cmd == "connect" )
-        parse_and_go<Connect>(argc,argv,help);
    else if( cmd == "usage" )
         print_usage();
    else if( cmd == "set" )
@@ -201,9 +241,7 @@ void dispatch( int argc, char** argv, bool help )
        argc--;
        argv++;
        std::string cmd = argc > 0 ? argv[0] : "usage";
-       if( cmd == SetDisplayName::COMMAND )
-           parse_and_go<SetDisplayName>(argc,argv,help);
-       else
+       if( !SetCommands::dispatch(cmd,argc,argv,help) )
        {
            std::cout << "unrecognized set command:" << cmd << "\n";
            print_usage();
@@ -214,11 +252,7 @@ void dispatch( int argc, char** argv, bool help )
        argc--;
        argv++;
        std::string cmd = argc > 0 ? argv[0] : "usage";
-       if( cmd == ListKnownPeers::COMMAND )
-           parse_and_go<ListKnownPeers>(argc,argv,help);
-       else if( cmd == ListKnownPeers::COMMAND )
-           parse_and_go<ListMounts>(argc,argv,help);
-       else
+       if( !ListCommands::dispatch(cmd,argc,argv,help) )
        {
            std::cout << "unrecognized ls command:" << cmd << "\n";
            print_usage();
