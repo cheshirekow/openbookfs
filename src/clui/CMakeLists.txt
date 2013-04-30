@@ -67,6 +67,7 @@ if( (Boost_FOUND)
                     commands/ListKnownPeers.cpp
                     commands/ListMounts.cpp
                     commands/SetDisplayName.cpp
+                    commands/LoadConfig.cpp
                     )
                             
     set_target_properties( obfs
