@@ -66,6 +66,7 @@ if( (Boost_FOUND)
                     commands/Connect.cpp
                     commands/ListKnownPeers.cpp
                     commands/ListMounts.cpp
+                    commands/SetClientSocket.cpp
                     commands/SetDisplayName.cpp
                     commands/LoadConfig.cpp
                     )
