@@ -36,7 +36,8 @@ namespace   openbook {
 namespace filesystem {
 namespace       clui {
 
-const std::string Connect::COMMAND = "connect";
+const std::string Connect::COMMAND      = "connect";
+const std::string Connect::DESCRIPTION  = "initiate a connection with a peer";
 
 Connect::Connect( TCLAP::CmdLine& cmd ):
     Options(cmd),

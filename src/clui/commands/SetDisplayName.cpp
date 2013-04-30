@@ -82,7 +82,8 @@ void SetDisplayName::go()
 }
 
 
-const std::string SetDisplayName::COMMAND = "displayName";
+const std::string SetDisplayName::COMMAND       = "displayName";
+const std::string SetDisplayName::DESCRIPTION   = "human readable machine name";
 
 
 } //< namespace clui

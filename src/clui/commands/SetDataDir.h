@@ -1,5 +1,5 @@
-#ifndef OPENBOOK_FS_CLUI_DATADIROPTIONS_H_
-#define OPENBOOK_FS_CLUI_DATADIROPTIONS_H_
+#ifndef OPENBOOK_FS_CLUI_SETDATADIR_H_
+#define OPENBOOK_FS_CLUI_SETDATADIR_H_
 
 #include "Options.h"
 
@@ -7,13 +7,17 @@ namespace   openbook {
 namespace filesystem {
 namespace       clui {
 
-class DataDirOptions:
+class SetDataDir:
 	public Options
 {
+
 	TCLAP::UnlabeledValueArg<std::string> dataDir;
 	
 	public:
-	DataDirOptions(TCLAP::CmdLine& cmd):
+	static const std::string COMMAND;
+	static const std::string DESCRIPTION;
+
+	SetDataDir(TCLAP::CmdLine& cmd):
 	Options(cmd),
 	dataDir(
 		"data directory",
@@ -63,6 +67,10 @@ class DataDirOptions:
 	        }
 	}
 };
+
+
+const std::string SetDataDir::COMMAND       = "dataDir";
+const std::string SetDataDir::DESCRIPTION   = "where data is stored";
 
 }
 }

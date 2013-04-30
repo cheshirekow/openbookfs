@@ -109,7 +109,8 @@ void ListMounts::go(){
     }
 }
 
-const std::string ListMounts::COMMAND = "mounts";
+const std::string ListMounts::COMMAND       = "mounts";
+const std::string ListMounts::DESCRIPTION   = "all current mount points";
 
 }
 }

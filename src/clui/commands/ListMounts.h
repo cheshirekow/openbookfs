@@ -12,6 +12,7 @@ class ListMounts:
 {
 	public:
         static const std::string COMMAND;
+        static const std::string DESCRIPTION;
 		ListMounts(TCLAP::CmdLine& cmd);
 		void go();
 };

@@ -46,6 +46,7 @@
 #include "connection.h"
 #include "Options.h"
 #include "commands/Connect.h"
+#include "commands/SetDataDir.h"
 #include "commands/SetDisplayName.h"
 #include "commands/ListKnownPeers.h"
 #include "commands/ListMounts.h"
@@ -109,22 +110,8 @@ std::string copyright()
     return sstream.str();
 }
 
-void print_usage(const char* argv0 = 0 )
-{
-    std::string commandName = argv0 ? argv0 : "obfs";
-    std::cout << copyright();
-    std::cout << "Usage: " << commandName << " <command> "
-              << "[command options]\n\n";
-    std::cout << "command may be any of:"
-        "\n help [command]   print help for any of the following commands"
-        "\n connect          force connection attempt to a peer"
-        "\n ls               print a list of (see below) "
-        "\n    knownPeers    known peers "
-        "\n    mounts        mount points "
-        "\n set              set a backend configuration variable (see below)"
-        "\n    displayName   set the display name"
-        "\n";
-}
+void print_usage(const char* argv0 = 0 );
+
 
 
 /// parses a command and then executes it
@@ -183,6 +170,20 @@ struct DispatchList< TFirst >
         }
         return false;
     }
+
+    static std::size_t getFieldWidth()
+    {
+        return TFirst::COMMAND.size();
+    }
+
+    static void printUsage(std::size_t fieldWidth )
+    {
+        std::cout << std::setw(fieldWidth)
+                  << TFirst::COMMAND
+                  << "   "
+                  << TFirst::DESCRIPTION
+                  << "\n";
+    }
 };
 
 template < typename TFirst, typename ...TRest >
@@ -197,13 +198,61 @@ struct DispatchList<TFirst,TRest...>
             return true;
         return false;
     }
+
+    static std::size_t getFieldWidth()
+    {
+        return std::max(
+                    DispatchList<TFirst>::getFieldWidth(),
+                    DispatchList<TRest...>::getFieldWidth() );
+    }
+
+    static void printUsage(std::size_t fieldWidth )
+    {
+        DispatchList<TFirst>::printUsage(fieldWidth);
+        DispatchList<TRest...>::printUsage(fieldWidth);
+    }
 };
 
 typedef DispatchList< Connect >         SingleCommands;
 typedef DispatchList< ListKnownPeers,
                       ListMounts >      ListCommands;
-typedef DispatchList< SetDisplayName >  SetCommands;
+typedef DispatchList< SetDataDir,
+                      SetDisplayName >  SetCommands;
 
+
+void print_usage(const char* argv0 )
+{
+    std::string commandName = argv0 ? argv0 : "obfs";
+    std::cout << copyright();
+    std::cout << "Usage: " << commandName << " <command> "
+              << "[command options]\n\n";
+
+    std::size_t fieldWidth=0;
+    std::size_t fieldWidth0 = SingleCommands::getFieldWidth();
+    std::size_t fieldWidth1 = 0;
+    fieldWidth1 = std::max( fieldWidth1, ListCommands::getFieldWidth() );
+    fieldWidth1 = std::max( fieldWidth1, SetCommands::getFieldWidth() );
+
+    fieldWidth = std::max( fieldWidth0, fieldWidth1+3 );
+
+    std::cout << "command may be any of:\n"
+              << std::setw( fieldWidth )
+              << "help [command]"
+              << "   "
+              << "print help for any of the following commands\n";
+    SingleCommands::printUsage(fieldWidth0);
+    std::cout << std::setw( fieldWidth )
+              << "ls"
+              << "   "
+              << "print a list of ... (see below)\n";
+    ListCommands::printUsage(fieldWidth1+3);
+    std::cout << std::setw( fieldWidth )
+              << "set"
+              << "   "
+              << "set a backend configuration variable (see below)\n";
+    SetCommands::printUsage(fieldWidth1+3);
+
+}
 
 
 

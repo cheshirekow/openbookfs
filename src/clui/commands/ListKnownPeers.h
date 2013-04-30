@@ -13,6 +13,7 @@ class ListKnownPeers:
 
 	public:
         static const std::string COMMAND;
+        static const std::string DESCRIPTION;
 		ListKnownPeers(TCLAP::CmdLine& cmd);
 		void go();
 

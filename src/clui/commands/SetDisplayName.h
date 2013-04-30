@@ -40,6 +40,7 @@ class SetDisplayName:
 
     public:
         static const std::string COMMAND;
+        static const std::string DESCRIPTION;
         SetDisplayName( TCLAP::CmdLine& cmd );
         void go();
 };

@@ -126,7 +126,8 @@ FdPtr_t sockfd = connectToClient(*this);    //< create a connection
     }
 }
 
-const std::string ListKnownPeers::COMMAND = "knownPeers";
+const std::string ListKnownPeers::COMMAND       = "knownPeers";
+const std::string ListKnownPeers::DESCRIPTION   = "all peers that we know about";
 
 
 
