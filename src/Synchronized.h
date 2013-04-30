@@ -35,6 +35,26 @@ namespace filesystem {
 
 
 template <class Base> class Synchronized;
+template <class Base> class LockedPtr;
+template <class Base> class ConstLockedPtr;
+
+
+/// delegate returned from a synchronized object and passed to the LockedPtr
+/// constructor
+template <class Base>
+class LockedPtrDelegate
+{
+    friend class LockedPtr<Base>;
+    friend class ConstLockedPtr<Base>;
+    friend class Synchronized<Base>;
+
+    Synchronized<Base>* m_synced;
+
+    Synchronized<Base>* getPtr() const { return m_synced; }
+    LockedPtrDelegate( Synchronized<Base>* synced ):
+        m_synced(synced)
+    {}
+};
 
 /// acts like a pointer to an object but the object is locked during it's
 /// life time
@@ -44,19 +64,32 @@ class LockedPtr
     friend class Synchronized<Base>;
 
     private:
-        Synchronized<Base>&     m_synced;
-
-        /// constructor is private, conly constructed by a Synchronized
-        /// object, locks the synced object
-        explicit LockedPtr( Synchronized<Base>& synced );
+        Synchronized<Base>*     m_synced;
 
         /// not copyable
         LockedPtr( const LockedPtr& );
 
-        /// not assignable
+        /// not copyable
         LockedPtr<Base>& operator=( const LockedPtr& );
 
+        /// called by constructor and assignment operator
+        void assign( Synchronized<Base>* synced );
+
     public:
+        /// constructor locks the object
+        LockedPtr( Synchronized<Base>* synced=0 );
+
+        /// assignment of a pointer releases lock on current pointer and
+        /// aquires lock on new pointer
+        LockedPtr<Base>& operator=( Synchronized<Base>* synced );
+
+        /// constructor locks the object
+        LockedPtr( LockedPtrDelegate<Base> delegate );
+
+        /// assignment of a pointer releases lock on current pointer and
+        /// aquires lock on new pointer
+        LockedPtr<Base>& operator=( LockedPtrDelegate<Base> delegate );
+
         /// release lock on synced object
         ~LockedPtr();
 
@@ -65,6 +98,62 @@ class LockedPtr
 
         /// exposes underlying pointer
         const Base* operator->() const;
+
+        /// expose underlying object
+        Base& operator*();
+
+        /// exposes underlying object
+        const Base& operator*() const;
+
+        /// act as a boolean
+        operator bool() const;
+};
+
+/// acts like a pointer to an object but the object is locked during it's
+/// life time
+template <class Base>
+class ConstLockedPtr
+{
+    friend class Synchronized<Base>;
+
+    private:
+        Synchronized<Base>* m_synced;
+
+        /// not copyable
+        ConstLockedPtr( const ConstLockedPtr& );
+
+        /// not copyable
+        ConstLockedPtr<Base>& operator=( const ConstLockedPtr& );
+
+        /// called by constructor and assignment operator
+        void assign( Synchronized<Base>* synced );
+
+    public:
+        /// constructor locks the object
+        ConstLockedPtr( Synchronized<Base>* synced );
+
+        /// assignment of a pointer releases lock on current pointer and
+        /// aquires lock on new pointer
+        ConstLockedPtr<Base>& operator=( Synchronized<Base>* synced );
+
+        /// constructor locks the object
+        ConstLockedPtr( LockedPtrDelegate<Base> delegate );
+
+        /// assignment of a pointer releases lock on current pointer and
+        /// aquires lock on new pointer
+        ConstLockedPtr<Base>& operator=( LockedPtrDelegate<Base> delegate );
+
+        /// release lock on synced object
+        ~ConstLockedPtr();
+
+        /// exposes underlying pointer
+        const Base* operator->() const;
+
+        /// exposes underlying object
+        const Base& operator*() const;
+
+        /// act as a boolean
+        operator bool() const;
 };
 
 
@@ -76,6 +165,7 @@ template <class Base>
 class Synchronized
 {
     friend class LockedPtr<Base>;
+    friend class ConstLockedPtr<Base>;
 
     private:
         pthreads::Mutex     m_mutex;  ///< locked if reference exists
@@ -100,12 +190,27 @@ class Synchronized
         /// from acessing the object
         LockedPtr<Base> operator->()
         {
-            return LockedPtr<Base>(*this);
+            return LockedPtr<Base>(this);
+        }
+
+        ConstLockedPtr<Base> operator->() const
+        {
+            return ConstLockedPtr<Base>(this);
         }
 
         LockedPtr<Base> lockFor()
         {
-            return LockedPtr<Base>(*this);
+            return LockedPtr<Base>(this);
+        }
+
+        ConstLockedPtr<Base> constLockFor()
+        {
+            return ConstLockedPtr<Base>(this);
+        }
+
+        LockedPtrDelegate<Base> lockedPtr()
+        {
+            return LockedPtrDelegate<Base>(this);
         }
 
         /// explicitly lock
@@ -130,33 +235,169 @@ class Synchronized
         {
             return &m_base;
         }
+
+        /// return the base pointer, subverting protections
+        const Base* subvert() const
+        {
+            return &m_base;
+        }
 };
 
 
+
+
+
+
+
+
 template <class Base>
-LockedPtr<Base>::LockedPtr( Synchronized<Base>& synced ):
-    m_synced(synced)
+void LockedPtr<Base>::assign( Synchronized<Base>* synced )
 {
-    m_synced.m_mutex.lock();
+    if(m_synced)
+        m_synced->unlock();
+    m_synced = synced;
+    m_synced->lock();
 }
+
+
+template <class Base>
+LockedPtr<Base>::LockedPtr( Synchronized<Base>* synced ):
+    m_synced(0)
+{
+    assign(synced);
+}
+
+template <class Base>
+LockedPtr<Base>& LockedPtr<Base>::operator=( Synchronized<Base>* synced )
+{
+    assign(synced);
+    return *this;
+}
+
+template <class Base>
+LockedPtr<Base>::LockedPtr( LockedPtrDelegate<Base> delegate ):
+    m_synced(0)
+{
+    assign( delegate.getPtr() );
+}
+
+template <class Base>
+LockedPtr<Base>& LockedPtr<Base>::operator=( LockedPtrDelegate<Base> delegate )
+{
+    assign( delegate.getPtr() );
+    return *this;
+}
+
+
 
 template <class Base>
 LockedPtr<Base>::~LockedPtr( )
 {
-    m_synced.m_cond.signal();
-    m_synced.m_mutex.unlock();
+    if(m_synced)
+    {
+        m_synced->signal();
+        m_synced->unlock();
+    }
 }
 
 template <class Base>
 Base* LockedPtr<Base>::operator->()
 {
-    return &(m_synced.m_base);
+    return m_synced->subvert();
 }
 
 template <class Base>
 const Base* LockedPtr<Base>::operator->() const
 {
-    return &(m_synced.m_base);
+    return m_synced->subvert();
+}
+
+
+template <class Base>
+Base& LockedPtr<Base>::operator*()
+{
+    return *(m_synced->subvert());
+}
+
+template <class Base>
+const Base& LockedPtr<Base>::operator*() const
+{
+    return *(m_synced->subvert());
+}
+
+template <class Base>
+LockedPtr<Base>::operator bool() const
+{
+    return m_synced->subvert();
+}
+
+
+
+
+template <class Base>
+void ConstLockedPtr<Base>::assign( Synchronized<Base>* synced )
+{
+    if(m_synced)
+        m_synced->unlock();
+    m_synced = synced;
+    m_synced->lock();
+}
+
+
+template <class Base>
+ConstLockedPtr<Base>::ConstLockedPtr( Synchronized<Base>* synced ):
+    m_synced(0)
+{
+    assign(synced);
+}
+
+template <class Base>
+ConstLockedPtr<Base>& ConstLockedPtr<Base>::operator=( Synchronized<Base>* synced )
+{
+    assign(synced);
+    return *this;
+}
+
+template <class Base>
+ConstLockedPtr<Base>::ConstLockedPtr(LockedPtrDelegate<Base> delegate ):
+    m_synced(0)
+{
+    assign( delegate.getPtr() );
+}
+
+template <class Base>
+ConstLockedPtr<Base>& ConstLockedPtr<Base>::operator=( LockedPtrDelegate<Base> delegate )
+{
+    assign( delegate.getPtr() );
+    return *this;
+}
+
+template <class Base>
+ConstLockedPtr<Base>::~ConstLockedPtr( )
+{
+    if(m_synced)
+    {
+        m_synced->signal();
+        m_synced->unlock();
+    }
+}
+
+template <class Base>
+const Base* ConstLockedPtr<Base>::operator->() const
+{
+    return m_synced->subvert();
+}
+
+template <class Base>
+const Base& ConstLockedPtr<Base>::operator*() const
+{
+    return *(m_synced->subvert());
+}
+
+template <class Base>
+ConstLockedPtr<Base>::operator bool() const
+{
+    return m_synced->subvert();
 }
 
 

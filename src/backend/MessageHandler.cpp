@@ -99,6 +99,8 @@ void MessageHandler::handleMessage( messages::AuthChallenge* msg )      { except
 void MessageHandler::handleMessage( messages::AuthSolution* msg )       { exceptMessage(msg); }
 void MessageHandler::handleMessage( messages::AuthResult* msg )         { exceptMessage(msg); }
 void MessageHandler::handleMessage( messages::UserInterfaceReply*  msg) { exceptMessage(msg); }
+void MessageHandler::handleMessage( messages::PeerList* msg )           { exceptMessage(msg); }
+void MessageHandler::handleMessage( messages::MountList*  msg)          { exceptMessage(msg); }
 
 void MessageHandler::handleMessage( messages::SetDisplayName* msg)
 {
@@ -272,9 +274,68 @@ void MessageHandler::handleMessage( messages::AddMountPoint* msg)
 
 void MessageHandler::handleMessage( messages::RemoveMountPoint* msg)
 {
+    // for just send an empty OK response
+    messages::UserInterfaceReply* reply = new messages::UserInterfaceReply();
+    reply->set_ok(true);
 
+    try
+    {
+        m_backend->unmount( msg->imp() );
+    }
+    catch( const std::exception& ex )
+    {
+        reply->set_ok(false);
+        reply->set_msg(ex.what());
+    }
+
+    m_outboundQueue->insert( new AutoMessage(reply) );
 }
 
+void MessageHandler::handleMessage( messages::GetBackendInfo* msg)
+{
+    using namespace messages;
+    switch( msg->req() )
+    {
+        case PEERS:
+        {
+            messages::PeerList* reply =
+                    new messages::PeerList();
+            m_backend->getPeers(reply);
+            m_outboundQueue->insert( new AutoMessage(reply) );
+            break;
+        }
+
+        case KNOWN_PEERS:
+        {
+            messages::PeerList* reply =
+                    new messages::PeerList();
+            m_backend->getKnownPeers(reply);
+            m_outboundQueue->insert( new AutoMessage(reply) );
+            break;
+        }
+
+        case MOUNT_POINTS:
+        {
+            messages::MountList* reply =
+                    new messages::MountList();
+            m_backend->getMounts(reply);
+            m_outboundQueue->insert( new AutoMessage(reply) );
+            break;
+        }
+
+        default:
+        {
+            messages::UserInterfaceReply* reply =
+                    new messages::UserInterfaceReply();
+            reply->set_ok(false);
+            std::stringstream strm;
+            strm << "Unrecognized get request " << msg->req();
+            reply->set_msg( strm.str() );
+            m_outboundQueue->insert( new AutoMessage(reply) );
+            break;
+        }
+    }
+}
 
 void MessageHandler::handleMessage( messages::Quit* msg )
 {
@@ -307,6 +368,17 @@ void MessageHandler::handleMessage( messages::Unsubscribe* msg )
 
 }
 
+void MessageHandler::handleMessage( messages::IdMap* msg )
+{
+    for( int i=0; i < msg->peermap_size(); i++ )
+        m_backend->mapPeer( msg->peermap(i), m_peerMap );
+}
+
+void MessageHandler::handleMessage( messages::NodeInfo* msg )
+{
+
+}
+
 
 void MessageHandler::handleMessage( messages::NewVersion* msg )
 {
@@ -320,22 +392,11 @@ void MessageHandler::handleMessage( messages::RequestFile* msg )
 }
 
 
-void MessageHandler::handleMessage( messages::FileInfo* msg )
-{
-
-}
-
-
 void MessageHandler::handleMessage( messages::FileChunk* msg )
 {
 
 }
 
-
-void MessageHandler::handleMessage( messages::DirInfo* msg )
-{
-
-}
 
 
 void MessageHandler::handleMessage( messages::DirChunk* msg )

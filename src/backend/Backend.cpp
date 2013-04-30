@@ -125,6 +125,10 @@ int Backend::registerPeer( const std::string& base64,
     sql << "UPDATE known_clients SET client_name='" << displayName
         << "' WHERE client_id=" << peerId;
 
+    // update the local map if necessary
+    typedef std::pair<std::string,int>  mapentry;
+    m_idMap.lockFor()->insert( mapentry(base64,peerId) );
+
     // lock scope
     {
         // the map lock
@@ -215,16 +219,16 @@ void Backend::unmount( int imp )
         ex()() << "Can't do anything with a negative index: " << imp;
 
     { // critical section for atomic update to m_mountPts
-        pthreads::ScopedLock( m_mountPts.mutex() );
+        LockedPtr<USMountMap_t> mountMap( &m_mountPts );
 
-        USMountMap_t& mountPts = *(m_mountPts.subvert());
-        if( imp >= mountPts.size() )
+        if( imp >= mountMap->size() )
             ex()() << "Invalid mount point index: " << imp
-                   << ", size: " << mountPts.size();
-        mp = mountPts[imp];
-        if( imp != mountPts.size() -1 )
-            mountPts[imp] = mountPts.back();
-        mountPts.pop_back();
+                   << ", size: " << mountMap->size();
+
+        mp = (*mountMap)[imp];
+        if( imp != mountMap->size()-1 )
+            (*mountMap)[imp] = mountMap->back();
+        mountMap->pop_back();
     }
 
     // actually do the unmount, will block
@@ -232,6 +236,41 @@ void Backend::unmount( int imp )
 
     // delete the structure
     delete mp;
+}
+
+
+
+void Backend::mapPeer( const messages::IdMapEntry& entry, std::map<int,int>& map )
+{
+    LockedPtr<USIdMap_t> idMap( &m_idMap );
+    int peerId = 0;
+
+    // if we do not know about this peer, then add him to the map
+    USIdMap_t::iterator match = idMap->find( entry.publickey() );
+    if( match == idMap->end() )
+    {
+        // create sqlite connection
+        soci::session sql(soci::sqlite3, m_dbFile.string() );
+
+        // insert the key into the database if it isn't already there
+        sql << "INSERT OR IGNORE INTO known_clients (client_key, client_name) "
+               "VALUES ('"
+                    << entry.publickey()   << "','"
+                    << entry.displayname()
+            << "')";
+
+        // now select out the id
+        sql << "SELECT client_id FROM known_clients WHERE client_key='"
+            << entry.publickey() << "'",
+                soci::into(peerId);
+
+        // add that peer to the map
+        (*idMap)[entry.publickey()] = peerId;
+    }
+    else
+        peerId = match->second;
+
+    map[entry.peerid()] = peerId;
 }
 
 void Backend::setDisplayName( const std::string& name )
@@ -364,6 +403,18 @@ void Backend::setDataDir( const std::string& dir )
             "client_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
             "client_key TEXT NOT NULL UNIQUE, "
             "client_name TEXT NOT NULL) ";
+
+    // initialize the id map
+    std::string base64Key;
+    int         peerId;
+    typedef soci::rowset<soci::row>    rowset;
+    typedef std::pair<std::string,int> mapentry;
+    rowset rs =
+            ( sql.prepare << "select client_id,client_key FROM known_clients");
+    for( auto& row : rs )
+        m_idMap.lockFor()->insert(
+                mapentry(row.get<std::string>(1) ,row.get<int>(0) ) );
+
     sql.close();
 
     // initialize the root directory if not already initialized
@@ -874,7 +925,64 @@ void Backend::attemptConnection( bool isRemote,
     onConnect( clientfd, isRemote );
 }
 
+void Backend::getPeers( messages::PeerList* message )
+{
+    // create sqlite connection
+    soci::session sql(soci::sqlite3, m_dbFile.string() );
 
+    // now select out the id
+    typedef soci::rowset<soci::row> rowset;
+    rowset rs = ( sql.prepare << "SELECT client_id, client_key, client_name "
+                           "FROM known_clients" );
+
+    LockedPtr<USPeerMap_t> peerMap( &m_peerMap );
+
+    for( auto& row : rs )
+    {
+        if( peerMap->find( row.get<int>(0) ) != peerMap->end() )
+        {
+            messages::PeerEntry* entry = message->add_peers();
+            entry->set_peerid     ( row.get<int>(0)         );
+            entry->set_displayname( row.get<std::string>(1) );
+            entry->set_publickey  ( row.get<std::string>(2) );
+        }
+    }
+}
+
+void Backend::getKnownPeers( messages::PeerList* message )
+{
+    // create sqlite connection
+    soci::session sql(soci::sqlite3, m_dbFile.string() );
+
+    // now select out the id
+    typedef soci::rowset<soci::row> rowset;
+    rowset rs = ( sql.prepare << "SELECT client_id, client_key, client_name "
+                           "FROM known_clients" );
+
+    for( auto& row : rs )
+    {
+        messages::PeerEntry* entry = message->add_peers();
+        entry->set_peerid     ( row.get<int>(0)         );
+        entry->set_displayname( row.get<std::string>(1) );
+        entry->set_publickey  ( row.get<std::string>(2) );
+    }
+}
+
+void Backend::getMounts( messages::MountList* message )
+{
+    LockedPtr<USMountMap_t> mountMap( &m_mountPts );
+    for( auto& mount : *mountMap )
+    {
+        messages::MountPoint* entry = message->add_mounts();
+        entry->set_relpath( mount->relDir() );
+        entry->set_path( mount->mountPoint() );
+        for( auto& arg : mount->get_argv() )
+        {
+            std::string* arge = entry->add_argv();
+            *arge = arg;
+        }
+    }
+}
 
 
 void Backend::parse(int argc, char** argv)

@@ -77,6 +77,7 @@ class MountPoint
         const std::string&      relDir()     const { return m_reldir; }
         argv_t::const_iterator  argv()       const { return m_args.begin(); }
         argv_t::const_iterator  argv_end()   const { return m_args.end();   }
+        const argv_t&           get_argv()   const { return m_args; }
 
     private:
         static void* dispatch_main(void* vp_mountpoint);

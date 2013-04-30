@@ -56,6 +56,8 @@ class Backend
         typedef std::vector<MountPoint*>    USMountMap_t;
         typedef Synchronized<USMountMap_t>  MountMap_t;
         typedef boost::filesystem::path     Path_t;
+        typedef std::map<std::string,int>   USIdMap_t;
+        typedef Synchronized<USIdMap_t>     IdMap_t;
 
         enum Listeners
         {
@@ -91,6 +93,7 @@ class Backend
 
         PeerMap_t   m_peerMap;  ///< maps peer id to connection objects
         MountMap_t  m_mountPts; ///< stores mount points
+        IdMap_t     m_idMap;    ///< maps base64 public keys to ids
 
         // for outgoing connections
         int         m_clientFamily; ///< address family AF_[INET|INET6|UNIX]
@@ -133,8 +136,9 @@ class Backend
         template <typename Message_t>
         void sendMessage( int peerId, Message_t* msg )
         {
-            USPeerMap_t::iterator it = m_peerMap.lockFor()->find(peerId);
-            if( it == m_peerMap.subvert()->end() )
+            LockedPtr<USPeerMap_t> peerMap( &m_peerMap );
+            USPeerMap_t::iterator it = peerMap->find(peerId);
+            if( it == peerMap->end() )
             {
                 std::cout << "Backend: not sending "
                           << messageIdToString( MessageTypeToId<Message_t>::ID )
@@ -157,6 +161,9 @@ class Backend
 
         /// return the real root of the filesystem
         const Path_t realRoot(){ return m_rootDir; }
+
+        /// generate a mapping from remote peer id to local peer id
+        void mapPeer( const messages::IdMapEntry& entry, std::map<int,int>& map );
 
 
 
@@ -198,6 +205,10 @@ class Backend
         void attemptConnection( bool isRemote,
                                 const std::string& node,
                                 const std::string& service );
+
+        void getPeers( messages::PeerList* message );
+        void getKnownPeers( messages::PeerList* message );
+        void getMounts( messages::MountList* message );
 
     private:
         /// parses the command line

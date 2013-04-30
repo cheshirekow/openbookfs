@@ -53,6 +53,7 @@
 #include "Marshall.h"
 #include "Pool.h"
 #include "Queue.h"
+#include "PriorityQueue.h"
 #include "Synchronized.h"
 
 
@@ -70,10 +71,10 @@ class MessageHandler;
 class Connection
 {
     public:
-        typedef Pool<Connection>        Pool_t;
-        typedef RefPtr<FileDescriptor>  FdPtr_t;
-        typedef RefPtr<AutoMessage>     MsgPtr_t;
-        typedef Queue< MsgPtr_t >       MsgQueue_t;
+        typedef Pool<Connection>            Pool_t;
+        typedef RefPtr<FileDescriptor>      FdPtr_t;
+        typedef RefPtr<AutoMessage>         MsgPtr_t;
+        typedef PriorityQueue< MsgPtr_t >   MsgQueue_t;
 
 
     private:

@@ -32,6 +32,7 @@
 #include "Pool.h"
 #include "Marshall.h"
 #include "Queue.h"
+#include "PriorityQueue.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -74,9 +75,10 @@ class MessageHandler
 //                            messages::AuthResult>
 {
     public:
-        typedef Pool<MessageHandler> Pool_t;
-        typedef RefPtr<AutoMessage>  MsgPtr_t;
-        typedef Queue< MsgPtr_t >    MsgQueue_t;
+        typedef Pool<MessageHandler>        Pool_t;
+        typedef RefPtr<AutoMessage>         MsgPtr_t;
+        typedef PriorityQueue< MsgPtr_t >   MsgQueue_t;
+        typedef std::map<int,int>           PeerMap_t;
 
     private:
         int                 m_peerId;           ///< id of the peer
@@ -86,6 +88,10 @@ class MessageHandler
         MsgQueue_t*         m_outboundQueue;    ///< where we put messages
         pthreads::Mutex     m_mutex;            ///< locks this data
         bool                m_shouldQuit;       ///< main loop termination
+        PeerMap_t           m_peerMap;          ///< maps peer ids on the remote
+                                                ///  machine to ids on this
+                                                ///  machine
+
 
     public:
         MessageHandler();
@@ -136,6 +142,9 @@ class MessageHandler
         void handleMessage( messages::AddMountPoint*       msg);
         void handleMessage( messages::RemoveMountPoint*    msg);
         void handleMessage( messages::UserInterfaceReply*  msg);
+        void handleMessage( messages::GetBackendInfo*      msg);
+        void handleMessage( messages::PeerList*            msg);
+        void handleMessage( messages::MountList*           msg);
         void handleMessage( messages::LeaderElect*         msg);
         void handleMessage( messages::DiffieHellmanParams* msg);
         void handleMessage( messages::KeyExchange*         msg);
@@ -146,11 +155,11 @@ class MessageHandler
         void handleMessage( messages::AuthResult*          msg);
         void handleMessage( messages::Subscribe*           msg);
         void handleMessage( messages::Unsubscribe*         msg);
+        void handleMessage( messages::IdMap*               msg);
+        void handleMessage( messages::NodeInfo*            msg);
         void handleMessage( messages::NewVersion*          msg);
         void handleMessage( messages::RequestFile*         msg);
-        void handleMessage( messages::FileInfo*            msg);
         void handleMessage( messages::FileChunk*           msg);
-        void handleMessage( messages::DirInfo*             msg);
         void handleMessage( messages::DirChunk*            msg);
         void handleMessage( messages::Invalid*             msg);
 

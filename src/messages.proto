@@ -93,6 +93,43 @@ message UserInterfaceReply {
     optional string msg   = 2;  //< message to display to user
 }
 
+// simple message which requests info from the backend
+enum GetRequest
+{
+    PEERS           = 1;   // request list of connected peers
+    KNOWN_PEERS     = 2;   // list all known peers
+    MOUNT_POINTS    = 3;   // list all mount points and their status
+}
+
+// make a request to the backend
+message GetBackendInfo {
+    optional GetRequest req = 1;    //< the request
+}
+
+// an entry in a peer list
+message PeerEntry{
+    optional int32  peerId      = 1; //< backend-specific peer-id
+    optional string displayName = 2; //< configured display name
+    optional string publicKey   = 3; //< base64 encoded public key
+}
+
+// a list of peers sent back to the UI
+message PeerList {
+    repeated PeerEntry peers = 1; //< list of peers
+}
+
+// an entry in a list of mount points
+message MountPoint {
+    optional string  relpath = 1;   //< relative path in logical fs
+    optional string  path    = 2;   //< the path of the mount point
+    repeated string  argv    = 3;   //< arguments for fuse
+}
+
+// a list of mount points sent back to the UI
+message MountList {
+    repeated MountPoint mounts = 1; // < list of mount points
+}
+
 
 // ----------------------------------------------------------------------------
 //             Registered Client Authentication with Server
@@ -180,6 +217,67 @@ message Pong {
 
 
 
+
+// ----------------------------------------------------------------------------
+//                      Synchronization Protocol
+// ----------------------------------------------------------------------------
+
+// one entry in a peer id mapping
+message IdMapEntry
+{
+    optional int32  peerid      = 1;    /// the peer id I'm using
+    optional string publicKey   = 2;    /// the public key it symbolizes
+    optional string displayName = 3;    /// if other doesn't know about the
+                                        ///   peer then he can use this name 
+}
+
+// sent at the beginning of synchronization so that two peers can use
+// local peer id's for version vectors
+message IdMap
+{
+    repeated IdMapEntry peerMap = 1;    /// maps my peer id to unique public
+                                        /// key strings
+}
+
+// one entry in a version vector
+message VersionEntry {
+    optional string client  = 1; // base64 encoded public key
+    optional int64  version = 2; // version number
+}
+
+// a version vector
+message VersionVector {
+    repeated VersionEntry version = 1;
+}
+
+// enumerates types of files
+// types of files
+enum NodeType {
+    REGULAR   = 0;    // regular file
+    DIRECTORY = 1;    // subdirectory
+    SIMLINK   = 2;    // simlink
+    PIPE      = 3;    // named pipe
+    SOCKET    = 4;    // unix domain socket
+}
+
+// notifies the peer about the version of one file
+message NodeInfo {
+    optional string     parent  = 1;    // parent path
+    optional string     path    = 2;    // terminal of the path string
+    optional NodeType   type    = 4;    // the type of the fs node
+    optional int64      size    = 5;    // size of the file 
+    optional int32      mode    = 6;    // permissions
+    optional int64      ctime   = 7;    // creation time
+    optional int64      mtime   = 8;    // modification time
+    
+    optional VersionVector  version = 9; // version of the file
+}
+
+
+
+
+
+
 // ----------------------------------------------------------------------------
 //                      File System Notifications and Jobs
 // ----------------------------------------------------------------------------
@@ -196,84 +294,40 @@ message Unsubscribe {
     optional string path    =2;     // the path to unsubscribe from
 }
 
-// one entry in a version vector
-message VersionEntry {
-    optional string client  = 1; // base64 encoded public key
-    optional int64  version = 2; // version number
-}
 
-// a version vector
-message VersionVector {
-    repeated VersionEntry version = 1;
-}
 
 // sent by a client to other subscribed clients when a file is updated
 message NewVersion {
-    optional int64          msg_id      = 1;    // message identifier
-    optional string         path        = 2;    // path of the file 
-    optional VersionVector  version     = 3;    // version vector
+    optional string         path     = 1;    // path of the file 
+    optional VersionVector  version  = 2;    // version vector
 }
 
 // Sent by one client to another when it wishes to receive a copy of 
 // the file
 message RequestFile {
-    optional int64          msg_id      = 1;    // message id
-    optional int64          req_id      = 2;    // recipient transaction id
-    optional string         path        = 3;    // path of the file
-    optional int64          offset      = 4;    // first byte/entry to send 
-    optional VersionVector  version     = 5;    // version requested
+    optional string  path   = 1;                // path of the file
+    optional int64   offset = 2 [default = 0];  // first byte/entry to send 
 }
 
-// First message sent in preparation of a file transfer
-message FileInfo {
-    optional int64  msg_id          = 1;    // message id
-    optional int64  req_id          = 2;    // recipient transaction id
-    optional int64  size            = 3;    // size of the file
-    optional int64  ctime           = 4;    // creation time
-    optional int64  mtime           = 5;    // modification time
-}
 
 // Message containing  chunk of a file
 message FileChunk {
-    optional int64  msg_id          = 1;    // message id 
-    optional int64  req_id          = 2;    // recipient transaction id
-    optional int64  offset          = 3;    // offset of chunk
-    optional bytes  data            = 4;    // actual data chunk
+    optional int64  offset  = 1;    // offset of chunk
+    optional bytes  data    = 2;    // actual data chunk
 }
- 
 
- 
-// types of files
-enum NodeType {
-    REGULAR   = 0;    // regular file
-    DIRECTORY = 1;    // subdirectory
-    SIMLINK   = 2;    // simlink
-}
  
 // one entry of a directory
 message DirEntry {
     optional string     path    = 1;    // path name of child
     optional NodeType   type    = 2;    // type of child
-    optional int64      size    = 3;    // size if a file
-    optional int64      ctime   = 4;    // creation time
-    optional int64      mtime   = 5;    // modification time
 }
 
-// info a bout a directory
-message DirInfo {
-    optional int64  msg_id  = 1; // message id
-    optional int64  req_id  = 2; // recipient transaction id
-    optional int64  size    = 3; // number of entries
-    optional int64  ctime   = 4; // creation time
-    optional int64  mtime   = 5; // modification time
-}
 
 // Message containing a chunk of a directory
 message DirChunk {
-    optional int64      msg_id  = 1; // message id
-    optional int64      req_id  = 2; // recipient transaction id
-    optional int64      offset  = 3; // row number of first row in this message
-    repeated DirEntry   entries = 4; // actual entries
+    optional string     path    = 1; // directory this chunk belongs to
+    repeated DirEntry   entries = 2; // actual entries
 }
 
 
