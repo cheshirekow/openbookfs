@@ -46,6 +46,8 @@ class Connect:
     public:
         static const std::string COMMAND;
         static const std::string DESCRIPTION;
+
+
         Connect( TCLAP::CmdLine& cmd );
         void go();
 };

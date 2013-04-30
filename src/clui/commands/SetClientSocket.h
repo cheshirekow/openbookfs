@@ -1,5 +1,5 @@
-#ifndef OPENBOOK_FS_CLUI_CLIENTSOCKETOPTIONS_H_
-#define OPENBOOK_FS_CLUI_CLIENTSOCKETOPTIONS_H_
+#ifndef OPENBOOK_FS_CLUI_SETCLIENTSOCKET_H_
+#define OPENBOOK_FS_CLUI_SETCLIENTSOCKET_H_
 
 #include "Options.h"
 
@@ -7,14 +7,17 @@ namespace   openbook {
 namespace filesystem {
 namespace       clui {
 
-class ClientSocketOptions:
+class SetClientSocket:
 	public Options
 {
 	TCLAP::UnlabeledValueArg<int> addressFamily;
 	TCLAP::UnlabeledValueArg<std::string> node;
 	
 	public:
-	ClientSocketOptions(TCLAP::CmdLine& cmd):
+	static const std::string COMMAND;
+	static const std::string DESCRIPTION;
+
+	SetClientSocket(TCLAP::CmdLine& cmd):
 	Options(cmd),
 	addressFamily(
 		"address family",
@@ -74,6 +77,11 @@ class ClientSocketOptions:
 	        }
 	}
 };
+
+
+const std::string SetClientSocket::COMMAND      = "clientSocket";
+const std::string SetClientSocket::DESCRIPTION  = "the socket to listen on for peers";
+
 
 }
 }
