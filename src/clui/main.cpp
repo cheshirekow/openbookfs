@@ -34,7 +34,7 @@
 #include <string>
 
 
-
+#include <boost/format.hpp>
 #include <boost/filesystem.hpp>
 #include <tclap/CmdLine.h>
 
@@ -152,6 +152,18 @@ void parse_and_go(int argc, char** argv, bool help=false)
 }
 
 
+void printPair( const std::string& cmd, const std::string& desc,
+                int fieldWidth, int indent )
+{
+    int nSpaces = 3+fieldWidth - (cmd.size() + indent);
+
+    for(int i=0; i < indent; i++)
+        std::cout << " ";
+    std::cout << cmd;
+    for(int i=0; i < nSpaces; i++)
+        std::cout << " ";
+    std::cout << desc << "\n";
+}
 
 
 template < typename ...TList >
@@ -176,13 +188,9 @@ struct DispatchList< TFirst >
         return TFirst::COMMAND.size();
     }
 
-    static void printUsage(std::size_t fieldWidth )
+    static void printUsage(std::size_t fieldWidth, std::size_t indent )
     {
-        std::cout << std::setw(fieldWidth)
-                  << TFirst::COMMAND
-                  << "   "
-                  << TFirst::DESCRIPTION
-                  << "\n";
+        printPair( TFirst::COMMAND, TFirst::DESCRIPTION, fieldWidth, indent );
     }
 };
 
@@ -206,10 +214,10 @@ struct DispatchList<TFirst,TRest...>
                     DispatchList<TRest...>::getFieldWidth() );
     }
 
-    static void printUsage(std::size_t fieldWidth )
+    static void printUsage(std::size_t fieldWidth, std::size_t indent )
     {
-        DispatchList<TFirst>::printUsage(fieldWidth);
-        DispatchList<TRest...>::printUsage(fieldWidth);
+        DispatchList<TFirst>::printUsage(fieldWidth,indent);
+        DispatchList<TRest...>::printUsage(fieldWidth,indent);
     }
 };
 
@@ -235,22 +243,28 @@ void print_usage(const char* argv0 )
 
     fieldWidth = std::max( fieldWidth0, fieldWidth1+3 );
 
-    std::cout << "command may be any of:\n"
-              << std::setw( fieldWidth )
-              << "help [command]"
-              << "   "
-              << "print help for any of the following commands\n";
-    SingleCommands::printUsage(fieldWidth0);
-    std::cout << std::setw( fieldWidth )
-              << "ls"
-              << "   "
-              << "print a list of ... (see below)\n";
-    ListCommands::printUsage(fieldWidth1+3);
-    std::cout << std::setw( fieldWidth )
-              << "set"
-              << "   "
-              << "set a backend configuration variable (see below)\n";
-    SetCommands::printUsage(fieldWidth1+3);
+    const char* staticCmd[] =
+    {
+        "help [command]",
+           "print help for any of the following commands",
+        "ls [arg]",
+           "print a list of [arg] (see below) ",
+        "set [arg] [value]",
+           "set a backend configuration variable (see below) ",
+        0
+    };
+
+    for(const char** cmd = staticCmd; *cmd; cmd+=2 )
+        fieldWidth = std::max( fieldWidth, std::string(*cmd).length() );
+
+    std::cout << "command may be any of:\n";
+    printPair( staticCmd[0], staticCmd[1], fieldWidth, 0 );
+
+    SingleCommands::printUsage(fieldWidth,0);
+    printPair( staticCmd[2], staticCmd[3], fieldWidth, 0 );
+    ListCommands::printUsage(fieldWidth,3);
+    printPair( staticCmd[4], staticCmd[5], fieldWidth, 0 );
+    SetCommands::printUsage(fieldWidth,3);
 
 }
 
