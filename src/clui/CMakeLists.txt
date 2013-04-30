@@ -52,6 +52,7 @@ if( (Boost_FOUND)
         )
         
     add_executable( obfs
+                    connection.cpp
                     main.cpp
                     ../messages.cpp
                     ../FdSet.cpp
@@ -61,6 +62,7 @@ if( (Boost_FOUND)
                     ../SelectSpec.cpp
                     ../TimeVal.cpp
                     ${MESSAGES_PB_CC}
+                    commands/Connect.cpp
                     )
                             
     set_target_properties( obfs

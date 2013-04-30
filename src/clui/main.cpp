@@ -33,9 +33,7 @@
 #include <sstream>
 #include <string>
 
-#include <dirent.h>
-#include <netdb.h>
-#include <sys/time.h>
+
 
 #include <boost/filesystem.hpp>
 #include <tclap/CmdLine.h>
@@ -47,10 +45,10 @@
 
 #include "connection.h"
 #include "Options.h"
-#include "ConnectOptions.h"
-#include "DisplayNameOptions.h"
-#include "ListKnownClientOptions.h"
-#include "ListMountPointOptions.h"
+#include "commands/Connect.h"
+#include "commands/DisplayNameOptions.h"
+#include "commands/ListKnownClientOptions.h"
+#include "commands/ListMountPointOptions.h"
 
 
 namespace   openbook {
@@ -193,7 +191,7 @@ void dispatch( int argc, char** argv, bool help )
        dispatch(argc,argv,true);
    }
    else if( cmd == "connect" )
-        parse_and_go<ConnectOptions>(argc,argv,help);
+        parse_and_go<Connect>(argc,argv,help);
    else if( cmd == "usage" )
         print_usage();
    else if( cmd == "set_displayName" )
