@@ -51,6 +51,7 @@
 #include "commands/SetDisplayName.h"
 #include "commands/ListKnownPeers.h"
 #include "commands/ListMounts.h"
+#include "commands/LoadConfig.h"
 
 
 namespace   openbook {
@@ -222,7 +223,8 @@ struct DispatchList<TFirst,TRest...>
     }
 };
 
-typedef DispatchList< Connect >         SingleCommands;
+typedef DispatchList< Connect, 
+                      LoadConfig >      SingleCommands;
 
 typedef DispatchList< ListKnownPeers,
                       ListMounts >      ListCommands;

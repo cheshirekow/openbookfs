@@ -69,6 +69,7 @@ if( (Boost_FOUND)
                     commands/SetClientSocket.cpp
                     commands/SetDisplayName.cpp
                     commands/SetLocalSocket.cpp
+                    commands/LoadConfig.cpp
                     )
                             
     set_target_properties( obfs

@@ -1,19 +1,20 @@
-#ifndef OPENBOOK_FS_CLUI_LOADCONFIGOPTIONS_H_
-#define OPENBOOK_FS_CLUI_LOADCONFIGOPTIONS_H_
-
-#include "Options.h"
+#include "connection.h"
+#include "global.h"
+#include "FileDescriptor.h"
+#include "ReferenceCounted.h"
+#include "ExceptionStream.h"
+#include "LoadConfig.h"
 
 namespace   openbook {
 namespace filesystem {
 namespace       clui {
 
-class LoadConfigOptions:
-	public Options
-{
-	TCLAP::UnlabeledValueArg<std::string> fileName;
-	
-	public:
-	LoadConfigOptions(TCLAP::CmdLine& cmd):
+
+
+const std::string LoadConfig::COMMAND = "load_config";
+const std::string LoadConfig::DESCRIPTION = "load configuration options";
+
+LoadConfig::LoadConfig(TCLAP::CmdLine& cmd):
 	Options(cmd),
 	fileName(
 		"config file name",
@@ -25,9 +26,9 @@ class LoadConfigOptions:
 	{}
 	
 
-	void go(){
-		FdPtr_t sockfd = connectToClient(*this);    //< create a connection
-        	Marshall marshall;        //< create a marshaller
+void LoadConfig::go(){
+	FdPtr_t sockfd = connectToClient(*this);    //< create a connection
+       	Marshall marshall;        //< create a marshaller
        		marshall.setFd(*sockfd);  //< tell the marshaller the socket to use
         	handshake(marshall);      //< perform handshake protocol
 
@@ -62,10 +63,8 @@ class LoadConfigOptions:
                       << "\n";
 	        }
 	}
-};
+
 
 }
 }
 }
-
-#endif
