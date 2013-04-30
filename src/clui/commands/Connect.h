@@ -44,6 +44,7 @@ class Connect:
     TCLAP::UnlabeledValueArg<std::string> remoteService; ///< remote port
 
     public:
+        static const std::string COMMAND;
         Connect( TCLAP::CmdLine& cmd );
         void go();
 };

@@ -54,6 +54,7 @@ if( (Boost_FOUND)
     add_executable( obfs
                     connection.cpp
                     main.cpp
+                    Options.cpp
                     ../messages.cpp
                     ../FdSet.cpp
                     ../FileDescriptor.cpp

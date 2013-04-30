@@ -13,15 +13,12 @@ class ListKnownClientOptions:
 	public Options
 {
 
-
 	public:
+        static const std::string COMMAND;
 		ListKnownClientOptions(TCLAP::CmdLine& cmd):
 			Options(cmd)
 
 			{}
-
-
-				
 
 	void go(){
 	FdPtr_t sockfd = connectToClient(*this);    //< create a connection
@@ -132,6 +129,8 @@ class ListKnownClientOptions:
 	}
 
 };
+
+const std::string ListKnownClientOptions::COMMAND = "knownPeers";
 
 }
 }

@@ -39,6 +39,7 @@ class DisplayNameOptions:
     TCLAP::UnlabeledValueArg<std::string> displayName;    ///< display name
 
     public:
+        static const std::string COMMAND;
         DisplayNameOptions( TCLAP::CmdLine& cmd ):
             Options(cmd),
             displayName(
@@ -85,6 +86,8 @@ class DisplayNameOptions:
         }
 };
 
+
+const std::string DisplayNameOptions::COMMAND = "displayName";
 
 
 } //< namespace clui

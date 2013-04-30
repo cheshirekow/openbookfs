@@ -118,9 +118,11 @@ void print_usage(const char* argv0 = 0 )
     std::cout << "command may be any of:"
         "\n help [command]   print help for any of the following commands"
         "\n connect          force connection attempt to a peer"
-        "\n ls_known_peers   list known peers"
-        "\n ls_mounts        list mount points"
-        "\n set_displayName  set the display name"
+        "\n ls               print a list of (see below) "
+        "\n    knownPeers    known peers "
+        "\n    mounts        mount points "
+        "\n set              set a backend configuration variable (see below)"
+        "\n    displayName   set the display name"
         "\n";
 }
 
@@ -194,12 +196,22 @@ void dispatch( int argc, char** argv, bool help )
         parse_and_go<Connect>(argc,argv,help);
    else if( cmd == "usage" )
         print_usage();
-   else if( cmd == "set_displayName" )
-       parse_and_go<DisplayNameOptions>(argc,argv,help);
-   else if( cmd == "ls_known_peers" )
-       parse_and_go<ListKnownClientOptions>(argc,argv,help);
-   else if( cmd == "ls_mounts" )
-       parse_and_go<ListMountPointOptions>(argc,argv,help);
+   else if( cmd == "set" )
+   {
+       argc--;
+       argv++;
+       if( cmd == DisplayNameOptions::COMMAND )
+           parse_and_go<DisplayNameOptions>(argc,argv,help);
+   }
+   else if( cmd == "ls" )
+   {
+       argc--;
+       argv++;
+       if( cmd == ListKnownClientOptions::COMMAND )
+           parse_and_go<ListKnownClientOptions>(argc,argv,help);
+       else if( cmd == ListKnownClientOptions::COMMAND )
+           parse_and_go<ListMountPointOptions>(argc,argv,help);
+   }
    else
    {
        std::cout << "unrecognized command:" << cmd << "\n";

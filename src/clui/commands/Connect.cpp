@@ -36,6 +36,8 @@ namespace   openbook {
 namespace filesystem {
 namespace       clui {
 
+const std::string Connect::COMMAND = "connect";
+
 Connect::Connect( TCLAP::CmdLine& cmd ):
     Options(cmd),
     isLocal("l",    //< short flag character, usage: "-l"

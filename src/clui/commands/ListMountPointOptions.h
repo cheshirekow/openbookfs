@@ -10,15 +10,11 @@ namespace       clui {
 class ListMountPointOptions:
 	public Options
 {
-
 	public:
+        static const std::string COMMAND;
 		ListMountPointOptions(TCLAP::CmdLine& cmd):
 			Options(cmd)
-
 			{}
-
-
-				
 
 	void go(){
 		FdPtr_t sockfd = connectToClient(*this);    //< create a connection
@@ -117,6 +113,9 @@ class ListMountPointOptions:
 	}
 
 };
+
+
+const std::string ListMountPointOptions::COMMAND = "mounts";
 
 }
 }
