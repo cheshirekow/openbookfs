@@ -52,7 +52,9 @@ if( (Boost_FOUND)
         )
         
     add_executable( obfs
+                    connection.cpp
                     main.cpp
+                    Options.cpp
                     ../messages.cpp
                     ../FdSet.cpp
                     ../FileDescriptor.cpp
@@ -61,6 +63,15 @@ if( (Boost_FOUND)
                     ../SelectSpec.cpp
                     ../TimeVal.cpp
                     ${MESSAGES_PB_CC}
+                    commands/Connect.cpp
+                    commands/ListKnownPeers.cpp
+                    commands/ListMounts.cpp
+                    commands/LoadConfig.cpp
+                    commands/SaveConfig.cpp
+                    commands/SetClientSocket.cpp
+                    commands/SetDisplayName.cpp
+                    commands/SetLocalSocket.cpp
+                    commands/SetRemoteSocket.cpp
                     )
                             
     set_target_properties( obfs

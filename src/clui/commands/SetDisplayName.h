@@ -17,39 +17,33 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   src/clui/connection.h
+ *  @file   src/clui/SetDisplayName
  *
  *  @date   Apr 14, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_FS_CLUI_CONNECTION_H_
-#define OPENBOOK_FS_CLUI_CONNECTION_H_
-
-#include <cerrno>
-#include <dirent.h>
-#include <netdb.h>
-#include <sys/time.h>
+#ifndef OPENBOOK_FS_CLUI_DISPLAYNAMEOPTIONS_H_
+#define OPENBOOK_FS_CLUI_DISPLAYNAMEOPTIONS_H_
 
 #include "Options.h"
-#include "FileDescriptor.h"
-#include "Marshall.h"
-#include "ReferenceCounted.h"
-
 
 namespace   openbook {
 namespace filesystem {
 namespace       clui {
 
+class SetDisplayName:
+    public Options
+{
+    TCLAP::UnlabeledValueArg<std::string> displayName;    ///< display name
 
-typedef RefPtr<FileDescriptor>  FdPtr_t;
-
-/// create a connection to the desired server
-FdPtr_t connectToClient( Options& opts );
-
-/// perform handshake to notify client that we are a ui
-void handshake( Marshall& marshall );
+    public:
+        static const std::string COMMAND;
+        static const std::string DESCRIPTION;
+        SetDisplayName( TCLAP::CmdLine& cmd );
+        void go();
+};
 
 
 } //< namespace clui
@@ -58,4 +52,6 @@ void handshake( Marshall& marshall );
 
 
 
-#endif // CONNECTION_H_
+
+
+#endif // DISPLAYNAMEOPTIONS_H_

@@ -33,10 +33,8 @@
 #include <sstream>
 #include <string>
 
-#include <dirent.h>
-#include <netdb.h>
-#include <sys/time.h>
 
+#include <boost/format.hpp>
 #include <boost/filesystem.hpp>
 #include <tclap/CmdLine.h>
 
@@ -47,8 +45,16 @@
 
 #include "connection.h"
 #include "Options.h"
-#include "ConnectOptions.h"
-#include "DisplayNameOptions.h"
+#include "commands/Connect.h"
+#include "commands/SaveConfig.h"
+#include "commands/SetClientSocket.h"
+#include "commands/SetDataDir.h"
+#include "commands/SetDisplayName.h"
+#include "commands/SetLocalSocket.h"
+#include "commands/ListKnownPeers.h"
+#include "commands/ListMounts.h"
+#include "commands/LoadConfig.h"
+#include "commands/SetRemoteSocket.h"
 
 
 namespace   openbook {
@@ -109,18 +115,8 @@ std::string copyright()
     return sstream.str();
 }
 
-void print_usage(const char* argv0 = 0 )
-{
-    std::string commandName = argv0 ? argv0 : "obfs";
-    std::cout << copyright();
-    std::cout << "Usage: " << commandName << " <command> "
-              << "[command options]\n\n";
-    std::cout << "command may be any of:"
-        "\n help [command]   print help for any of the following commands"
-        "\n connect          force connection attempt to a peer"
-        "\n set_displayName  set the display name"
-        "\n";
-}
+void print_usage(const char* argv0 = 0 );
+
 
 
 /// parses a command and then executes it
@@ -161,6 +157,130 @@ void parse_and_go(int argc, char** argv, bool help=false)
 }
 
 
+void printPair( const std::string& cmd, const std::string& desc,
+                int fieldWidth, int indent )
+{
+    int nSpaces = 3+fieldWidth - (cmd.size() + indent);
+
+    for(int i=0; i < indent; i++)
+        std::cout << " ";
+    std::cout << cmd;
+    for(int i=0; i < nSpaces; i++)
+        std::cout << " ";
+    std::cout << desc << "\n";
+}
+
+
+template < typename ...TList >
+struct DispatchList;
+
+template < typename TFirst >
+struct DispatchList< TFirst >
+{
+    static bool dispatch( const std::string& cmd,
+                            int argc, char** argv, bool help )
+    {
+        if( cmd == TFirst::COMMAND )
+        {
+            parse_and_go<TFirst>(argc,argv,help);
+            return true;
+        }
+        return false;
+    }
+
+    static std::size_t getFieldWidth()
+    {
+        return TFirst::COMMAND.size();
+    }
+
+    static void printUsage(std::size_t fieldWidth, std::size_t indent )
+    {
+        printPair( TFirst::COMMAND, TFirst::DESCRIPTION, fieldWidth, indent );
+    }
+};
+
+template < typename TFirst, typename ...TRest >
+struct DispatchList<TFirst,TRest...>
+{
+    static bool dispatch( const std::string& cmd,
+                            int argc, char** argv, bool help )
+    {
+        if( DispatchList<TFirst>::dispatch(cmd,argc,argv,help) )
+            return true;
+        if( DispatchList<TRest...>::dispatch(cmd,argc,argv,help) )
+            return true;
+        return false;
+    }
+
+    static std::size_t getFieldWidth()
+    {
+        return std::max(
+                    DispatchList<TFirst>::getFieldWidth(),
+                    DispatchList<TRest...>::getFieldWidth() );
+    }
+
+    static void printUsage(std::size_t fieldWidth, std::size_t indent )
+    {
+        DispatchList<TFirst>::printUsage(fieldWidth,indent);
+        DispatchList<TRest...>::printUsage(fieldWidth,indent);
+    }
+};
+
+typedef DispatchList< Connect, 
+                      LoadConfig,
+                      SaveConfig>       SingleCommands;
+
+typedef DispatchList< ListKnownPeers,
+                      ListMounts >      ListCommands;
+
+typedef DispatchList< SetClientSocket,
+                      SetDataDir,
+                      SetDisplayName,
+                      SetLocalSocket,
+                      SetRemoteSocket>  SetCommands;
+
+void print_usage(const char* argv0 )
+{
+    std::string commandName = argv0 ? argv0 : "obfs";
+    std::cout << copyright();
+    std::cout << "Usage: " << commandName << " <command> "
+              << "[command options]\n\n";
+
+    std::size_t fieldWidth=0;
+    std::size_t fieldWidth0 = SingleCommands::getFieldWidth();
+    std::size_t fieldWidth1 = 0;
+    fieldWidth1 = std::max( fieldWidth1, ListCommands::getFieldWidth() );
+    fieldWidth1 = std::max( fieldWidth1, SetCommands::getFieldWidth() );
+
+    fieldWidth = std::max( fieldWidth0, fieldWidth1+3 );
+
+    const char* staticCmd[] =
+    {
+        "help [command]",
+           "print help for any of the following commands",
+        "ls [arg]",
+           "print a list of [arg] (see below) ",
+        "set [arg] [value]",
+           "set a backend configuration variable (see below) ",
+        0
+    };
+
+    for(const char** cmd = staticCmd; *cmd; cmd+=2 )
+        fieldWidth = std::max( fieldWidth, std::string(*cmd).length() );
+
+    std::cout << "command may be any of:\n";
+    printPair( staticCmd[0], staticCmd[1], fieldWidth, 0 );
+
+    SingleCommands::printUsage(fieldWidth,0);
+    printPair( staticCmd[2], staticCmd[3], fieldWidth, 0 );
+    ListCommands::printUsage(fieldWidth,3);
+    printPair( staticCmd[4], staticCmd[5], fieldWidth, 0 );
+    SetCommands::printUsage(fieldWidth,3);
+
+}
+
+
+
 /// parses the first argument of argv (the subcommand name) and then calls
 /// the apropriate function to actually do the work
 /**
@@ -188,12 +308,30 @@ void dispatch( int argc, char** argv, bool help )
        argv++;
        dispatch(argc,argv,true);
    }
-   else if( cmd == "connect" )
-        parse_and_go<ConnectOptions>(argc,argv,help);
    else if( cmd == "usage" )
         print_usage();
-   else if( cmd == "set_displayName" )
-       parse_and_go<DisplayNameOptions>(argc,argv,help);
+   else if( cmd == "set" )
+   {
+       argc--;
+       argv++;
+       std::string cmd = argc > 0 ? argv[0] : "usage";
+       if( !SetCommands::dispatch(cmd,argc,argv,help) )
+       {
+           std::cout << "unrecognized set command:" << cmd << "\n";
+           print_usage();
+       }
+   }
+   else if( cmd == "ls" )
+   {
+       argc--;
+       argv++;
+       std::string cmd = argc > 0 ? argv[0] : "usage";
+       if( !ListCommands::dispatch(cmd,argc,argv,help) )
+       {
+           std::cout << "unrecognized ls command:" << cmd << "\n";
+           print_usage();
+       }
+   }
    else
    {
        std::cout << "unrecognized command:" << cmd << "\n";

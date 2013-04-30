@@ -108,66 +108,10 @@ class Options
     TCLAP::ValueArg<std::string> clientService; ///< client port
 
     public:
-        Options( TCLAP::CmdLine& cmd ):
-            clientFamily(
-                "a",                //< short flag name, usage: "-a [value]"
-                "address-family",   //< long flag: "--address-family [value]"
-                // description, is printed in the help message
-                "address family of interface to use: "
-                    "AF_[INET|INET6|UNIX|UNSPEC]",
-                false,              //< required?
-                "AF_INET",          //< default value
-                "ai_family",        //< placeholder for this argument in help
-                cmd                 //< the TCLAP::CmdLine object to use
-                ),
-            clientNode(
-                "i",
-                "client-iface",
-                "client network interface to use",
-                false,
-                "localhost",
-                "iface",
-                cmd
-                ),
-            clientService(
-                "p",
-                "client-port",
-                "client port number / service name to use",
-                false,
-                "3031",
-                "port",
-                cmd)
-        {}
-
-        int get_clientFamily()
-        {
-            std::string clientFamilyStr = clientFamily.getValue();
-            int family = AF_INET;
-            if( clientFamilyStr == "AF_INET" )
-                family = AF_INET;
-            else if( clientFamilyStr == "AF_INET6" )
-                family = AF_INET6;
-            else if( clientFamilyStr == "AF_UNIX" )
-                family = AF_UNIX;
-            else if( clientFamilyStr == "AF_UNSPEC" )
-                family = AF_UNSPEC;
-
-            return family;
-        }
-
-        std::string get_clientNode()
-        {
-            std::string clientNodeStr = clientNode.getValue();
-            if( clientNodeStr == "any" )
-                return "";
-            else
-                return clientNodeStr;
-        }
-
-        std::string get_clientService()
-        {
-            return clientService.getValue();
-        }
+        Options( TCLAP::CmdLine& cmd );
+        int get_clientFamily();
+        std::string get_clientNode();
+        std::string get_clientService();
 };
 
 
@@ -180,11 +124,7 @@ class CmdLine:
                 const char delimiter = ' ',
                 const std::string& version = "none",
                 bool helpAndVersion = true
-                ):
-            TCLAP::CmdLine(message,delimiter,version,helpAndVersion)
-        {
-            _progName = "obfs " + cmd;
-        }
+                );
 };
 
 } //< namespace clui

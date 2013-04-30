@@ -17,45 +17,30 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   src/clui/connection.h
+ *  @file   src/backend/global.h
  *
- *  @date   Apr 14, 2013
+ *  @date   Apr 9, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_FS_CLUI_CONNECTION_H_
-#define OPENBOOK_FS_CLUI_CONNECTION_H_
+#ifndef OPENBOOK_FS_GUI_GLOBAL_H_
+#define OPENBOOK_FS_GUI_GLOBAL_H_
 
-#include <cerrno>
-#include <dirent.h>
-#include <netdb.h>
-#include <sys/time.h>
 
-#include "Options.h"
-#include "FileDescriptor.h"
-#include "Marshall.h"
-#include "ReferenceCounted.h"
+#include <cpp-pthreads.h>
+#include "NotifyPipe.h"
 
 
 namespace   openbook {
 namespace filesystem {
-namespace       clui {
+
+extern
+NotifyPipe* g_termNote;      ///< pipe used to break out of select statements
 
 
-typedef RefPtr<FileDescriptor>  FdPtr_t;
-
-/// create a connection to the desired server
-FdPtr_t connectToClient( Options& opts );
-
-/// perform handshake to notify client that we are a ui
-void handshake( Marshall& marshall );
+} // namespace filesystem
+} // namespace openbook
 
 
-} //< namespace clui
-} //< namespace filesystem
-} //< namespace openbook
-
-
-
-#endif // CONNECTION_H_
+#endif // GLOBAL_H_

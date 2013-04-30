@@ -1,7 +1,7 @@
 /********************************************************************************
 ** Form generated from reading UI file 'localclient.ui'
 **
-** Created: Mon Apr 29 15:50:40 2013
+** Created: Tue Apr 30 17:09:44 2013
 **      by: Qt User Interface Compiler version 4.8.1
 **
 ** WARNING! All changes made in this file will be lost when recompiling UI file!

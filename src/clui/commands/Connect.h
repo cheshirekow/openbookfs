@@ -17,39 +17,41 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   src/clui/connection.h
+ *  @file   src/clui/Connect.h
  *
  *  @date   Apr 14, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_FS_CLUI_CONNECTION_H_
-#define OPENBOOK_FS_CLUI_CONNECTION_H_
+#ifndef OPENBOOK_FS_CLUI_CONNECTOPTIONS_H_
+#define OPENBOOK_FS_CLUI_CONNECTOPTIONS_H_
 
-#include <cerrno>
-#include <dirent.h>
-#include <netdb.h>
-#include <sys/time.h>
+
+#include <tclap/CmdLine.h>
 
 #include "Options.h"
-#include "FileDescriptor.h"
-#include "Marshall.h"
-#include "ReferenceCounted.h"
-
 
 namespace   openbook {
 namespace filesystem {
 namespace       clui {
 
+class Connect:
+    public Options
+{
+    TCLAP::SwitchArg                      isLocal;       ///< same host machine
+    TCLAP::UnlabeledValueArg<std::string> remoteNode;    ///< remote address
+    TCLAP::UnlabeledValueArg<std::string> remoteService; ///< remote port
 
-typedef RefPtr<FileDescriptor>  FdPtr_t;
+    public:
+        static const std::string COMMAND;
+        static const std::string DESCRIPTION;
 
-/// create a connection to the desired server
-FdPtr_t connectToClient( Options& opts );
 
-/// perform handshake to notify client that we are a ui
-void handshake( Marshall& marshall );
+        Connect( TCLAP::CmdLine& cmd );
+        void go();
+};
+
 
 
 } //< namespace clui
@@ -58,4 +60,6 @@ void handshake( Marshall& marshall );
 
 
 
-#endif // CONNECTION_H_
+
+
+#endif // CONNECTOPTIONS_H_
