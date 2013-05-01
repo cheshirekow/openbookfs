@@ -2,7 +2,13 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-#include <messages.h>
+
+
+
+
+#include "connection.h"
+
+
 
 namespace Ui {
 class MainWindow;
@@ -16,10 +22,14 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
 
-    void setDisplayName( const QString& name );
     
 private:
     Ui::MainWindow *ui;
+
+    QTcpSocket *socket;
+
+
+
 };
 
 #endif // MAINWINDOW_H
