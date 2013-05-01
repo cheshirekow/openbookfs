@@ -1,0 +1,19 @@
+\documentclass[11pt]{report}
+\title{Openbook Filesystem}
+\author{Bruno Alvisio\\Gabe Ayers\\Josh Bialkowski}
+\begin{document}
+\maketitle
+\section{Introduction:}
+There are many different backup and sync solutions currently available to users. Typically these services use one replicated backup server that the user is able to sync their files too. Normally a small amount of storage is free and then as the amount of backup data increases the cost to the user also increases.  There are two major problems with this solution. The primary problem is that the end user relies upon the service provider completely to backup their data correctly and in this process the service provider also gains complete access to all of the user’s data. Secondly the user is limited in the amount of data they are able to backup often having to decide between backing up their music or their videos as to avoid hitting the storage ceilings.
+OpenbookFS is an open source alternative to this problem that eliminates the dependency on a third party service and also allows for the user to buy cheap storage to meet their storage needs. The OpenbookFS solution is too automatically backup files between all of the users’ devices so that as long as one device is still active the files will be recoverable. If the user want’s to have a more centralized backup solution they can setup an always-on server to house one of the OpenbookFS nodes.
+
+\section{Filesystem:}
+File system section.
+
+\section{User Interfaces:}
+OpenbookFS comes with two different user interfaces to work with. Preinstalled with OpenbookFS is a command line user interface for setup of the system. As an extra the user can choose to install the Qt libraries and run a graphical user interface for an easy setup and maintanence solution. The command line user interface is integrated with the code for the server and uses much of the same codebase for ease of development. The graphical user interface was developed seperately to show the ease of connecting to this system and using the standard communication protocol to talk with the server and adjust settings and preferences. Currently both the command line user interface and the graphical user interface are required to be run on the same computer as the OpenbookFS node since encryption has not been implemented within the user interfaces. This is straight forward to remedy and would require only slightly more development.
+
+\section{Conclusion:}
+Conclusion goes here
+
+\end{document}
