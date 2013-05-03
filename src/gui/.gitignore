@@ -1,0 +1,5 @@
+Makefile
+*.o
+moc_*
+OpenFSUI
+*.user

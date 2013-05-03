@@ -94,10 +94,14 @@ struct MessageParser
 };
 
 
+typedef MessageDestroyer<0,NUM_MSG-1> MsgDestroy;
+typedef MessageParser<0,NUM_MSG-1>    MsgParse;
+
+
 AutoMessage::~AutoMessage()
 {
     if(msg)
-        MessageDestroyer<1,NUM_MSG-2>::destroy(type,msg);
+        MsgDestroy::destroy(type,msg);
 }
 
 
@@ -164,7 +168,8 @@ void Marshall::readSize()
                    << errno << " : " << strerror( errno );
 
         // wait for data (do it in a loop because wait may timeout)
-        std::cout << "Waiting for header" << std::endl;
+        std::cout << "Waiting for " << size - bytes_received
+                  << " more header bytes\n";
         while( select.wait() == 0 );
 
         // if we were signalled by anything other than data ready, then
@@ -265,7 +270,7 @@ RefPtr<AutoMessage> Marshall::deserialize( std::string& data )
 
     // the first decoded byte is the type
     out->type = parseMessageId( data[0] );
-    out->msg  = MessageParser<1,NUM_MSG-2>::parse(data);
+    out->msg  = MsgParse::parse(data);
 
     return RefPtr<AutoMessage>(out);
 }

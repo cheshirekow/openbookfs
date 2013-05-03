@@ -274,9 +274,6 @@ class PriorityQueue
             // get the queue at the specified priority
             DataQueue_t& queue = m_queueStore[prio];
 
-            // ensure that this priority is in the queue
-            m_prioQueue.insert(prio);
-
             // get a node to store the data
             DataNode_t* dNode = m_freeStore[prio].pop_back();
 
@@ -284,12 +281,20 @@ class PriorityQueue
             // to be restored
             while(!dNode)
             {
+                std::cout << "PriorityQueue: No available storage for priority "
+                          << prio << " waiting for a free'd block";
+
                 // when we enter the wait we release the mutex, so someone
                 // else may put something into the queue... when we return
                 // from the wait we own the mutex again so we cannot be
                 // pre-empted
                 m_notFull[prio].wait(m_mutex);
                 dNode = m_freeStore[prio].pop_back();
+
+                if(dNode)
+                    std::cout << "PriorityQueue: got a free block, inserting"
+                                 " item into queue at priority " << prio
+                               << "\n";
             }
 
             // set the data
@@ -297,6 +302,9 @@ class PriorityQueue
 
             // now put it into the priority queue
             queue.push_back(dNode);
+
+            // ensure that this priority is in the queue
+            m_prioQueue.insert(prio);
 
             // if there is any thread waiting for new data then signal that
             // thread, note that we still own the mutex until after this
@@ -316,6 +324,9 @@ class PriorityQueue
             // to become available
             while( m_prioQueue.size() < 1 )
             {
+                std::cout << "PriorityQueue: nothing to read from prioirty "
+                             "queue, waiting\n";
+
                 // when we start waiting we release the mutex, but when this
                 // call blocks it will not return until someone signals a new
                 // item is available. When it does return we own the mutex

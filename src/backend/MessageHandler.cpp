@@ -301,6 +301,7 @@ void MessageHandler::handleMessage( messages::GetBackendInfo* msg)
             messages::PeerList* reply =
                     new messages::PeerList();
             m_backend->getPeers(reply);
+            std::cout << "MessageHandler: queueing PeerList\n";
             m_outboundQueue->insert( new AutoMessage(reply) );
             break;
         }
@@ -310,6 +311,7 @@ void MessageHandler::handleMessage( messages::GetBackendInfo* msg)
             messages::PeerList* reply =
                     new messages::PeerList();
             m_backend->getKnownPeers(reply);
+            std::cout << "MessageHandler: queueing PeerList\n";
             m_outboundQueue->insert( new AutoMessage(reply) );
             break;
         }
@@ -319,6 +321,7 @@ void MessageHandler::handleMessage( messages::GetBackendInfo* msg)
             messages::MountList* reply =
                     new messages::MountList();
             m_backend->getMounts(reply);
+            std::cout << "MessageHandler: queueing MountList\n";
             m_outboundQueue->insert( new AutoMessage(reply) );
             break;
         }

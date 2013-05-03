@@ -720,6 +720,9 @@ void Connection::listen()
             // or termination signal
             RefPtr<AutoMessage> msg = m_marshall.read(m_isRemote);
 
+            std::cout << "Connection: received " << messageIdToString(msg->type)
+                      << "\n";
+
             // put the message in the inbound queue
             m_inboundMessages.insert(msg);
         }
@@ -752,11 +755,14 @@ void Connection::shout()
             // wait for a job to be finished from the queue
             m_outboundMessages.extract(msg);
 
+            std::cout << "Connection: writing" << messageIdToString(msg->type)
+                      << "\n";
+
             // if it's a quit message then quit
             if( msg->type == MSG_QUIT )
             {
-                std::cout << "Client Handler " << (void*)this << " received a "
-                             "QUIT_SHOUTER job, so quitting\n";
+                std::cout << "Connection::shout " << (void*)this << " received a "
+                             "QUIT message, so quitting\n";
                 break;
             }
 
