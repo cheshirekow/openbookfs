@@ -1,19 +1,35 @@
-\documentclass[11pt]{report}
+\documentclass[letterpaper]{article}
 \title{Openbook Filesystem}
 \author{Bruno Alvisio\\Gabe Ayers\\Josh Bialkowski}
+
+\usepackage[parfill]{parskip}
+
+\usepackage{fullpage}
+
+
+\setcounter{secnumdepth}{1}
+
 \begin{document}
 \maketitle
-\section{Introduction:}
+\section{Introduction}
 There are many different backup and sync solutions currently available to users. Typically these services use one replicated backup server that the user is able to sync their files too. Normally a small amount of storage is free and then as the amount of backup data increases the cost to the user also increases.  There are two major problems with this solution. The primary problem is that the end user relies upon the service provider completely to backup their data correctly and in this process the service provider also gains complete access to all of the user’s data. Secondly the user is limited in the amount of data they are able to backup often having to decide between backing up their music or their videos as to avoid hitting the storage ceilings.
-OpenbookFS is an open source alternative to this problem that eliminates the dependency on a third party service and also allows for the user to buy cheap storage to meet their storage needs. The OpenbookFS solution is too automatically backup files between all of the users’ devices so that as long as one device is still active the files will be recoverable. If the user want’s to have a more centralized backup solution they can setup an always-on server to house one of the OpenbookFS nodes.
 
-\section{Filesystem:}
-File system section.
+Openbook Filesystem is an open source alternative to this problem that eliminates the dependency on a third party service and also allows for the user to buy cheap storage to meet their storage needs. The Openbook Filesystem solution is too automatically backup files between all of the users’ devices so that as long as one device is still active the files will be recoverable. If the user want’s to have a more centralized backup solution they can setup an always-on server to house one of the Openbook Filesystem nodes.
 
-\section{User Interfaces:}
-OpenbookFS comes with two different user interfaces to work with. Preinstalled with OpenbookFS is a command line user interface for setup of the system. As an extra the user can choose to install the Qt libraries and run a graphical user interface for an easy setup and maintanence solution. The command line user interface is integrated with the code for the server and uses much of the same codebase for ease of development. The graphical user interface was developed seperately to show the ease of connecting to this system and using the standard communication protocol to talk with the server and adjust settings and preferences. Currently both the command line user interface and the graphical user interface are required to be run on the same computer as the OpenbookFS node since encryption has not been implemented within the user interfaces. This is straight forward to remedy and would require only slightly more development.
+\section{Filesystem}
+Openbook Filesystem uses a variant of Bayou to create a replicated filesystem between the different node computers of the user's Openbook Filesystem network. The filesystem is weakly consistent incorporating automatic file conflict mitigation where possible and user conflict mitigation when required. Openbook Filesystem uses vector timestamps to keep track of all changes to each file within the nodal network and is able to heavily rely upon these vector timestamps to manage conflict resolution.
 
-\section{Conclusion:}
+Each node of the Openbook Filesystem keeps a complete folder and file structure backup though the node does not automatically back up any of the files. The user selects which directories to mount locally to the node, at this point Openbook Filesystem syncs the relavent files from other nodes within the network as those files become available. Openbook Filesystem also allows the user to prioritize which files are loaded first, if available, for quick and easy access to a desired file without having to wait for a complete synchronization of the directory.
+
+An imporant aspect to any cross wide area network distributed filesystem is security. Openbook Filesystem incorporates encryption of all data transfer between nodes using Crypto++, an opensource C++ cryptography library. Local links within a single node are not encrypted, an example of this would be the connection between a user interface and the local Openbook Filesystem node.
+
+\section{User Interfaces}
+Openbook Filesystem comes with two different user interfaces, a graphical user interface and a command line user interface. The command line user interface is preinstalled within Openbook Filesystem. The command line user interface is integrated with the code for the server and uses much of the same codebase for ease of development. The user is able to fully operate the Openbook Filesystem through the command line user interface though some users may not find this to be an optimal solution. As an extra, the user can choose to install C++ Qt libraries and run a graphical user interface for an easy to use solution with much more helpful feedback at each point in the program. The graphical user interface was developed completely seperately using a differnet codebase to show the ease of connecting to this system using the standard communication protocol to talk with the server and adjust settings and preferences. Currently both the command line user interface and the graphical user interface are required to run on the same computer as the Openbook Filesystem node since encryption has not been implemented within the user interfaces. It was not deemed important for this phase of the project to implement encryption between the userinterface and the Openbook Filesystem node.
+
+\section{Performance}
+Do we have any performance records?
+
+\section{Conclusion and }
 Conclusion goes here
 
 \end{document}
