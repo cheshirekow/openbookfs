@@ -334,8 +334,11 @@ void dispatch( int argc, char** argv, bool help )
    }
    else
    {
-       std::cout << "unrecognized command:" << cmd << "\n";
-       print_usage();
+       if( !SingleCommands::dispatch(cmd,argc,argv,help) )
+       {
+           std::cout << "unrecognized command:" << cmd << "\n";
+           print_usage();
+       }
    }
 }
 
