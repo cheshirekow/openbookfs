@@ -37,6 +37,7 @@
 #include "NotifyPipe.h"
 #include "SocketListener.h"
 #include "MountPoint.h"
+#include "Database.h"
 
 
 
@@ -77,6 +78,9 @@ class Backend
         Path_t          m_dbFile;   ///< sqlite database with state
         std::string     m_pubKey;   ///< base64 encoded public key
         Path_t          m_privKey;  ///< path to private key file
+
+        /// wrapper for database access
+        Database        m_db;
 
         /// listens for incoming connections
         SocketListener   m_listeners[NUM_LISTENERS];
