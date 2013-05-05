@@ -31,6 +31,7 @@
 #include "Marshall.h"
 #include "jobs/PingJob.h"
 #include "jobs/SendTree.h"
+#include "MetaFile.h"
 
 
 
@@ -421,7 +422,24 @@ void MessageHandler::handleMessage( messages::FileChunk* msg )
 
 void MessageHandler::handleMessage( messages::DirChunk* msg )
 {
-
+    namespace fs = boost::filesystem;
+    fs::path root = m_backend->realRoot();
+    fs::path dir  = root / msg->path();
+    try
+    {
+        if( !fs::exists(dir) )
+            fs::create_directories(dir);
+        MetaFile meta(dir);
+        meta.merge(msg);
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "MessageHandler::handleMessage() : WARNING "
+                  << "failed to merge directory "
+                  << msg->path()
+                  << ", error: " << ex.what()
+                  << "\n";
+    }
 }
 
 

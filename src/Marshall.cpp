@@ -94,8 +94,8 @@ struct MessageParser
 };
 
 
-typedef MessageDestroyer<0,NUM_MSG-1> MsgDestroy;
-typedef MessageParser<0,NUM_MSG-1>    MsgParse;
+typedef MessageDestroyer<0,NUM_MSG> MsgDestroy;
+typedef MessageParser<0,NUM_MSG>    MsgParse;
 
 
 AutoMessage::~AutoMessage()

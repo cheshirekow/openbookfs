@@ -29,6 +29,7 @@
 #include "Backend.h"
 #include "SendTree.h"
 #include "ExceptionStream.h"
+#include "MetaFile.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -48,7 +49,7 @@ static boost::filesystem::path make_relative(
     // iterate over common prefix
     for( ; baseIter != baseEnd
             && queryIter != queryEnd
-            && *baseIter != *queryIter;
+            && *baseIter == *queryIter;
             ++baseIter, ++queryIter );
 
     if( baseIter != baseEnd )
@@ -64,14 +65,59 @@ static boost::filesystem::path make_relative(
 void SendTree::go()
 {
     namespace fs = boost::filesystem;
+    namespace msg = messages;
     fs::path root = m_backend->realRoot();
 
-    for( fs::recursive_directory_iterator end, dir(root);
-            dir != end; ++dir )
+    std::list<fs::path> queue;
+    queue.push_back(fs::path("./"));
+
+    // pointer to message to send
+    msg::DirChunk* chunk = 0;
+
+    while(queue.size() > 0)
     {
-        fs::path subpath = make_relative( root, dir->path() );
-        std::cout << dir->path() << "\n";
+        // get the next directory from the queue
+        fs::path dir = queue.front();
+        queue.pop_front();
+
+        // create a chunk unless we didn't use it at the last round
+        if(!chunk)
+            chunk = new msg::DirChunk();
+
+        // get the metadata file
+        MetaFile meta( root / dir );
+
+        // get the contents
+        meta.readdir( chunk );
+
+        // if the directory has children then recruse on any subidrs
+        std::cout << "SendTree::go() : built directory message: "
+                  << "\n directory : " << dir
+                  << "\n contents  : \n";
+        for(int i=0 ; i < chunk->entries_size(); i++)
+        {
+            fs::path subdir = dir / chunk->entries(i).path();
+            std::cout << "    " << subdir << "\n";
+            if( fs::is_directory(subdir) )
+                queue.push_back(subdir);
+        }
+
+        // if the directory has contents, then send the message and add
+        // children to the queue
+        if( chunk->entries_size() > 0 )
+        {
+            int ok = m_backend->sendMessage(m_peerId,chunk,1);
+            chunk = 0;
+
+            // if the peer isn't connected dont continue
+            if(!ok)
+                break;
+        }
     }
+
+    if(chunk)
+        delete chunk;
+
 }
 
 

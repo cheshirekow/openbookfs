@@ -190,7 +190,7 @@ struct MessageDispatcher
     }
 };
 
-typedef MessageDispatcher<0,NUM_MSG-1> MsgSwitch;
+typedef MessageDispatcher<0,NUM_MSG> MsgSwitch;
 
 
 

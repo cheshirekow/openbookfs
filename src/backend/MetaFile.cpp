@@ -114,6 +114,29 @@ void MetaFile::readdir( void *buf, fuse_fill_dir_t filler, off_t offset )
     }
 }
 
+void MetaFile::readdir( messages::DirChunk* msg )
+{
+    typedef soci::rowset<std::string> rowset_t;
+    rowset_t rs = m_sql.prepare
+        << "SELECT path FROM entries ORDER BY path";
+
+    for( auto& path : rs )
+    {
+        messages::DirEntry* entry = msg->add_entries();
+        entry->set_path(path);
+    }
+}
+
+void MetaFile::merge( messages::DirChunk* msg )
+{
+    for(int i=0; i < msg->entries_size(); i++)
+    {
+        const messages::DirEntry& entry = msg->entries(i);
+        m_sql << "INSERT OR IGNORE INTO entries (path,subscribed) "
+                 "VALUES ('" << entry.path() << "', 0)";
+    }
+}
+
 void MetaFile::incrementVersion()
 {
     incrementVersion( m_subpath );
