@@ -67,7 +67,9 @@ static void validate_message( RefPtr<AutoMessage> msg, MessageId expected )
 Connection::Connection():
     m_backend(0),
     m_pool(0),
-    m_isRemote(true)
+    m_isRemote(true),
+    m_inboundMessages("inboundMsg"),
+    m_outboundMessages("outboundMsg")
 {
     m_mutex.init();
 }
@@ -261,16 +263,16 @@ void Connection::main()
         m_writeThread.launch( dispatch_shout, this );
 
         // create a ping message for the client
-        if( !m_isUI )
-        {
-            messages::Ping* ping = new messages::Ping();
-            ping->set_payload(0xdeadf00d);
-            m_outboundMessages.insert(new AutoMessage(ping));
-
-            messages::Pong* pong = new messages::Pong();
-            pong->set_payload(0xdeadf00d);
-            m_outboundMessages.insert(new AutoMessage(pong));
-        }
+//        if( !m_isUI )
+//        {
+//            messages::Ping* ping = new messages::Ping();
+//            ping->set_payload(0xdeadf00d);
+//            m_outboundMessages.insert(new AutoMessage(ping));
+//
+//            messages::Pong* pong = new messages::Pong();
+//            pong->set_payload(0xdeadf00d);
+//            m_outboundMessages.insert(new AutoMessage(pong));
+//        }
     }
     catch( std::exception& ex )
     {
@@ -755,7 +757,7 @@ void Connection::shout()
             // wait for a job to be finished from the queue
             m_outboundMessages.extract(msg);
 
-            std::cout << "Connection: writing" << messageIdToString(msg->type)
+            std::cout << "Connection: writing " << messageIdToString(msg->type)
                       << "\n";
 
             // if it's a quit message then quit

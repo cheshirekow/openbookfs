@@ -237,10 +237,10 @@ $content
 
 const char* messageIdToString( MessageId id )
 {
-    if( 0 < id && id < NUM_MSG )
-        return g_msgIdStr[id];
-    else
+    if( id < 0 || id > NUM_MSG )
         return g_msgIdStr[NUM_MSG];
+    else
+        return g_msgIdStr[id];
 }
 
     

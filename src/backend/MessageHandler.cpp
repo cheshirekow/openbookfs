@@ -63,6 +63,7 @@ void MessageHandler::go( int peerId, MsgQueue_t* in, MsgQueue_t* out )
     m_inboundQueue  = in;
     m_outboundQueue = out;
     m_peerId        = peerId;
+    m_shouldQuit    = false;
     main();
 }
 
@@ -81,7 +82,7 @@ void MessageHandler::main()
     while(!m_shouldQuit)
     {
         m_inboundQueue->extract(msg);
-        MessageDispatcher<0,NUM_MSG-2>::dispatch( this, msg );
+        MsgSwitch::dispatch( this, msg );
     }
 
     std::cout << "Message Handler " << (void*)this << "Shutting down\n";

@@ -214,6 +214,7 @@ class PriorityQueue
 
 
     private:
+        std::string             m_debugName;
         pthreads::Mutex         m_mutex;    ///< locks the queue
         pthreads::Condition     m_notEmpty; ///< signals a new item added to
                                             ///  the queue
@@ -231,8 +232,10 @@ class PriorityQueue
          *  @param nprio     number of priority levels
          *  @param size     maximum storage size for each priority level
          */
-        PriorityQueue( unsigned int nprio=4, unsigned int size=25 )
+        PriorityQueue( const std::string debugName="Unspecified",
+                        unsigned int nprio=4, unsigned int size=25 )
         {
+            m_debugName = debugName;
             m_mutex.init();
             m_notEmpty.init();
 
@@ -245,7 +248,14 @@ class PriorityQueue
             // put all the nodes in the free queue
             for( int i=0; i < nprio; i++ )
             {
-                m_notFull[i].init();
+                int result = m_notFull[i].init();
+                if( result )
+                {
+                    std::cerr << "PriorityQueue " << m_debugName << " ::ctor : "
+                                 "failed to initialize prioirty"
+                                 "condition " << i << " : " << errno
+                              << " , " << strerror(errno) << "\n";
+                }
                 for(int j=0; j < size; j++ )
                     m_freeStore[i].push_back( &m_dataStore[i*size + j] );
             }
@@ -271,6 +281,9 @@ class PriorityQueue
             // lock the queue during this call
             pthreads::ScopedLock lock(m_mutex);
 
+            std::cout << "PriorityQueue " << m_debugName
+                      << " ::insert() got lock\n";
+
             // get the queue at the specified priority
             DataQueue_t& queue = m_queueStore[prio];
 
@@ -281,7 +294,8 @@ class PriorityQueue
             // to be restored
             while(!dNode)
             {
-                std::cout << "PriorityQueue: No available storage for priority "
+                std::cout << "PriorityQueue " << m_debugName
+                          << " ::insert() No available storage for priority "
                           << prio << " waiting for a free'd block";
 
                 // when we enter the wait we release the mutex, so someone
@@ -292,10 +306,14 @@ class PriorityQueue
                 dNode = m_freeStore[prio].pop_back();
 
                 if(dNode)
-                    std::cout << "PriorityQueue: got a free block, inserting"
+                    std::cout << "PriorityQueue " << m_debugName
+                               << " ::insert() got a free block, inserting"
                                  " item into queue at priority " << prio
                                << "\n";
             }
+
+            std::cout << "PriorityQueue " << m_debugName
+                      << " ::insert() got free node\n";
 
             // set the data
             dNode->data = data;
@@ -309,6 +327,10 @@ class PriorityQueue
             // if there is any thread waiting for new data then signal that
             // thread, note that we still own the mutex until after this
             // call finishes so there is no contention for the queue
+            std::cout << "PriorityQueue " << m_debugName
+                      << " ::insert() signalling notEmpty, num non-empty queues: "
+                      << m_prioQueue.size() << "\n";
+
             m_notEmpty.signal();
         }
 
@@ -320,12 +342,16 @@ class PriorityQueue
             // lock the queue and try to get something out of it
             pthreads::ScopedLock lock(m_mutex);
 
+            std::cout << "PriorityQueue " << m_debugName
+                       << " ::extract() got lock\n";
+
             // if there is nothing available, then wait for something
             // to become available
             while( m_prioQueue.size() < 1 )
             {
-                std::cout << "PriorityQueue: nothing to read from prioirty "
-                             "queue, waiting\n";
+                std::cout << "PriorityQueue " << m_debugName
+                           << " ::extract() nothing to read from "
+                             "prioirty queue, waiting\n";
 
                 // when we start waiting we release the mutex, but when this
                 // call blocks it will not return until someone signals a new
@@ -334,7 +360,13 @@ class PriorityQueue
                 // available and that we own the mutex so no one else will
                 // be able to take it before we do
                 m_notEmpty.wait(m_mutex);
+
+                std::cout << "PriorityQueue " << m_debugName
+                            << " ::extract() signalled notEmpty\n";
             }
+
+            std::cout << "PriorityQueue " << m_debugName
+                       << " ::extract() got item\n";
 
             // get the highest priority (lowest numbered) non-empty queue
             iterator      it    = m_prioQueue.begin();
