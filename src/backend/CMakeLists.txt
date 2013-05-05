@@ -69,6 +69,7 @@ if( (FUSE_FOUND)
                     MetaFile.cpp
                     MountPoint.cpp
                     SocketListener.cpp
+                    ../jobs/SendTree.cpp
                     ../messages.cpp
                     ../FdSet.cpp
                     ../FileDescriptor.cpp

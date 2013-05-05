@@ -72,6 +72,7 @@ if( (Boost_FOUND)
                     commands/SetDisplayName.cpp
                     commands/SetLocalSocket.cpp
                     commands/SetRemoteSocket.cpp
+                    commands/StartSync.cpp
                     )
                             
     set_target_properties( obfs

@@ -134,7 +134,7 @@ class Backend
 
         /// send a message to a specific peer
         template <typename Message_t>
-        void sendMessage( int peerId, Message_t* msg )
+        bool sendMessage( int peerId, Message_t* msg, int prio=0 )
         {
             LockedPtr<USPeerMap_t> peerMap( &m_peerMap );
             USPeerMap_t::iterator it = peerMap->find(peerId);
@@ -144,10 +144,11 @@ class Backend
                           << messageIdToString( MessageTypeToId<Message_t>::ID )
                           << " message b/c " << peerId
                           << " isn't in map \n";
-                return;
+                return false;
             }
 
-            it->second->enqueueMessage(peerId,msg);
+            it->second->enqueueMessage(peerId,msg,prio);
+            return true;
         }
 
 

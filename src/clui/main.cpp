@@ -55,6 +55,7 @@
 #include "commands/ListMounts.h"
 #include "commands/LoadConfig.h"
 #include "commands/SetRemoteSocket.h"
+#include "commands/StartSync.h"
 
 
 namespace   openbook {
@@ -228,7 +229,8 @@ struct DispatchList<TFirst,TRest...>
 
 typedef DispatchList< Connect, 
                       LoadConfig,
-                      SaveConfig>       SingleCommands;
+                      SaveConfig,
+                      StartSync>       SingleCommands;
 
 typedef DispatchList< ListKnownPeers,
                       ListMounts >      ListCommands;

@@ -30,6 +30,7 @@
 #include "MessageHandler.h"
 #include "Marshall.h"
 #include "jobs/PingJob.h"
+#include "jobs/SendTree.h"
 
 
 
@@ -339,6 +340,21 @@ void MessageHandler::handleMessage( messages::GetBackendInfo* msg)
             break;
         }
     }
+}
+
+void MessageHandler::handleMessage( messages::StartSync* msg )
+{
+    std::cout << "Handling start sync message\n";
+    jobs::SendTree* job = new jobs::SendTree(m_backend,msg->peerid());
+    m_backend->jobs()->enqueue(job);
+
+    messages::UserInterfaceReply* reply =
+            new messages::UserInterfaceReply();
+    reply->set_ok(true);
+    std::stringstream strm;
+    strm << "Sync not really implemented but OK";
+    reply->set_msg( strm.str() );
+    m_outboundQueue->insert( new AutoMessage(reply) );
 }
 
 void MessageHandler::handleMessage( messages::Quit* msg )

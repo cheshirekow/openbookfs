@@ -145,6 +145,7 @@ class MessageHandler
         void handleMessage( messages::GetBackendInfo*      msg);
         void handleMessage( messages::PeerList*            msg);
         void handleMessage( messages::MountList*           msg);
+        void handleMessage( messages::StartSync*           msg);
         void handleMessage( messages::LeaderElect*         msg);
         void handleMessage( messages::DiffieHellmanParams* msg);
         void handleMessage( messages::KeyExchange*         msg);

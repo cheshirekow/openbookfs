@@ -130,6 +130,11 @@ message MountList {
     repeated MountPoint mounts = 1; // < list of mount points
 }
 
+// tells the backend to synchronized with one of it's peers
+message StartSync {
+    optional int32   peerId = 1; //< the peer to synchronize with 
+}
+
 
 // ----------------------------------------------------------------------------
 //             Registered Client Authentication with Server
