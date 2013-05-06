@@ -41,27 +41,39 @@ void Database::init()
     std::cout << "Initializing database" << std::endl;
     session sql(sqlite3,m_dbFile.string());
 
-    sql << "CREATE TABLE IF NOT EXISTS conflict_files ("
-            "conflict_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
-            "path TEXT NOT NULL ) ";
+    // stores a list of files in conflict
+    sql << "CREATE TABLE IF NOT EXISTS conflicts ("
+            // unique identifier for the conflict
+            "id     INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
+            // the file in conflict
+            "path   TEXT NOT NULL,"
+            // the peer who has a conflicting version
+            "peer   INTEGER NOT NULL,"
+            // the location of the downloaded copy of the conflicting
+            // version
+            "stage  TEXT NOT NULL,"
+            // size of the peers version of the file in bytes
+            "size   INTEGER NOT NULL,"
+            // number of bytes that we have received
+            "recv   INTEGER NOT NULL ) ";
 
-    sql << "CREATE TABLE IF NOT EXISTS downloads ("
-            "tx_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
-            "path TEXT NOT NULL ) ";
+    // stores version vectors for conflict files
+    sql << "CREATE TABLE IF NOT EXISTS conflict_v ("
+            // the id of the conflicts row
+            "cid     INTEGER NOT NULL, "
+            // the key of the version vector
+            "peer    INTEGER NOT NULL, "
+            // the value of the version vector
+            "version INTEGER NOT NULL ) ";
 
-    sql << "CREATE TABLE IF NOT EXISTS current_messages ("
-            "msg_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
-            "msg_type INTEGER NOT NULL, "
-            "msg BLOB)";
-
-    sql << "CREATE TABLE IF NOT EXISTS old_messages ("
-            "msg_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
-            "msg_type INTEGER NOT NULL, "
-            "msg BLOB)";
-
+    // stores clients that we know about and assigns them a unique
+    // numerical index
     sql << "CREATE TABLE IF NOT EXISTS known_clients ("
-            "client_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
-            "client_key TEXT NOT NULL UNIQUE, "
+            // unique numerical identifier for the client
+            "client_id   INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
+            // base64 encoded public key
+            "client_key  TEXT NOT NULL UNIQUE, "
+            // human readable name for this machine
             "client_name TEXT NOT NULL) ";
 
 
