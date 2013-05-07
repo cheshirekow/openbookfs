@@ -1,7 +1,8 @@
-\documentclass[10pt]{ieeeconf}
+\documentclass[10pt,twocolumn]{article}
 \title{Openbook Filesystem}
 \author{Bruno Alvisio\\Gabe Ayers\\Josh Bialkowski}
 
+\usepackage{fullpage}
 \usepackage{amsfonts}
 \usepackage{amssymb}
 \usepackage{amsmath}
@@ -201,7 +202,8 @@ The code is written in C++. We use the CMake build system, and OBFS depends on
 the packages in table \ref{tbl:dependencies}.
 
 
-\begin{table}
+\begin{table}[h]
+    \centering
     \begin{tabular}{l|l}
       \textbf{library} & \textbf{usage} \\ \hline
       crypto++          & cryptography        \\
