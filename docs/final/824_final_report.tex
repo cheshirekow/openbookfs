@@ -48,7 +48,9 @@ proof-of-concept release, and what are goals are for future work.
 
 \section{Architecture}
 
-OBFS seeks to achieve \emph{eventual consistency}. 
+OBFS seeks to achieve \emph{eventual consistency} and immediate availability 
+of local files. We achieve eventual consistency by identifying causal orderings
+and automatically transfering files which are strictly future versions. 
 
 \subsection{Causal Ordering with Version Vectors}
 OBFS determines partial causal orderings of file changes by the use of version
@@ -60,8 +62,6 @@ they send to each other the version vector for their copy of a particular file.
 If the version vectors are ordered, then the peer with the lesser version
 downloads the version from the other. If they are not ordered, the file is noted
 to be in conflict. The user must intervene to resolve conflicts.
-
-
 
 \subsection{File system interface}
 OBFS monitors the file system for file changes by installing a FUSE 
