@@ -103,6 +103,7 @@ version vector for file $f$ on peer $x$. We denote the file on $A$ relative to
 $B$ as either `synced', `stale', `dirty', or in `conflict'. 
 
 \begin{table}
+    \centering
     \begin{tabular}{r|l|l}
         relationship        &  $f_A$ is\ldots & $f_B$ is\ldots \\ \hline
         $v_A(f) = v_B(f)$   &  synced         & synced         \\
@@ -156,11 +157,14 @@ and checkout and release files.
 
 For this 6.824 project we have completed a working proof of concept with 
 directory and file synchronization, conflict identification, and user
-conflict resolution over the UI. 
+conflict resolution over the UI. The high level features completed and to do
+are summarized in table \ref{tbl:FeatureList}
 
 
 \begin{table}
+    \centering
     \begin{tabular}{l|l}
+        \textbf{completed}      &   \textbf{to do}  \\ \hline
         RPC between peers       &   Panel UI        \\
         Encryption              &   Hazard Alerts   \\
         Fuse overlay            &   Maintain some history   \\
@@ -171,9 +175,49 @@ conflict resolution over the UI.
         Graphical UI            
     \end{tabular}
     \caption{Feature list}
+    \label{tbl:FeatureList}
+\end{table}
+
+The code can be foundon github. Our three github accounts and links to 
+our repositories are shown in table \ref{tbl:github}. 
+
+\begin{table}
+    \centering
+    \begin{tabular}{l|l}
+        \textbf{name}     &  \textbf{respository}    \\ \hline
+        Bruno Alvisio     &  \url{balvisio/openbookfs}    \\
+        Gabe  Ayers       &  \url{gabeayers/openbookfs}   \\
+        Josh  Bialkowski  &  \url{cheshirekow/openbookfs} \\
+    \end{tabular}
+    \caption{Github repositories for team members. Note: the coordination is 
+             performed on Josh's account}
+    \label{tbl:github}
 \end{table}
 
 
+\section{Code Details and Dependencies}
+
+The code is written in C++. We use the CMake build system, and OBFS depends on
+the packages in table \ref{tbl:dependencies}.
+
+
+\begin{table}
+    \begin{tabular}{l|l}
+      \textbf{library} & \textbf{usage} \\ \hline
+      crypto++          & cryptography        \\
+      protocol buffers  & message marshalling \\
+      yaml-cpp          & configuration files \\
+      sqlite3           & meta data storage   \\
+      soci              & sqlite3 interface   \\
+      RE2               & regular expression  \\
+      posix threads     & threads, mutex      \\
+      fuse              & file system         \\
+      tclap             & command line        \\
+      boost             & filesystem interface\\ 
+    \end{tabular}
+    \caption{OBFS dependencies}
+    \label{tbl:dependencies}
+\end{table}
+
 
 \end{document}
-
