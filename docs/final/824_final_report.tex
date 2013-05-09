@@ -1,13 +1,3 @@
-<<<<<<< HEAD
-\documentclass[letterpaper]{article}
-\title{Openbook Filesystem}
-\author{Bruno Alvisio\\Gabe Ayers\\Josh Bialkowski}
-
-\usepackage[parfill]{parskip}
-
-\usepackage{fullpage}
-
-=======
 \documentclass[10pt,twocolumn]{article}
 \title{Openbook Filesystem}
 \author{Bruno Alvisio\\Gabe Ayers\\Josh Bialkowski}
@@ -20,7 +10,7 @@
 
 \hypersetup{
     bookmarks=true,         % show bookmarks bar?
-    unicode=false,          % non-Latin characters in Acrobat�s bookmarks
+    unicode=false,          % non-Latin characters in Acrobat�s bookmarks
     pdftitle={Openbook FS}, % title
     pdfauthor={Author},     % author
     pdfsubject={Subject},   % subject of the document
@@ -34,37 +24,14 @@
     filecolor=magenta,      % color of file links
     urlcolor=cyan           % color of external links
 }
->>>>>>> ce947d2c201e1056cd104faf10ef6ada93506f01
 
 \setcounter{secnumdepth}{1}
 
 \begin{document}
 \maketitle
 \section{Introduction}
-<<<<<<< HEAD
-There are many different backup and sync solutions currently available to users. Typically these services use one replicated backup server that the user is able to sync their files too. Normally a small amount of storage is free and then as the amount of backup data increases the cost to the user also increases.  There are two major problems with this solution. The primary problem is that the end user relies upon the service provider completely to backup their data correctly and in this process the service provider also gains complete access to all of the user’s data. Secondly the user is limited in the amount of data they are able to backup often having to decide between backing up their music or their videos as to avoid hitting the storage ceilings.
 
-Openbook Filesystem is an open source alternative to this problem that eliminates the dependency on a third party service and also allows for the user to buy cheap storage to meet their storage needs. The Openbook Filesystem solution is too automatically backup files between all of the users’ devices so that as long as one device is still active the files will be recoverable. If the user want’s to have a more centralized backup solution they can setup an always-on server to house one of the Openbook Filesystem nodes.
-
-\section{Filesystem}
-Openbook Filesystem uses a variant of Bayou to create a replicated filesystem between the different node computers of the user's Openbook Filesystem network. The filesystem is weakly consistent incorporating automatic file conflict mitigation where possible and user conflict mitigation when required. Openbook Filesystem uses vector timestamps to keep track of all changes to each file within the nodal network and is able to heavily rely upon these vector timestamps to manage conflict resolution.
-
-Each node of the Openbook Filesystem keeps a complete folder and file structure backup though the node does not automatically back up any of the files. The user selects which directories to mount locally to the node, at this point Openbook Filesystem syncs the relavent files from other nodes within the network as those files become available. Openbook Filesystem also allows the user to prioritize which files are loaded first, if available, for quick and easy access to a desired file without having to wait for a complete synchronization of the directory.
-
-An imporant aspect to any cross wide area network distributed filesystem is security. Openbook Filesystem incorporates encryption of all data transfer between nodes using Crypto++, an opensource C++ cryptography library. Local links within a single node are not encrypted, an example of this would be the connection between a user interface and the local Openbook Filesystem node.
-
-\section{User Interfaces}
-Openbook Filesystem comes with two different user interfaces, a graphical user interface and a command line user interface. The command line user interface is preinstalled within Openbook Filesystem. The command line user interface is integrated with the code for the server and uses much of the same codebase for ease of development. The user is able to fully operate the Openbook Filesystem through the command line user interface though some users may not find this to be an optimal solution. As an extra, the user can choose to install C++ Qt libraries and run a graphical user interface for an easy to use solution with much more helpful feedback at each point in the program. The graphical user interface was developed completely seperately using a differnet codebase to show the ease of connecting to this system using the standard communication protocol to talk with the server and adjust settings and preferences. Currently both the command line user interface and the graphical user interface are required to run on the same computer as the Openbook Filesystem node since encryption has not been implemented within the user interfaces. It was not deemed important for this phase of the project to implement encryption between the userinterface and the Openbook Filesystem node.
-
-\section{Performance}
-Do we have any performance records?
-
-\section{Conclusion and }
-Conclusion goes here
-
-\end{document}
-=======
-There are many pieces of software avialable providing persion file 
+There are many pieces of software available providing persion file 
 synchronization: i.e Google Drive, Drop Box, Spiderbox, Syncplicity, Cubby,
 Huddle, Egnyte, ShareFile, etc. However, there are inherent privacy and 
 security concerns with using a software-as-a-service proprietary solution. 
@@ -74,7 +41,7 @@ peer-to-peer sync for machines connected to each other on a network, but not
 to the internet.
 
 We seek to address these issues by building a free-software (GPL) peer-to-peer
-file synchronizer, which we haved dubbed OpenbookFS (OBFS for short). OBFS
+file synchronizer, which we haved dubbed Openbook Filesystem (OBFS for short). OBFS
 follows the synchronization model of Ficus, but works entirely in user space. 
 This document briefly describes the architecture of the underlying system, 
 the design user interfaces, what has been accomplished for the 6.824 
@@ -89,8 +56,8 @@ and automatically transfering files which are strictly future versions.
 \subsection{Causal Ordering with Version Vectors}
 OBFS determines partial causal orderings of file changes by the use of version
 vectors. Every file is assigned a version vector which is a map from peer id to
-version number. When the user changes a file the version element for that
-machine is incremented by one. Version vectors induce a partial order on events
+version number. When the user changes a file the version element for appropriate
+peer id is incremented by one. Version vectors induce a partial order on events
 and allow us to approximate causal relationships. When two peers synchronize
 they send to each other the version vector for their copy of a particular file.
 If the version vectors are ordered, then the peer with the lesser version
@@ -110,8 +77,7 @@ serviced directly by the underlying file system except that any events which
 signify a change in the file increment the version number for that machine's
 key in the version vector and potentially send a message to other peers. 
 
-OBFS peers synchronize the directory structure and and file name information
-always, but actual file contents are only synchoronized between peers who have
+OBFS peers always synchronize the directory structure and and file name information, but actual file contents are only synchoronized between peers who have
 ``checked out'' the file. In addition, the only peers who contribute elements 
 to the version vector are peers who have checked out the file. This allows
 users to effectively manage the distribution of large files across multiple 
@@ -135,18 +101,19 @@ achieve consistency.
 \subsection{Conflict Resolution}
 Given two peers $A$ and $B$, for a particular file $f$, let $v_x(f)$ denote the
 version vector for file $f$ on peer $x$. We denote the file on $A$ relative to
-$B$ as either `synced', `stale', `dirty', or in `conflict'. 
+$B$ as either `synced', `stale', `fresh', or in `conflict'. See table \ref{tbl:FileRelationship}
 
 \begin{table}
     \centering
     \begin{tabular}{r|l|l}
         relationship        &  $f_A$ is\ldots & $f_B$ is\ldots \\ \hline
         $v_A(f) = v_B(f)$   &  synced         & synced         \\
-        $v_A(f) < v_B(f)$   &  stale          & dirty          \\
-        $v_A(f) > v_B(f)$   &  dirty          & stale          \\
+        $v_A(f) < v_B(f)$   &  stale          & fresh          \\
+        $v_A(f) > v_B(f)$   &  fresh          & stale          \\
         incomparable        &  conflict       & conflict       
     \end{tabular}
     \caption{File relationship between peers}
+	\label{tbl:FileRelationship}
 \end{table}
 
 While mechanisms for automatic conflict resolution (as in Ficus and Bayou) are
@@ -156,9 +123,9 @@ choosing which of the two versions to keep and which to discard. The user is
 also alerted if he attempts to open a stale file for writing (in order to 
 prevent a file going into conflict). 
 
-File transfers are performed in a separate thread and occurs on a lower 
-priority communication channel (so that version change events may pre-empt file
-transfer). File transfers are queued whenever a file is found to be either
+File transfers are performed in a separate thread and occur on a lower 
+priority communication channel (version change events may pre-empt file
+transfers). File transfers are queued whenever a file is found to be either
 stale or in conflict. If a file transer completes for a stale file the stale
 file is automatically replaced. If a file transfer completes for a conflict 
 file the user is given the opportunity to open both versions in order to compare 
@@ -213,7 +180,7 @@ are summarized in table \ref{tbl:FeatureList}
     \label{tbl:FeatureList}
 \end{table}
 
-The code can be foundon github. Our three github accounts and links to 
+The code can be found on github. Our three github accounts and links to 
 our repositories are shown in table \ref{tbl:github}. 
 
 \begin{table}
@@ -257,4 +224,3 @@ the packages in table \ref{tbl:dependencies}.
 
 
 \end{document}
->>>>>>> ce947d2c201e1056cd104faf10ef6ada93506f01
