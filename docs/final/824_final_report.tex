@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 \documentclass[letterpaper]{article}
 \title{Openbook Filesystem}
 \author{Bruno Alvisio\\Gabe Ayers\\Josh Bialkowski}
@@ -6,12 +7,41 @@
 
 \usepackage{fullpage}
 
+=======
+\documentclass[10pt,twocolumn]{article}
+\title{Openbook Filesystem}
+\author{Bruno Alvisio\\Gabe Ayers\\Josh Bialkowski}
+
+\usepackage{fullpage}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{amsmath}
+\usepackage{hyperref}
+
+\hypersetup{
+    bookmarks=true,         % show bookmarks bar?
+    unicode=false,          % non-Latin characters in Acrobat�s bookmarks
+    pdftitle={Openbook FS}, % title
+    pdfauthor={Author},     % author
+    pdfsubject={Subject},   % subject of the document
+    pdfcreator={Creator},   % creator of the document
+    pdfproducer={Producer}, % producer of the document
+    pdfkeywords={keyword1} {key2} {key3}, % list of keywords
+    pdfnewwindow=true,      % links in new window
+    colorlinks=true,        % false: boxed links; true: colored links
+    linkcolor=red,          % color of internal links (change box color with linkbordercolor)
+    citecolor=green,        % color of links to bibliography
+    filecolor=magenta,      % color of file links
+    urlcolor=cyan           % color of external links
+}
+>>>>>>> ce947d2c201e1056cd104faf10ef6ada93506f01
 
 \setcounter{secnumdepth}{1}
 
 \begin{document}
 \maketitle
 \section{Introduction}
+<<<<<<< HEAD
 There are many different backup and sync solutions currently available to users. Typically these services use one replicated backup server that the user is able to sync their files too. Normally a small amount of storage is free and then as the amount of backup data increases the cost to the user also increases.  There are two major problems with this solution. The primary problem is that the end user relies upon the service provider completely to backup their data correctly and in this process the service provider also gains complete access to all of the user’s data. Secondly the user is limited in the amount of data they are able to backup often having to decide between backing up their music or their videos as to avoid hitting the storage ceilings.
 
 Openbook Filesystem is an open source alternative to this problem that eliminates the dependency on a third party service and also allows for the user to buy cheap storage to meet their storage needs. The Openbook Filesystem solution is too automatically backup files between all of the users’ devices so that as long as one device is still active the files will be recoverable. If the user want’s to have a more centralized backup solution they can setup an always-on server to house one of the Openbook Filesystem nodes.
@@ -33,3 +63,198 @@ Do we have any performance records?
 Conclusion goes here
 
 \end{document}
+=======
+There are many pieces of software avialable providing persion file 
+synchronization: i.e Google Drive, Drop Box, Spiderbox, Syncplicity, Cubby,
+Huddle, Egnyte, ShareFile, etc. However, there are inherent privacy and 
+security concerns with using a software-as-a-service proprietary solution. 
+Furthermore, while a centralized service provides a useful backup location it
+provides an artificial requirement for synchronization which prevents 
+peer-to-peer sync for machines connected to each other on a network, but not
+to the internet.
+
+We seek to address these issues by building a free-software (GPL) peer-to-peer
+file synchronizer, which we haved dubbed OpenbookFS (OBFS for short). OBFS
+follows the synchronization model of Ficus, but works entirely in user space. 
+This document briefly describes the architecture of the underlying system, 
+the design user interfaces, what has been accomplished for the 6.824 
+proof-of-concept release, and what are goals are for future work.  
+
+\section{Architecture}
+
+OBFS seeks to achieve \emph{eventual consistency} and immediate availability 
+of local files. We achieve eventual consistency by identifying causal orderings
+and automatically transfering files which are strictly future versions. 
+
+\subsection{Causal Ordering with Version Vectors}
+OBFS determines partial causal orderings of file changes by the use of version
+vectors. Every file is assigned a version vector which is a map from peer id to
+version number. When the user changes a file the version element for that
+machine is incremented by one. Version vectors induce a partial order on events
+and allow us to approximate causal relationships. When two peers synchronize
+they send to each other the version vector for their copy of a particular file.
+If the version vectors are ordered, then the peer with the lesser version
+downloads the version from the other. If they are not ordered, the file is noted
+to be in conflict. The user must intervene to resolve conflicts.
+
+\subsection{File system interface}
+OBFS monitors the file system for file changes by installing a FUSE 
+\emph{overlay} filesystem. OBFS can expose any of the usual linux file systems
+(for instance ext3, ext4, etc). The user interacts only with the mount point,
+not with the underlying file system. Files and directories are stored as usual
+in the underlying filesystem, with the exception that every directory contains
+an additional sqlite database file which stores meta data for that directory
+(including version vectors for the directory and for all files in that 
+directory). Most file system events that are passed to the FUSE layer are
+serviced directly by the underlying file system except that any events which
+signify a change in the file increment the version number for that machine's
+key in the version vector and potentially send a message to other peers. 
+
+OBFS peers synchronize the directory structure and and file name information
+always, but actual file contents are only synchoronized between peers who have
+``checked out'' the file. In addition, the only peers who contribute elements 
+to the version vector are peers who have checked out the file. This allows
+users to effectively manage the distribution of large files across multiple 
+machines with varying storage capacity. 
+
+\subsection{Peer-to-peer communication}
+OBFS uses long lived tcp connections between peers. When two peers are connected
+any file modification event intercepted by the FUSE layer generates a version
+advisory message which is passed to any connected peers with entries in the 
+version vector. In addition to these messages, version messages can also be
+sent during a ``full sync'' requested by the user. A full sync navigates the
+entire file tree and exchanges version information for every checked out file. 
+This is the manner in which a peer discover that another peer has checked out
+a file, and elminates the need to queue messages to disconnected peers 
+(which may remain disconnected indefinitely). It is our plan to handle
+intermittent disconnections by queueing messages for a short time after a 
+peer disconnects, so that if they reconnect a full sync is not required to
+achieve consistency. 
+
+
+\subsection{Conflict Resolution}
+Given two peers $A$ and $B$, for a particular file $f$, let $v_x(f)$ denote the
+version vector for file $f$ on peer $x$. We denote the file on $A$ relative to
+$B$ as either `synced', `stale', `dirty', or in `conflict'. 
+
+\begin{table}
+    \centering
+    \begin{tabular}{r|l|l}
+        relationship        &  $f_A$ is\ldots & $f_B$ is\ldots \\ \hline
+        $v_A(f) = v_B(f)$   &  synced         & synced         \\
+        $v_A(f) < v_B(f)$   &  stale          & dirty          \\
+        $v_A(f) > v_B(f)$   &  dirty          & stale          \\
+        incomparable        &  conflict       & conflict       
+    \end{tabular}
+    \caption{File relationship between peers}
+\end{table}
+
+While mechanisms for automatic conflict resolution (as in Ficus and Bayou) are
+an eventual goal of OBFS at this time there is no mechanism implemented. Rather
+when a file is in conflict the user is alerted and provided with the option of
+choosing which of the two versions to keep and which to discard. The user is
+also alerted if he attempts to open a stale file for writing (in order to 
+prevent a file going into conflict). 
+
+File transfers are performed in a separate thread and occurs on a lower 
+priority communication channel (so that version change events may pre-empt file
+transfer). File transfers are queued whenever a file is found to be either
+stale or in conflict. If a file transer completes for a stale file the stale
+file is automatically replaced. If a file transfer completes for a conflict 
+file the user is given the opportunity to open both versions in order to compare 
+them. 
+
+\subsection{Security}
+
+OBFS uses RSA public keys to uniquely identify peers in the network, using an
+RSA encryption challenge to verify authenticity. All traffic between peers is
+AES encrypted using a one-time content encryption key determined through Diffie
+Helman key exchange. The FUSE module is capable of mounting over encrypted file
+systems to provide a secure storage backend (i.e. the mount chain ext4 
+$\rightarrow$ ecryptfs $\rightarrow$ openbookfs).
+
+
+
+\section{User Interfaces}
+We've built OBFS to be as extensible as possible. The backend process listens
+not only for peer connections, but also for user interface connections. User
+interface connections are priviledged local connections over which messages
+for configuring and manipulating the backend are exposed. 
+
+We have built two user interfaces which are capable of connecting to the 
+backend: one command line interface, and one graphical interface. Both 
+interfaces allow the user to change configuration parameters, list, add, and
+remote mount points, list and authorize known peers, connect to peers, 
+and checkout and release files. 
+
+
+\section{Summary}
+
+For this 6.824 project we have completed a working proof of concept with 
+directory and file synchronization, conflict identification, and user
+conflict resolution over the UI. The high level features completed and to do
+are summarized in table \ref{tbl:FeatureList}
+
+
+\begin{table}
+    \centering
+    \begin{tabular}{l|l}
+        \textbf{completed}      &   \textbf{to do}  \\ \hline
+        RPC between peers       &   Panel UI        \\
+        Encryption              &   Hazard Alerts   \\
+        Fuse overlay            &   Maintain some history   \\
+        Version vectors         &   Auto conflict resolution   \\
+        Full synchronization    &   Peer discovery          \\
+        Event synchronization   &\\
+        Command line UI         &\\
+        Graphical UI            
+    \end{tabular}
+    \caption{Feature list}
+    \label{tbl:FeatureList}
+\end{table}
+
+The code can be foundon github. Our three github accounts and links to 
+our repositories are shown in table \ref{tbl:github}. 
+
+\begin{table}
+    \centering
+    \begin{tabular}{l|l}
+        \textbf{name}     &  \textbf{respository}    \\ \hline
+        Bruno Alvisio     &  \url{balvisio/openbookfs}    \\
+        Gabe  Ayers       &  \url{gabeayers/openbookfs}   \\
+        Josh  Bialkowski  &  \url{cheshirekow/openbookfs} \\
+    \end{tabular}
+    \caption{Github repositories for team members. Note: the coordination is 
+             performed on Josh's account}
+    \label{tbl:github}
+\end{table}
+
+
+\section{Code Details and Dependencies}
+
+The code is written in C++. We use the CMake build system, and OBFS depends on
+the packages in table \ref{tbl:dependencies}.
+
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{l|l}
+      \textbf{library} & \textbf{usage} \\ \hline
+      crypto++          & cryptography        \\
+      protocol buffers  & message marshalling \\
+      yaml-cpp          & configuration files \\
+      sqlite3           & meta data storage   \\
+      soci              & sqlite3 interface   \\
+      RE2               & regular expression  \\
+      posix threads     & threads, mutex      \\
+      fuse              & file system         \\
+      tclap             & command line        \\
+      boost             & filesystem interface\\ 
+    \end{tabular}
+    \caption{OBFS dependencies}
+    \label{tbl:dependencies}
+\end{table}
+
+
+\end{document}
+>>>>>>> ce947d2c201e1056cd104faf10ef6ada93506f01

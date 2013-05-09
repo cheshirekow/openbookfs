@@ -47,8 +47,9 @@ $messageMap =
     ['REMOVE_MOUNT_POINT','RemoveMountPoint'],
     ['UI_REPLY'          ,'UserInterfaceReply'],
     ['GET_BACKEND_INFO'  ,'GetBackendInfo'],
-    ['PEER_LIST',        ,'PeerList'],
-    ['MOUNT_LIST',       ,'MountList'],
+    ['PEER_LIST'         ,'PeerList'],
+    ['MOUNT_LIST'        ,'MountList'],
+    ['START_SYNC'        ,'StartSync'],
     ['LEADER_ELECT'      ,'LeaderElect'],
     ['DH_PARAMS'         ,'DiffieHellmanParams'],
     ['KEY_EXCHANGE'      ,'KeyExchange'],
@@ -237,10 +238,10 @@ $content
 
 const char* messageIdToString( MessageId id )
 {
-    if( 0 < id && id < NUM_MSG )
-        return g_msgIdStr[id];
-    else
+    if( id < 0 || id > NUM_MSG )
         return g_msgIdStr[NUM_MSG];
+    else
+        return g_msgIdStr[id];
 }
 
     

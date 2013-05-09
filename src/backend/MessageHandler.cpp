@@ -30,6 +30,8 @@
 #include "MessageHandler.h"
 #include "Marshall.h"
 #include "jobs/PingJob.h"
+#include "jobs/SendTree.h"
+#include "MetaFile.h"
 
 
 
@@ -63,6 +65,7 @@ void MessageHandler::go( int peerId, MsgQueue_t* in, MsgQueue_t* out )
     m_inboundQueue  = in;
     m_outboundQueue = out;
     m_peerId        = peerId;
+    m_shouldQuit    = false;
     main();
 }
 
@@ -81,7 +84,7 @@ void MessageHandler::main()
     while(!m_shouldQuit)
     {
         m_inboundQueue->extract(msg);
-        MessageDispatcher<0,NUM_MSG-2>::dispatch( this, msg );
+        MsgSwitch::dispatch( this, msg );
     }
 
     std::cout << "Message Handler " << (void*)this << "Shutting down\n";
@@ -301,6 +304,7 @@ void MessageHandler::handleMessage( messages::GetBackendInfo* msg)
             messages::PeerList* reply =
                     new messages::PeerList();
             m_backend->getPeers(reply);
+            std::cout << "MessageHandler: queueing PeerList\n";
             m_outboundQueue->insert( new AutoMessage(reply) );
             break;
         }
@@ -310,6 +314,7 @@ void MessageHandler::handleMessage( messages::GetBackendInfo* msg)
             messages::PeerList* reply =
                     new messages::PeerList();
             m_backend->getKnownPeers(reply);
+            std::cout << "MessageHandler: queueing PeerList\n";
             m_outboundQueue->insert( new AutoMessage(reply) );
             break;
         }
@@ -319,6 +324,7 @@ void MessageHandler::handleMessage( messages::GetBackendInfo* msg)
             messages::MountList* reply =
                     new messages::MountList();
             m_backend->getMounts(reply);
+            std::cout << "MessageHandler: queueing MountList\n";
             m_outboundQueue->insert( new AutoMessage(reply) );
             break;
         }
@@ -335,6 +341,21 @@ void MessageHandler::handleMessage( messages::GetBackendInfo* msg)
             break;
         }
     }
+}
+
+void MessageHandler::handleMessage( messages::StartSync* msg )
+{
+    std::cout << "Handling start sync message\n";
+    jobs::SendTree* job = new jobs::SendTree(m_backend,msg->peerid());
+    m_backend->jobs()->enqueue(job);
+
+    messages::UserInterfaceReply* reply =
+            new messages::UserInterfaceReply();
+    reply->set_ok(true);
+    std::stringstream strm;
+    strm << "Sync not really implemented but OK";
+    reply->set_msg( strm.str() );
+    m_outboundQueue->insert( new AutoMessage(reply) );
 }
 
 void MessageHandler::handleMessage( messages::Quit* msg )
@@ -401,7 +422,24 @@ void MessageHandler::handleMessage( messages::FileChunk* msg )
 
 void MessageHandler::handleMessage( messages::DirChunk* msg )
 {
-
+    namespace fs = boost::filesystem;
+    fs::path root = m_backend->realRoot();
+    fs::path dir  = root / msg->path();
+    try
+    {
+        if( !fs::exists(dir) )
+            fs::create_directories(dir);
+        MetaFile meta(dir);
+        meta.merge(msg);
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "MessageHandler::handleMessage() : WARNING "
+                  << "failed to merge directory "
+                  << msg->path()
+                  << ", error: " << ex.what()
+                  << "\n";
+    }
 }
 
 

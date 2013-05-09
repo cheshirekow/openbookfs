@@ -107,6 +107,9 @@ class LockedPtr
 
         /// act as a boolean
         operator bool() const;
+
+        /// wait for the objects condition to be signalled
+        void wait();
 };
 
 /// acts like a pointer to an object but the object is locked during it's
@@ -154,6 +157,9 @@ class ConstLockedPtr
 
         /// act as a boolean
         operator bool() const;
+
+        /// wait for the objects condition to be signalled
+        void wait();
 };
 
 
@@ -331,6 +337,12 @@ LockedPtr<Base>::operator bool() const
     return m_synced->subvert();
 }
 
+template <class Base>
+void LockedPtr<Base>::wait()
+{
+    m_synced->wait();
+}
+
 
 
 
@@ -398,6 +410,12 @@ template <class Base>
 ConstLockedPtr<Base>::operator bool() const
 {
     return m_synced->subvert();
+}
+
+template <class Base>
+void ConstLockedPtr<Base>::wait()
+{
+    m_synced->wait();
 }
 
 

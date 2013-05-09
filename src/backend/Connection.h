@@ -124,11 +124,11 @@ class Connection
          *  @param message  the message to send
          */
         template <typename Message_t>
-        void enqueueMessage( int peerId, Message_t* message )
+        void enqueueMessage( int peerId, Message_t* message, int prio=0 )
         {
             pthreads::ScopedLock(m_mutex);
             if( peerId == m_peerId )
-                m_outboundMessages.insert( new AutoMessage(message) );
+                m_outboundMessages.insert( new AutoMessage(message), prio );
         }
 
     private:

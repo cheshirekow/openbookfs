@@ -14,6 +14,7 @@
 #include <soci/soci.h>
 
 #include "fuse_include.h"
+#include "messages.pb.h"
 
 
 namespace   openbook {
@@ -50,6 +51,12 @@ class MetaFile
 
         /// read directory entries into a fuse buffer
         void readdir( void *buf, fuse_fill_dir_t filler, off_t offset );
+
+        /// read directory entries into a message
+        void readdir( messages::DirChunk* msg );
+
+        /// merge entries from another peer
+        void merge( messages::DirChunk* msg );
 
         /// increase the version vector for entry 0 (this)
         void incrementVersion();

@@ -17,28 +17,42 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   src/client_fs/global.h
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/clui/commands/StartSync.h
  *
- *  @date   Feb 17, 2013
+ *  @date   May 5, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_GLOBAL_H_
-#define OPENBOOK_GLOBAL_H_
+#ifndef OPENBOOK_FS_CLUI_STARTSYNC_H_
+#define OPENBOOK_ST_CLUI_STARTSYNC_H_
 
+
+#include <tclap/CmdLine.h>
+
+#include "Options.h"
 
 namespace   openbook {
 namespace filesystem {
-namespace     client {
+namespace       clui {
+
+class StartSync:
+    public Options
+{
+    TCLAP::UnlabeledValueArg<int> peerId;    ///< peer to sync
+
+    public:
+        static const std::string COMMAND;
+        static const std::string DESCRIPTION;
+
+        StartSync( TCLAP::CmdLine& cmd );
+        void go();
+};
 
 
-extern volatile bool        g_shouldDie;
 
-} // namespace client
-} // namespace filesystem
-} // namespace openbook
+} //< namespace clui
+} //< namespace filesystem
+} //< namespace openbook
 
-
-
-#endif // GLOBAL_H_
+#endif // STARTSYNC_H_

@@ -37,6 +37,7 @@
 #include "NotifyPipe.h"
 #include "SocketListener.h"
 #include "MountPoint.h"
+#include "Database.h"
 
 
 
@@ -77,6 +78,9 @@ class Backend
         Path_t          m_dbFile;   ///< sqlite database with state
         std::string     m_pubKey;   ///< base64 encoded public key
         Path_t          m_privKey;  ///< path to private key file
+
+        /// wrapper for database access
+        Database        m_db;
 
         /// listens for incoming connections
         SocketListener   m_listeners[NUM_LISTENERS];
@@ -134,7 +138,7 @@ class Backend
 
         /// send a message to a specific peer
         template <typename Message_t>
-        void sendMessage( int peerId, Message_t* msg )
+        bool sendMessage( int peerId, Message_t* msg, int prio=0 )
         {
             LockedPtr<USPeerMap_t> peerMap( &m_peerMap );
             USPeerMap_t::iterator it = peerMap->find(peerId);
@@ -144,10 +148,11 @@ class Backend
                           << messageIdToString( MessageTypeToId<Message_t>::ID )
                           << " message b/c " << peerId
                           << " isn't in map \n";
-                return;
+                return false;
             }
 
-            it->second->enqueueMessage(peerId,msg);
+            it->second->enqueueMessage(peerId,msg,prio);
+            return true;
         }
 
 

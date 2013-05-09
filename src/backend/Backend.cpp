@@ -103,56 +103,45 @@ int Backend::registerPeer( const std::string& base64,
                            const std::string& displayName,
                            Connection* conn )
 {
-    // if public key is empty string then that means this is a GUI only
-    // connection so we dont bother putting it in the map
-    std::cout << "Putting base64 client key into db:\n"
-              << base64 << std::endl;
+    int peerId = m_db.registerPeer(base64,displayName);
 
-    // create sqlite connection
-    soci::session sql(soci::sqlite3, m_dbFile.string() );
+    std::cout << "Backend::registerPeer() : got peer id" << peerId << "\n";
 
-    // insert the key into the database if it isn't already there
-    sql << "INSERT OR IGNORE INTO known_clients (client_key, client_name) "
-           "VALUES ('"<< base64 << "','" << displayName << "')";
-
-    // now select out the id
-    int peerId = 0;
-    sql << "SELECT client_id FROM known_clients WHERE client_key='"
-        << base64 << "'",
-            soci::into(peerId);
-
-    // update the client name
-    sql << "UPDATE known_clients SET client_name='" << displayName
-        << "' WHERE client_id=" << peerId;
-
-    // update the local map if necessary
+    // update the local id map if necessary
     typedef std::pair<std::string,int>  mapentry;
     m_idMap.lockFor()->insert( mapentry(base64,peerId) );
 
+    std::cout << "Backend::registerPeer() : peer is in idmap\n";
+
     // lock scope
     {
-        // the map lock
-        pthreads::ScopedLock lock( m_peerMap.mutex() );
+        LockedPtr<USPeerMap_t> peerMap( &m_peerMap );
+
+        std::cout << "Backend::registerPeer() : locked peerMap\n";
 
         // now map the client id to this object
         // if another Connection is in the map for this client then we must
         // wait for it to remove itself before we put this in the map as the
         // handler for the client
-        while( m_peerMap.subvert()->find(peerId)
-                != m_peerMap.subvert()->end() )
+        while( peerMap->find(peerId) != peerMap->end() )
         {
-            std::cout << "Backend: can't insert connection into the map for "
-                         "client " << peerId << ", waiting\n";
+            std::cout << "Backend::registerPeer() can't insert connection "
+                         "into the map for client " << peerId
+                         << ", blocking until disconnect\n";
 
             // releases the lock, and then waits for someone else to aquire
             // and release it
-            m_peerMap.wait();
+            peerMap.wait();
         }
 
-        std::cout << "Backend: putting connection " << (void*)conn
+        std::cout << "Backend::registerPeer() putting connection "
+                  << (void*)conn
                   << " into the map for client " << peerId << "\n";
-        (*( m_peerMap.subvert() ))[peerId] = conn;
-        m_peerMap.signal();
+        (*peerMap)[peerId] = conn;
+
+        // no need to signal as the destructor of the lockedptr will
+        // do that for us
+        // peerMap.signal();
     }
     return peerId;
 }
@@ -374,52 +363,31 @@ void Backend::setDataDir( const std::string& dir )
         m_pubKey = pubKeyStream.str();
     }
 
-    // initialize the message database
-    using namespace soci;
+    try
+    {
+        LockedPtr<USIdMap_t> idMap(&m_idMap);
 
-    std::cout << "Initializing database" << std::endl;
-    m_dbFile = fs::path(m_dataDir) / "store.sqlite";
-    session sql(sqlite3,m_dbFile.string());
+        m_db.setPath( m_dataDir / "store.sqlite" );
+        m_db.init();
+        m_db.getClientMap(idMap);
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "Backend::setDataDir() : Failed to initialize "
+                     "database: \n   " << ex.what() << "\n";
+    }
 
-    sql << "CREATE TABLE IF NOT EXISTS conflict_files ("
-            "conflict_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
-            "path TEXT NOT NULL ) ";
-
-    sql << "CREATE TABLE IF NOT EXISTS downloads ("
-            "tx_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
-            "path TEXT NOT NULL ) ";
-
-    sql << "CREATE TABLE IF NOT EXISTS current_messages ("
-            "msg_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
-            "msg_type INTEGER NOT NULL, "
-            "msg BLOB)";
-
-    sql << "CREATE TABLE IF NOT EXISTS old_messages ("
-            "msg_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
-            "msg_type INTEGER NOT NULL, "
-            "msg BLOB)";
-
-    sql << "CREATE TABLE IF NOT EXISTS known_clients ("
-            "client_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
-            "client_key TEXT NOT NULL UNIQUE, "
-            "client_name TEXT NOT NULL) ";
-
-    // initialize the id map
-    std::string base64Key;
-    int         peerId;
-    typedef soci::rowset<soci::row>    rowset;
-    typedef std::pair<std::string,int> mapentry;
-    rowset rs =
-            ( sql.prepare << "select client_id,client_key FROM known_clients");
-    for( auto& row : rs )
-        m_idMap.lockFor()->insert(
-                mapentry(row.get<std::string>(1) ,row.get<int>(0) ) );
-
-    sql.close();
-
-    // initialize the root directory if not already initialized
-    MetaFile rootMeta( m_rootDir );
-    rootMeta.init();
+    try
+    {
+        // initialize the root directory if not already initialized
+        MetaFile rootMeta( m_rootDir );
+        rootMeta.init();
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "Backend::setDataDir() : Failed to initialize "
+                     "root metadata: \n   " << ex.what() << "\n";
+    }
 
     std::cout << "Done initializing\n";
 }

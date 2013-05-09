@@ -11,7 +11,7 @@ set( ${CMAKE_PROJECT_NAME}_VERSION_BUGFIX 0 )
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
 # finds pkg-config
-find_package(PkgConfig REQUIRED)
+find_package(PkgConfig)
 
 # add the src/ subdirectory to the list of directories cmake processes
 include_directories(include)
