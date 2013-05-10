@@ -41,10 +41,55 @@ void Database::init()
     std::cout << "Initializing database" << std::endl;
     session sql(sqlite3,m_dbFile.string());
 
+    // stores a list of files that we are in the progress of sending, these
+    // are either newer files or conflict files
+    sql << "CREATE TABLE IF NOT EXISTS uploads ("
+            // the target of the file being downloaded
+            "path   TEXT NOT NULL, "
+            // the peer we're downloading from
+            "peer   INTEGER NOT NULL, "
+            // the temporary file we're storing data in
+            "temp   TEXT NOT NULL, "
+            // the number of bytes we have received
+            "sent   INTEGER NOT NULL, "
+            // the size of the file in bytes
+            "size   INTEGER NOT NULL,"
+            // a path/peer is unique
+            "PRIMARY KEY(path,peer) ) ";
+
+    // stores a list of files that we are in the progress of receiving, these
+    // are either newer files or conflict files
+    sql << "CREATE TABLE IF NOT EXISTS downloads ("
+            // the target of the file being downloaded
+            "path   TEXT NOT NULL, "
+            // the peer we're downloading from
+            "peer   INTEGER NOT NULL, "
+            // the temporary file we're storing data in
+            "temp   TEXT NOT NULL, "
+            // the number of bytes we have received
+            "sent   INTEGER NOT NULL, "
+            // the size of the file in bytes
+            "size   INTEGER NOT NULL,"
+            // a path/peer is unique
+            "PRIMARY KEY(path,peer) ) ";
+
+    // stores version vectors for conflict files
+    sql << "CREATE TABLE IF NOT EXISTS downloads_v ("
+            // the file in conflict
+            "path       TEXT NOT NULL,"
+            // the peer who has a conflicting version
+            "peer       INTEGER NOT NULL,"
+            // the key of the version vector
+            "v_peer     INTEGER NOT NULL, "
+            // the value of the version vector
+            "v_version  INTEGER NOT NULL,"
+            // a path/peer is unique
+            "PRIMARY KEY(path,peer) ) ";
+
+
+
     // stores a list of files in conflict
     sql << "CREATE TABLE IF NOT EXISTS conflicts ("
-            // unique identifier for the conflict
-            "id     INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
             // the file in conflict
             "path   TEXT NOT NULL,"
             // the peer who has a conflicting version
@@ -55,16 +100,22 @@ void Database::init()
             // size of the peers version of the file in bytes
             "size   INTEGER NOT NULL,"
             // number of bytes that we have received
-            "recv   INTEGER NOT NULL ) ";
+            "recv   INTEGER NOT NULL,"
+            // a path/peer is unique
+            "PRIMARY KEY(path,peer) ) ";
 
     // stores version vectors for conflict files
     sql << "CREATE TABLE IF NOT EXISTS conflict_v ("
-            // the id of the conflicts row
-            "cid     INTEGER NOT NULL, "
+            // the file in conflict
+            "path       TEXT NOT NULL,"
+            // the peer who has a conflicting version
+            "peer       INTEGER NOT NULL,"
             // the key of the version vector
-            "peer    INTEGER NOT NULL, "
+            "v_peer     INTEGER NOT NULL, "
             // the value of the version vector
-            "version INTEGER NOT NULL ) ";
+            "v_version  INTEGER NOT NULL,"
+            // a path/peer is unique
+            "PRIMARY KEY(path,peer) ) ";
 
     // stores clients that we know about and assigns them a unique
     // numerical index
