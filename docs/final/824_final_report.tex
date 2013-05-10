@@ -1,5 +1,5 @@
 \documentclass[10pt,twocolumn]{article}
-\title{Openbook Filesystem}
+\title{Openbook File System}
 \author{Bruno Alvisio\\Gabe Ayers\\Josh Bialkowski}
 
 \usepackage{fullpage}
@@ -31,17 +31,17 @@
 \maketitle
 \section{Introduction}
 
-There are many pieces of software available providing persion file 
-synchronization: i.e Google Drive, Drop Box, Spiderbox, Syncplicity, Cubby,
+There are many pieces of software available providing version file 
+synchronization: i.e, Google Drive, Drop Box, Spiderbox, Syncplicity, Cubby,
 Huddle, Egnyte, ShareFile, etc. However, there are inherent privacy and 
 security concerns with using a software-as-a-service proprietary solution. 
-Furthermore, while a centralized service provides a useful backup location it
+Furthermore, while a centralized service provides a useful backup location, it
 provides an artificial requirement for synchronization which prevents 
-peer-to-peer sync for machines connected to each other on a network, but not
+peer-to-peer sync for machines connected to each other on a network but not
 to the internet.
 
 We seek to address these issues by building a free-software (GPL) peer-to-peer
-file synchronizer, which we haved dubbed Openbook Filesystem (OBFS for short). OBFS
+file synchronizer, which we haved dubbed Openbook File System (OBFS). OBFS
 follows the synchronization model of Ficus, but works entirely in user space. 
 This document briefly describes the architecture of the underlying system, 
 the design user interfaces, what has been accomplished for the 6.824 
@@ -51,12 +51,12 @@ proof-of-concept release, and what are goals are for future work.
 
 OBFS seeks to achieve \emph{eventual consistency} and immediate availability 
 of local files. We achieve eventual consistency by identifying causal orderings
-and automatically transfering files which are strictly future versions. 
+and automatically transfering files that are strictly future versions. 
 
 \subsection{Causal Ordering with Version Vectors}
 OBFS determines partial causal orderings of file changes by the use of version
 vectors. Every file is assigned a version vector which is a map from peer id to
-version number. When the user changes a file the version element for appropriate
+version number. When the user changes a file, the version element for appropriate
 peer id is incremented by one. Version vectors induce a partial order on events
 and allow us to approximate causal relationships. When two peers synchronize
 they send to each other the version vector for their copy of a particular file.
@@ -64,33 +64,33 @@ If the version vectors are ordered, then the peer with the lesser version
 downloads the version from the other. If they are not ordered, the file is noted
 to be in conflict. The user must intervene to resolve conflicts.
 
-\subsection{File system interface}
+\subsection{File System Interface}
 OBFS monitors the file system for file changes by installing a FUSE 
-\emph{overlay} filesystem. OBFS can expose any of the usual linux file systems
-(for instance ext3, ext4, etc). The user interacts only with the mount point,
+\emph{overlay} file system. OBFS can expose any of the usual Linux file systems
+(for instance, ext3, ext4, etc.). The user interacts only with the mount point,
 not with the underlying file system. Files and directories are stored as usual
-in the underlying filesystem, with the exception that every directory contains
-an additional sqlite database file which stores meta data for that directory
+in the underlying file system, with the exception that every directory contains
+an additional SQLite database file which stores meta data for that directory
 (including version vectors for the directory and for all files in that 
 directory). Most file system events that are passed to the FUSE layer are
 serviced directly by the underlying file system except that any events which
 signify a change in the file increment the version number for that machine's
 key in the version vector and potentially send a message to other peers. 
 
-OBFS peers always synchronize the directory structure and and file name information, but actual file contents are only synchoronized between peers who have
+OBFS peers always synchronize the directory structure and file name information, but actual file contents are only synchronized between peers who have
 ``checked out'' the file. In addition, the only peers who contribute elements 
 to the version vector are peers who have checked out the file. This allows
 users to effectively manage the distribution of large files across multiple 
 machines with varying storage capacity. 
 
 \subsection{Peer-to-peer communication}
-OBFS uses long lived tcp connections between peers. When two peers are connected
+OBFS uses long lived TCP connections between peers. When two peers are connected,
 any file modification event intercepted by the FUSE layer generates a version
 advisory message which is passed to any connected peers with entries in the 
 version vector. In addition to these messages, version messages can also be
 sent during a ``full sync'' requested by the user. A full sync navigates the
 entire file tree and exchanges version information for every checked out file. 
-This is the manner in which a peer discover that another peer has checked out
+This is the manner in which a peer discovers that another peer has checked out
 a file, and elminates the need to queue messages to disconnected peers 
 (which may remain disconnected indefinitely). It is our plan to handle
 intermittent disconnections by queueing messages for a short time after a 
@@ -101,7 +101,7 @@ achieve consistency.
 \subsection{Conflict Resolution}
 Given two peers $A$ and $B$, for a particular file $f$, let $v_x(f)$ denote the
 version vector for file $f$ on peer $x$. We denote the file on $A$ relative to
-$B$ as either `synced', `stale', `fresh', or in `conflict'. See table \ref{tbl:FileRelationship}
+$B$ as either `synced', `stale', `fresh', or in `conflict'. See Table \ref{tbl:FileRelationship}.
 
 \begin{table}
     \centering
@@ -117,18 +117,18 @@ $B$ as either `synced', `stale', `fresh', or in `conflict'. See table \ref{tbl:F
 \end{table}
 
 While mechanisms for automatic conflict resolution (as in Ficus and Bayou) are
-an eventual goal of OBFS at this time there is no mechanism implemented. Rather
-when a file is in conflict the user is alerted and provided with the option of
+an eventual goal of OBFS, at this time there is no mechanism implemented. Rather
+when a file is in conflict, the user is alerted and provided with the option of
 choosing which of the two versions to keep and which to discard. The user is
 also alerted if he attempts to open a stale file for writing (in order to 
 prevent a file going into conflict). 
 
 File transfers are performed in a separate thread and occur on a lower 
-priority communication channel (version change events may pre-empt file
+priority communication channel (version change events may preempt file
 transfers). File transfers are queued whenever a file is found to be either
-stale or in conflict. If a file transer completes for a stale file the stale
-file is automatically replaced. If a file transfer completes for a conflict 
-file the user is given the opportunity to open both versions in order to compare 
+stale or in conflict. If a file transfer completes for a stale file, the stale
+file is automatically replaced. If a file transfer completes for a conflicted 
+file, the user is given the opportunity to open both versions in order to compare 
 them. 
 
 \subsection{Security}
@@ -137,7 +137,7 @@ OBFS uses RSA public keys to uniquely identify peers in the network, using an
 RSA encryption challenge to verify authenticity. All traffic between peers is
 AES encrypted using a one-time content encryption key determined through Diffie
 Helman key exchange. The FUSE module is capable of mounting over encrypted file
-systems to provide a secure storage backend (i.e. the mount chain ext4 
+systems to provide a secure storage backend (i.e., the mount chain ext4 
 $\rightarrow$ ecryptfs $\rightarrow$ openbookfs).
 
 
@@ -148,10 +148,10 @@ not only for peer connections, but also for user interface connections. User
 interface connections are priviledged local connections over which messages
 for configuring and manipulating the backend are exposed. 
 
-We have built two user interfaces which are capable of connecting to the 
-backend: one command line interface, and one graphical interface. Both 
+We have built two user interfaces that are capable of connecting to the 
+backend: one command line interface and one graphical interface. Both 
 interfaces allow the user to change configuration parameters, list, add, and
-remote mount points, list and authorize known peers, connect to peers, 
+remove mount points, list and authorize known peers, connect to peers, 
 and checkout and release files. 
 
 
@@ -160,7 +160,7 @@ and checkout and release files.
 For this 6.824 project we have completed a working proof of concept with 
 directory and file synchronization, conflict identification, and user
 conflict resolution over the UI. The high level features completed and to do
-are summarized in table \ref{tbl:FeatureList}
+are summarized in Table \ref{tbl:FeatureList}.
 
 
 \begin{table}
@@ -180,8 +180,8 @@ are summarized in table \ref{tbl:FeatureList}
     \label{tbl:FeatureList}
 \end{table}
 
-The code can be found on github. Our three github accounts and links to 
-our repositories are shown in table \ref{tbl:github}. 
+The code can be found on GitHub. Our three GitHub accounts and links to 
+our repositories are shown in Table \ref{tbl:github}. 
 
 \begin{table}
     \centering
@@ -191,7 +191,7 @@ our repositories are shown in table \ref{tbl:github}.
         Gabe  Ayers       &  \url{gabeayers/openbookfs}   \\
         Josh  Bialkowski  &  \url{cheshirekow/openbookfs} \\
     \end{tabular}
-    \caption{Github repositories for team members. Note: the coordination is 
+    \caption{GitHub repositories for team members. Note: the coordination is 
              performed on Josh's account}
     \label{tbl:github}
 \end{table}
@@ -200,7 +200,7 @@ our repositories are shown in table \ref{tbl:github}.
 \section{Code Details and Dependencies}
 
 The code is written in C++. We use the CMake build system, and OBFS depends on
-the packages in table \ref{tbl:dependencies}.
+the packages in Table \ref{tbl:dependencies}.
 
 
 \begin{table}[h]
@@ -216,7 +216,8 @@ the packages in table \ref{tbl:dependencies}.
       posix threads     & threads, mutex      \\
       fuse              & file system         \\
       tclap             & command line        \\
-      boost             & filesystem interface\\ 
+      boost             & file system interface\\ 
+     Qt		    & graphic user interface
     \end{tabular}
     \caption{OBFS dependencies}
     \label{tbl:dependencies}
