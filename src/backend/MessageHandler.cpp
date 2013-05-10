@@ -411,7 +411,10 @@ void MessageHandler::handleMessage( messages::IdMap* msg )
 
 void MessageHandler::handleMessage( messages::NodeInfo* msg )
 {
-
+    std::stringstream report;
+    report << "MessageHandler: received node info: \n"
+           << "    path: " << msg->parent() << "/" << msg->path() << "\n";
+    std::cout << report.str();
 }
 
 

@@ -36,31 +36,41 @@ namespace filesystem {
 namespace       jobs {
 
 
-//static boost::filesystem::path make_relative(
-//        const boost::filesystem::path& base,
-//        const boost::filesystem::path& query )
-//{
-//    namespace fs = boost::filesystem;
-//    fs::path::const_iterator baseIter( base.begin() );
-//    fs::path::const_iterator baseEnd( base.end() );
-//    fs::path::const_iterator queryIter( query.begin() );
-//    fs::path::const_iterator queryEnd( query.end() );
-//
-//    // iterate over common prefix
-//    for( ; baseIter != baseEnd
-//            && queryIter != queryEnd
-//            && *baseIter == *queryIter;
-//            ++baseIter, ++queryIter );
-//
-//    if( baseIter != baseEnd )
-//        ex()() << base << " is not a prefix of " << query;
-//
-//    fs::path result;
-//    for( ; queryIter != queryEnd; ++queryIter )
-//        result /= *queryIter;
-//
-//    return result;
-//}
+static boost::filesystem::path make_relative(
+        const boost::filesystem::path& base,
+        const boost::filesystem::path& query )
+{
+    namespace fs = boost::filesystem;
+    fs::path::const_iterator baseIter( base.begin() );
+    fs::path::const_iterator queryIter( query.begin() );
+
+    std::stringstream report;
+    report << "make_relative:\n";
+
+    // iterate over common prefix
+    while( baseIter != base.end()
+            && queryIter != query.end()
+            && *baseIter == *queryIter )
+    {
+        report << "   " << baseIter->string()
+                << " == " << queryIter->string() << "\n";
+        ++baseIter;
+        ++queryIter;
+    }
+
+//    std::cout << report.str();
+
+//    if( baseIter != end )
+//        ex()() << base << " is not a prefix of " << query
+//               << " specifically " << *baseIter
+//               << " != " << *queryIter;
+
+    fs::path result;
+    for( ; queryIter != query.end(); ++queryIter )
+        result /= *queryIter;
+
+    return result;
+}
 
 void SendTree::go()
 {
@@ -75,20 +85,21 @@ void SendTree::go()
     fs::path root = m_backend->realRoot();
 
     std::list<fs::path> queue;
-    queue.push_back(fs::path("./"));
+    queue.push_back(fs::path("."));
 
-    // pointer to message to send
-    msg::DirChunk* chunk = 0;
+    std::list<fs::path> files;
 
     while(queue.size() > 0)
     {
+        files.clear();
+
         // get the next directory from the queue
         fs::path dir = queue.front();
         queue.pop_front();
 
         // create a chunk unless we didn't use it at the last round
-        if(!chunk)
-            chunk = new msg::DirChunk();
+        // pointer to message to send
+        msg::DirChunk* chunk = new msg::DirChunk();
 
         // get the metadata file
         MetaFile meta( root / dir );
@@ -96,34 +107,103 @@ void SendTree::go()
         // get the contents
         meta.readdir( chunk );
 
-        // if the directory has children then recruse on any subidrs
+        // if the directory has children then recurse on any subidrs
         std::cout << "SendTree::go() : built directory message: "
                   << "\n directory : " << dir
                   << "\n contents  : \n";
         for(int i=0 ; i < chunk->entries_size(); i++)
         {
-            fs::path subdir = dir / chunk->entries(i).path();
-            std::cout << "    " << subdir << "\n";
-            if( fs::is_directory(subdir) )
-                queue.push_back(subdir);
+            fs::path subpath = chunk->entries(i).path();
+            std::cout << "    " << (dir / subpath) << "\n";
+            if( fs::is_directory(root/dir/subpath) )
+                queue.push_back(dir/subpath);
         }
 
-        // if the directory has contents, then send the message and add
-        // children to the queue
-        if( chunk->entries_size() > 0 )
-        {
-            int ok = m_backend->sendMessage(m_peerId,chunk,1);
-            chunk = 0;
+        if( !m_backend->sendMessage(m_peerId,chunk,PRIO_SYNC) )
+            break;
 
-            // if the peer isn't connected dont continue
-            if(!ok)
+        // iterate over checked out files (i.e. files with actual
+        // filesystem entires)
+        fs::directory_iterator  it(root/dir);
+        fs::directory_iterator  end;
+        for( ; it != end; ++it )
+        {
+            fs::path subpath = make_relative(root/dir,*it);
+
+            if( subpath.string() == "obfs.sqlite" )
+                continue;
+
+            fs::path fullpath = root/dir/subpath;
+            fs::file_status status = fs::status(fullpath);
+
+            msg::NodeType ntype = msg::DIRECTORY;
+            switch( status.type() )
+            {
+                case fs::regular_file:
+                    ntype = msg::REGULAR;
+                    break;
+
+                case fs::symlink_file:
+                    ntype = msg::SIMLINK;
+                    break;
+
+                case fs::fifo_file:
+                    ntype = msg::PIPE;
+                    break;
+
+                case fs::socket_file:
+                    ntype = msg::SOCKET;
+                    break;
+
+                default:
+                    break;
+            }
+
+            if( ntype == msg::DIRECTORY )
+            {
+                std::stringstream report;
+                report << "SendTree: " << fullpath
+                       << " is not sendable, etc\n";
+                std::cout << report.str();
+                continue;
+            }
+
+            struct stat statBuf;
+            if( stat( fullpath.c_str(), &statBuf ) )
+            {
+                std::stringstream report;
+                report << "SendTree: failed to stat "
+                        << fullpath << " errno: " << errno
+                        << ", " << strerror(errno) << "\n";
+                std::cout << report.str();
+                continue;
+            }
+
+            msg::NodeInfo* nodeInfo = new msg::NodeInfo();
+            nodeInfo->set_parent(dir.string());
+            nodeInfo->set_path(subpath.string());
+            nodeInfo->set_mode(statBuf.st_mode);
+            nodeInfo->set_size(statBuf.st_size);
+            nodeInfo->set_ctime(statBuf.st_ctim.tv_sec);
+            nodeInfo->set_mtime(statBuf.st_mtim.tv_sec);
+            nodeInfo->set_type( ntype );
+
+            std::map<int,int> version;
+            meta.getVersion(subpath.string(),version);
+
+            for( auto& pair : version )
+            {
+                msg::VersionEntry* entry = nodeInfo->add_version();
+                entry->set_client( pair.first );
+                entry->set_version( pair.second );
+            }
+
+            // send the message
+            if( !m_backend->sendMessage(m_peerId,nodeInfo,PRIO_SYNC) )
                 break;
         }
+
     }
-
-    if(chunk)
-        delete chunk;
-
 }
 
 

@@ -35,6 +35,15 @@
 namespace   openbook {
 namespace filesystem {
 
+
+/// priority queues
+enum MessagePrio
+{
+    PRIO_NOW    = 0, // for normal messages
+    PRIO_SYNC   = 1, // for sync / version messages
+    PRIO_XFER   = 2  // for data transfer
+};
+
 /// parses a byte into a MessageId
 MessageId parseMessageId( char byte );
 

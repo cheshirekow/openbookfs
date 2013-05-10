@@ -263,16 +263,16 @@ void Connection::main()
         m_writeThread.launch( dispatch_shout, this );
 
         // create a ping message for the client
-        if( !m_isUI )
-        {
-            messages::Ping* ping = new messages::Ping();
-            ping->set_payload(0xdeadf00d);
-            m_outboundMessages.insert(new AutoMessage(ping));
-
-            messages::Pong* pong = new messages::Pong();
-            pong->set_payload(0xdeadf00d);
-            m_outboundMessages.insert(new AutoMessage(pong));
-        }
+//        if( !m_isUI )
+//        {
+//            messages::Ping* ping = new messages::Ping();
+//            ping->set_payload(0xdeadf00d);
+//            m_outboundMessages.insert(new AutoMessage(ping));
+//
+//            messages::Pong* pong = new messages::Pong();
+//            pong->set_payload(0xdeadf00d);
+//            m_outboundMessages.insert(new AutoMessage(pong));
+//        }
     }
     catch( std::exception& ex )
     {
