@@ -237,29 +237,18 @@ void Backend::mapPeer( const messages::IdMapEntry& entry, std::map<int,int>& map
     // if we do not know about this peer, then add him to the map
     USIdMap_t::iterator match = idMap->find( entry.publickey() );
     if( match == idMap->end() )
-    {
-        // create sqlite connection
-        soci::session sql(soci::sqlite3, m_dbFile.string() );
-
-        // insert the key into the database if it isn't already there
-        sql << "INSERT OR IGNORE INTO known_clients (client_key, client_name) "
-               "VALUES ('"
-                    << entry.publickey()   << "','"
-                    << entry.displayname()
-            << "')";
-
-        // now select out the id
-        sql << "SELECT client_id FROM known_clients WHERE client_key='"
-            << entry.publickey() << "'",
-                soci::into(peerId);
-
-        // add that peer to the map
-        (*idMap)[entry.publickey()] = peerId;
-    }
+        peerId = m_db.registerPeer( entry.publickey(), entry.displayname() );
     else
         peerId = match->second;
 
     map[entry.peerid()] = peerId;
+
+}
+
+
+void Backend::buildPeerMap( messages::IdMap* map )
+{
+    m_db.buildPeerMap(map);
 }
 
 void Backend::setDisplayName( const std::string& name )
@@ -367,7 +356,8 @@ void Backend::setDataDir( const std::string& dir )
     {
         LockedPtr<USIdMap_t> idMap(&m_idMap);
 
-        m_db.setPath( m_dataDir / "store.sqlite" );
+        m_dbFile = m_dataDir / "store.sqlite";
+        m_db.setPath( m_dbFile );
         m_db.init();
         m_db.getClientMap(idMap);
     }
@@ -900,20 +890,28 @@ void Backend::getPeers( messages::PeerList* message )
 
     // now select out the id
     typedef soci::rowset<soci::row> rowset;
-    rowset rs = ( sql.prepare << "SELECT client_id, client_name, client_key "
-                           "FROM known_clients" );
-
-    LockedPtr<USPeerMap_t> peerMap( &m_peerMap );
-
-    for( auto& row : rs )
+    try
     {
-        if( peerMap->find( row.get<int>(0) ) != peerMap->end() )
+        rowset rs = ( sql.prepare << "SELECT client_id, client_name, client_key "
+                               "FROM known_clients" );
+
+        LockedPtr<USPeerMap_t> peerMap( &m_peerMap );
+
+        for( auto& row : rs )
         {
-            messages::PeerEntry* entry = message->add_peers();
-            entry->set_peerid     ( row.get<int>(0)         );
-            entry->set_displayname( row.get<std::string>(1) );
-            entry->set_publickey  ( row.get<std::string>(2) );
+            if( peerMap->find( row.get<int>(0) ) != peerMap->end() )
+            {
+                messages::PeerEntry* entry = message->add_peers();
+                entry->set_peerid     ( row.get<int>(0)         );
+                entry->set_displayname( row.get<std::string>(1) );
+                entry->set_publickey  ( row.get<std::string>(2) );
+            }
         }
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "Failed to retrieve peer list: " << ex.what()
+                  << "\n";
     }
 }
 
@@ -924,15 +922,23 @@ void Backend::getKnownPeers( messages::PeerList* message )
 
     // now select out the id
     typedef soci::rowset<soci::row> rowset;
-    rowset rs = ( sql.prepare << "SELECT client_id, client_name, client_key "
-                           "FROM known_clients" );
-
-    for( auto& row : rs )
+    try
     {
-        messages::PeerEntry* entry = message->add_peers();
-        entry->set_peerid     ( row.get<int>(0)         );
-        entry->set_displayname( row.get<std::string>(1) );
-        entry->set_publickey  ( row.get<std::string>(2) );
+        rowset rs = ( sql.prepare << "SELECT client_id, client_name, client_key "
+                               "FROM known_clients" );
+
+        for( auto& row : rs )
+        {
+            messages::PeerEntry* entry = message->add_peers();
+            entry->set_peerid     ( row.get<int>(0)         );
+            entry->set_displayname( row.get<std::string>(1) );
+            entry->set_publickey  ( row.get<std::string>(2) );
+        }
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "Failed to retrieve peer list: " << ex.what()
+                  << "\n";
     }
 }
 

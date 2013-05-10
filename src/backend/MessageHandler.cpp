@@ -26,6 +26,7 @@
 
 
 #include <iostream>
+#include <boost/format.hpp>
 #include "Backend.h"
 #include "MessageHandler.h"
 #include "Marshall.h"
@@ -393,6 +394,19 @@ void MessageHandler::handleMessage( messages::IdMap* msg )
 {
     for( int i=0; i < msg->peermap_size(); i++ )
         m_backend->mapPeer( msg->peermap(i), m_peerMap );
+
+    std::stringstream report;
+    report << "MessageHandler: built id map: \n";
+
+
+    for( PeerMap_t::iterator it = m_peerMap.begin();
+            it != m_peerMap.end(); ++it )
+    {
+        report << boost::format("   %5d -> %-5d\n")
+                    % it->first
+                    % it->second;
+    }
+    std::cout << report.str();
 }
 
 void MessageHandler::handleMessage( messages::NodeInfo* msg )

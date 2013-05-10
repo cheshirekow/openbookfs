@@ -55,6 +55,9 @@ class Database
         int registerPeer( const std::string& publicKey,
                           const std::string& displayName );
 
+        /// fill a peer map message
+        void buildPeerMap( messages::IdMap* map );
+
 
 
 

@@ -36,36 +36,42 @@ namespace filesystem {
 namespace       jobs {
 
 
-static boost::filesystem::path make_relative(
-        const boost::filesystem::path& base,
-        const boost::filesystem::path& query )
-{
-    namespace fs = boost::filesystem;
-    fs::path::const_iterator baseIter( base.begin() );
-    fs::path::const_iterator baseEnd( base.end() );
-    fs::path::const_iterator queryIter( query.begin() );
-    fs::path::const_iterator queryEnd( query.end() );
-
-    // iterate over common prefix
-    for( ; baseIter != baseEnd
-            && queryIter != queryEnd
-            && *baseIter == *queryIter;
-            ++baseIter, ++queryIter );
-
-    if( baseIter != baseEnd )
-        ex()() << base << " is not a prefix of " << query;
-
-    fs::path result;
-    for( ; queryIter != queryEnd; ++queryIter )
-        result /= *queryIter;
-
-    return result;
-}
+//static boost::filesystem::path make_relative(
+//        const boost::filesystem::path& base,
+//        const boost::filesystem::path& query )
+//{
+//    namespace fs = boost::filesystem;
+//    fs::path::const_iterator baseIter( base.begin() );
+//    fs::path::const_iterator baseEnd( base.end() );
+//    fs::path::const_iterator queryIter( query.begin() );
+//    fs::path::const_iterator queryEnd( query.end() );
+//
+//    // iterate over common prefix
+//    for( ; baseIter != baseEnd
+//            && queryIter != queryEnd
+//            && *baseIter == *queryIter;
+//            ++baseIter, ++queryIter );
+//
+//    if( baseIter != baseEnd )
+//        ex()() << base << " is not a prefix of " << query;
+//
+//    fs::path result;
+//    for( ; queryIter != queryEnd; ++queryIter )
+//        result /= *queryIter;
+//
+//    return result;
+//}
 
 void SendTree::go()
 {
     namespace fs = boost::filesystem;
     namespace msg = messages;
+
+    // send a peer map message
+    msg::IdMap* idMap = new msg::IdMap();
+    m_backend->buildPeerMap(idMap);
+    m_backend->sendMessage(m_peerId,idMap,0);
+
     fs::path root = m_backend->realRoot();
 
     std::list<fs::path> queue;
