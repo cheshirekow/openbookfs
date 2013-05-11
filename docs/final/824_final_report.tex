@@ -1,12 +1,15 @@
 \documentclass[10pt,twocolumn]{article}
-\title{Openbook File System}
-\author{Bruno Alvisio\\Gabe Ayers\\Josh Bialkowski}
+\title{ \vspace{-3cm} Openbook File System \vspace{-0.5cm} }
+\author{ Bruno Alvisio, Gabe Ayers, Josh Bialkowski}
+
 
 \usepackage{fullpage}
 \usepackage{amsfonts}
 \usepackage{amssymb}
 \usepackage{amsmath}
 \usepackage{hyperref}
+\usepackage[compact]{titlesec}
+\usepackage{flushend}
 
 \hypersetup{
     bookmarks=true,         % show bookmarks bar?
@@ -24,6 +27,11 @@
     filecolor=magenta,      % color of file links
     urlcolor=cyan           % color of external links
 }
+
+
+\titlespacing{\section}{0pt}{*0}{5pt}
+\titlespacing{\subsection}{0pt}{5pt}{*0}
+\titlespacing{\subsubsection}{0pt}{*0}{*0}
 
 \setcounter{secnumdepth}{1}
 
@@ -44,8 +52,8 @@ We seek to address these issues by building a free-software (GPL) peer-to-peer
 file synchronizer, which we haved dubbed Openbook File System (OBFS). OBFS
 follows the synchronization model of Ficus, but works entirely in user space. 
 This document briefly describes the architecture of the underlying system, 
-the design user interfaces, what has been accomplished for the 6.824 
-proof-of-concept release, and what are goals are for future work.  
+the user interfaces, what has been accomplished for the 6.824 
+proof-of-concept release, and what are goals are for the future of the code.  
 
 \section{Architecture}
 
@@ -54,7 +62,7 @@ of local files. We achieve eventual consistency by identifying causal orderings
 and automatically transfering files that are strictly future versions. 
 
 \subsection{Causal Ordering with Version Vectors}
-OBFS determines partial causal orderings of file changes by the use of version
+OBFS determines causal orderings of file changes by the use of version
 vectors. Every file is assigned a version vector which is a map from peer id to
 version number. When the user changes a file, the version element for appropriate
 peer id is incremented by one. Version vectors induce a partial order on events
@@ -154,8 +162,31 @@ interfaces allow the user to change configuration parameters, list, add, and
 remove mount points, list and authorize known peers, connect to peers, 
 and checkout and release files. 
 
+\section{Interesting Problems}
 
-\section{Summary}
+We ran into many interesting problems in building this proof of concept. For the
+sake of brevity we will only highlight one of these here: We originally 
+implemented message handling so that when a message arrives it was dispatched
+to a pool of workers. We assumed that messages would be more or less independant
+and that this would be a simple way of allowing the system to scale with peer
+connections and to take advantage of any available processing power on the 
+users machine. However, as should have been obvious, file 
+system events are not independant, and many seemingly atomic actions by the
+user result in a sequence of several calls to the underlying file system. 
+In particular, when opening a text file in \texttt{gedit}, changing some text, 
+and then saving the file, the resulting events that generate messages are in 
+fact:
+(1) create a temporary file of 0 size, (2) truncate that file to the correct
+size, (3) write the data, (4) move the file to overwrite the original. When 
+these events generated messages they were being processed out of order by the
+connected peer which would crash the backend. We fixed this problem by
+assigning a single worker to each connection and processing messages 
+sequentially in the order they are received (which, with TCP, means the order
+they were sent).  
+
+
+
+\section{Conclusion}
 
 For this 6.824 project we have completed a working proof of concept with 
 directory and file synchronization, conflict identification, and user
@@ -163,7 +194,7 @@ conflict resolution over the UI. The high level features completed and to do
 are summarized in Table \ref{tbl:FeatureList}.
 
 
-\begin{table}
+\begin{table}[ht]
     \centering
     \begin{tabular}{l|l}
         \textbf{completed}      &   \textbf{to do}  \\ \hline
@@ -183,7 +214,7 @@ are summarized in Table \ref{tbl:FeatureList}.
 The code can be found on GitHub. Our three GitHub accounts and links to 
 our repositories are shown in Table \ref{tbl:github}. 
 
-\begin{table}
+\begin{table}[ht]
     \centering
     \begin{tabular}{l|l}
         \textbf{name}     &  \textbf{respository}    \\ \hline
@@ -197,13 +228,11 @@ our repositories are shown in Table \ref{tbl:github}.
 \end{table}
 
 
-\section{Code Details and Dependencies}
-
 The code is written in C++. We use the CMake build system, and OBFS depends on
 the packages in Table \ref{tbl:dependencies}.
 
 
-\begin{table}[h]
+\begin{table}[ht]
     \centering
     \begin{tabular}{l|l}
       \textbf{library} & \textbf{usage} \\ \hline

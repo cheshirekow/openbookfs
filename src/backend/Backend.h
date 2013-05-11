@@ -170,6 +170,9 @@ class Backend
         /// generate a mapping from remote peer id to local peer id
         void mapPeer( const messages::IdMapEntry& entry, std::map<int,int>& map );
 
+        /// fill a peer map message
+        void buildPeerMap( messages::IdMap* map );
+
 
 
         // -------- CONFIG/UI OPS -----------

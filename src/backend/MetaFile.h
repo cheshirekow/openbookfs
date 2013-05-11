@@ -27,6 +27,7 @@ class MetaFile
     public:
         typedef boost::filesystem::path Path_t;
         typedef soci::session           Session_t;
+        typedef std::map<int,int>       Version_t;
 
     private:
         Session_t   m_sql;
@@ -63,6 +64,9 @@ class MetaFile
 
         /// increase the version for a child of the directory
         void incrementVersion( const std::string& path );
+
+        /// get the version for a path
+        void getVersion( const std::string& path, Version_t& v );
 
 
 };

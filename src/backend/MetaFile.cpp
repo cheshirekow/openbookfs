@@ -148,6 +148,16 @@ void MetaFile::incrementVersion( const std::string& path )
           << path << "' AND client=0";
 }
 
+void MetaFile::getVersion( const std::string& path, Version_t& v )
+{
+    typedef soci::rowset<soci::row> rowset_t;
+    rowset_t rowset = (m_sql.prepare
+            << "SELECT client,version FROM version WHERE path='" << path << "'" );
+
+    for( auto& row : rowset )
+        v[ row.get<int>(0) ] = row.get<int>(1);
+}
+
 
 } //< namespace filesystem
 } //< namespace openbook

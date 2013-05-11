@@ -247,7 +247,7 @@ message IdMap
 
 // one entry in a version vector
 message VersionEntry {
-    optional string client  = 1; // base64 encoded public key
+    optional int64  client  = 1; // base64 encoded public key
     optional int64  version = 2; // version number
 }
 
@@ -276,7 +276,7 @@ message NodeInfo {
     optional int64      ctime   = 7;    // creation time
     optional int64      mtime   = 8;    // modification time
     
-    optional VersionVector  version = 9; // version of the file
+    repeated VersionEntry  version = 9; // version of the file
 }
 
 

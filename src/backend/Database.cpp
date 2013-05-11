@@ -41,10 +41,39 @@ void Database::init()
     std::cout << "Initializing database" << std::endl;
     session sql(sqlite3,m_dbFile.string());
 
+    // stores a list of files that we are in the progress of receiving, these
+    // are either newer files or conflict files
+    sql << "CREATE TABLE IF NOT EXISTS downloads ("
+            // the target of the file being downloaded
+            "path   TEXT NOT NULL, "
+            // the peer we're downloading from
+            "peer   INTEGER NOT NULL, "
+            // the temporary file we're storing data in
+            "temp   TEXT NOT NULL, "
+            // the number of bytes we have received
+            "sent   INTEGER NOT NULL, "
+            // the size of the file in bytes
+            "size   INTEGER NOT NULL,"
+            // a path/peer is unique
+            "PRIMARY KEY(path,peer) ) ";
+
+    // stores version vectors for conflict files
+    sql << "CREATE TABLE IF NOT EXISTS downloads_v ("
+            // the file in conflict
+            "path       TEXT NOT NULL,"
+            // the peer who has a conflicting version
+            "peer       INTEGER NOT NULL,"
+            // the key of the version vector
+            "v_peer     INTEGER NOT NULL, "
+            // the value of the version vector
+            "v_version  INTEGER NOT NULL,"
+            // a path/peer is unique
+            "PRIMARY KEY(path,peer) ) ";
+
+
+
     // stores a list of files in conflict
     sql << "CREATE TABLE IF NOT EXISTS conflicts ("
-            // unique identifier for the conflict
-            "id     INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "
             // the file in conflict
             "path   TEXT NOT NULL,"
             // the peer who has a conflicting version
@@ -55,16 +84,22 @@ void Database::init()
             // size of the peers version of the file in bytes
             "size   INTEGER NOT NULL,"
             // number of bytes that we have received
-            "recv   INTEGER NOT NULL ) ";
+            "recv   INTEGER NOT NULL,"
+            // a path/peer is unique
+            "PRIMARY KEY(path,peer) ) ";
 
     // stores version vectors for conflict files
     sql << "CREATE TABLE IF NOT EXISTS conflict_v ("
-            // the id of the conflicts row
-            "cid     INTEGER NOT NULL, "
+            // the file in conflict
+            "path       TEXT NOT NULL,"
+            // the peer who has a conflicting version
+            "peer       INTEGER NOT NULL,"
             // the key of the version vector
-            "peer    INTEGER NOT NULL, "
+            "v_peer     INTEGER NOT NULL, "
             // the value of the version vector
-            "version INTEGER NOT NULL ) ";
+            "v_version  INTEGER NOT NULL,"
+            // a path/peer is unique
+            "PRIMARY KEY(path,peer) ) ";
 
     // stores clients that we know about and assigns them a unique
     // numerical index
@@ -93,17 +128,26 @@ void Database::getClientMap( LockedPtr<USIdMap_t>& map )
     int         peerId;
     typedef soci::rowset<soci::row>    rowset;
     typedef std::pair<std::string,int> mapentry;
-    rowset rs =
-            ( sql.prepare << "select client_id,client_key FROM known_clients");
-    for( auto& row : rs )
-        map->insert(
-                mapentry(row.get<std::string>(1) ,row.get<int>(0) ) );
+
+    try
+    {
+        rowset rs =
+                ( sql.prepare << "select client_id,client_key FROM known_clients");
+        for( auto& row : rs )
+            map->insert(
+                    mapentry(row.get<std::string>(1) ,row.get<int>(0) ) );
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "Database: Failed to retrieve client map: " << ex.what()
+                  << "\n";
+    }
 }
 
 int Database::registerPeer( const std::string&  base64,
                              const std::string& displayName )
 {
-     pthreads::ScopedLock lock(m_mutex);
+    pthreads::ScopedLock lock(m_mutex);
 
     // initialize the message database
     using namespace soci;
@@ -117,21 +161,62 @@ int Database::registerPeer( const std::string&  base64,
     // create sqlite connection
     session sql(soci::sqlite3, m_dbFile.string() );
 
-    // insert the key into the database if it isn't already there
-    sql << "INSERT OR IGNORE INTO known_clients (client_key, client_name) "
-           "VALUES ('"<< base64 << "','" << displayName << "')";
+    try
+    {
+        // insert the key into the database if it isn't already there
+        sql << "INSERT OR IGNORE INTO known_clients (client_key, client_name) "
+               "VALUES ('"<< base64 << "','" << displayName << "')";
 
-    // now select out the id
-    int peerId = 0;
-    sql << "SELECT client_id FROM known_clients WHERE client_key='"
-        << base64 << "'",
-            soci::into(peerId);
+        // now select out the id
+        int peerId = 0;
+        sql << "SELECT client_id FROM known_clients WHERE client_key='"
+            << base64 << "'",
+                soci::into(peerId);
 
-    // update the client name
-    sql << "UPDATE known_clients SET client_name='" << displayName
-        << "' WHERE client_id=" << peerId;
+        // update the client name
+        sql << "UPDATE known_clients SET client_name='" << displayName
+            << "' WHERE client_id=" << peerId;
+        return peerId;
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "Database: Failed to register peer: " << ex.what()
+                  << "\n";
+    }
 
-    return peerId;
+    return 0;
+}
+
+
+void Database::buildPeerMap( messages::IdMap* map )
+{
+    pthreads::ScopedLock lock(m_mutex);
+
+    // initialize the message database
+    using namespace soci;
+
+    // create sqlite connection
+    session sql(soci::sqlite3, m_dbFile.string() );
+
+    // initialize the id map
+    typedef soci::rowset<soci::row>    rowset;
+
+    try
+    {
+        rowset rs = ( sql.prepare << "SELECT * FROM known_clients");
+        for( auto& row : rs )
+        {
+            messages::IdMapEntry* entry = map->add_peermap();
+            entry->set_peerid     ( row.get<int>(0)         );
+            entry->set_publickey  ( row.get<std::string>(1) );
+            entry->set_displayname( row.get<std::string>(2) );
+        }
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "Database: Failed to build client map: " << ex.what()
+                  << "\n";
+    }
 }
 
 
