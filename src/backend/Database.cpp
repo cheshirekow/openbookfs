@@ -12,6 +12,7 @@
 #include <soci/soci.h>
 #include <soci/sqlite3/soci-sqlite3.h>
 #include <boost/format.hpp>
+#include "ExceptionStream.h"
 
 
 namespace   openbook {
@@ -243,8 +244,9 @@ void Database::addDownload( int64_t peer,
         // get previous instance of the download
         int count=0;
         sql << boost::format(
-                "SELECT count(*) FROM downloads WHERE path='%s' AND peer=%d"
-                    % path.string() % peer ), into(count);
+                "SELECT count(*) FROM downloads WHERE path='%s' AND peer=%d" )
+                % path.string()
+                % peer, into(count);
 
         // if the download exists then get the version being downloaded
         if(count > 0)
@@ -304,10 +306,13 @@ void Database::addDownload( int64_t peer,
 
         // if the file is not already being downloaded
         // create a file to store the download
-        std::string tpl = ( fs::absolute(stageDir) / "XXXXXX");
+        std::string tpl = ( stageDir / "XXXXXX").string();
         int fd = mkstemp( &tpl[0] );
         if( fd < 0 )
-            ex()() << "Failed to create a temporary with template " << tpl;
+        {
+            codedExcept(errno)()
+                << "Failed to create a temporary with template " << tpl;
+        }
         std::string temp = tpl.substr(tpl.size()-6,6);
 
         // insert the download
