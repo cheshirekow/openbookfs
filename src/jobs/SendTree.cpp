@@ -30,6 +30,7 @@
 #include "SendTree.h"
 #include "ExceptionStream.h"
 #include "MetaFile.h"
+#include "VersionVector.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -188,7 +189,7 @@ void SendTree::go()
             nodeInfo->set_mtime(statBuf.st_mtim.tv_sec);
             nodeInfo->set_type( ntype );
 
-            std::map<int,int> version;
+            VersionVector version;
             meta.getVersion(subpath.string(),version);
 
             for( auto& pair : version )

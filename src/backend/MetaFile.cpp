@@ -148,7 +148,7 @@ void MetaFile::incrementVersion( const std::string& path )
           << path << "' AND client=0";
 }
 
-void MetaFile::getVersion( const std::string& path, Version_t& v )
+void MetaFile::getVersion( const std::string& path, VersionVector& v )
 {
     typedef soci::rowset<soci::row> rowset_t;
     rowset_t rowset = (m_sql.prepare
@@ -156,6 +156,20 @@ void MetaFile::getVersion( const std::string& path, Version_t& v )
 
     for( auto& row : rowset )
         v[ row.get<int>(0) ] = row.get<int>(1);
+}
+
+void MetaFile::assimilateKeys( const std::string& path, const VersionVector& v)
+{
+    for( auto& pair : v )
+    {
+        m_sql << "INSERT OR IGNORE INTO version "
+                    "(path,client,version) "
+                    "VALUES ("
+                    "'" << path << "',"
+                    << pair.first << ","
+                    << pair.second
+                    << ")";
+    }
 }
 
 

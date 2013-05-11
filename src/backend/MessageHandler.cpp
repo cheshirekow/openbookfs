@@ -30,10 +30,10 @@
 #include "Backend.h"
 #include "MessageHandler.h"
 #include "Marshall.h"
+#include "MetaFile.h"
+#include "VersionVector.h"
 #include "jobs/PingJob.h"
 #include "jobs/SendTree.h"
-#include "MetaFile.h"
-
 
 
 namespace   openbook {
@@ -91,7 +91,11 @@ void MessageHandler::main()
     std::cout << "Message Handler " << (void*)this << "Shutting down\n";
 }
 
-
+void MessageHandler::mapVersion( const VersionVector& v_in, VersionVector& v_out )
+{
+    for( auto& pair : v_in )
+        v_out[ m_peerMap[pair.first] ] = pair.second;
+}
 
 
 void MessageHandler::handleMessage( messages::LeaderElect* msg )        { exceptMessage(msg); }
@@ -415,6 +419,45 @@ void MessageHandler::handleMessage( messages::NodeInfo* msg )
     report << "MessageHandler: received node info: \n"
            << "    path: " << msg->parent() << "/" << msg->path() << "\n";
     std::cout << report.str();
+
+    // first check to see if the file is currently checked out
+    namespace fs = boost::filesystem;
+
+    try
+    {
+        // decompose the path into a directory and file part
+        fs::path root    = m_backend->realRoot();
+        fs::path relpath = msg->path();
+
+        // create a version vector from the message
+        VersionVector v_theirs;
+        for(int i=0; i < msg->version_size(); i++)
+        {
+            const messages::VersionEntry& entry = msg->version(i);
+            v_theirs[ entry.client() ] = entry.version();
+        }
+
+        // map version keys
+        VersionVector v_mine;
+        mapVersion( v_theirs, v_mine );
+
+        // get the metadata file for this path
+        MetaFile meta(root / relpath);
+
+        // assimilate version keys so that future file changes notify
+        // connected peers
+        meta.assimilateKeys( relpath.filename().string(), v_mine );
+
+
+
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "Failed to handle NodeInfo message: " << ex.what()
+                  << "\n";
+    }
+
+
 }
 
 
