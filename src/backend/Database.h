@@ -17,6 +17,7 @@
 
 #include "messages.pb.h"
 #include "Synchronized.h"
+#include "VersionVector.h"
 
 
 
@@ -57,6 +58,14 @@ class Database
 
         /// fill a peer map message
         void buildPeerMap( messages::IdMap* map );
+
+        /// adds the requested path for download or pre-empts a current
+        /// download if a newer version is to be retrieved
+        void addDownload( int64_t peer,
+                            const Path_t& path,
+                            int64_t size,
+                            const VersionVector& version,
+                            const Path_t& stageDir );
 
 
 

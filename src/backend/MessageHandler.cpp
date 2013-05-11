@@ -448,6 +448,13 @@ void MessageHandler::handleMessage( messages::NodeInfo* msg )
         // connected peers
         meta.assimilateKeys( relpath.filename().string(), v_mine );
 
+        // compare version vectors, if their version is strictly newer then
+        // we register it for download
+        if( v_mine < v_theirs )
+        {
+
+        }
+
 
 
     }

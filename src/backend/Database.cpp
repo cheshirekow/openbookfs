@@ -11,6 +11,7 @@
 #include "Database.h"
 #include <soci/soci.h>
 #include <soci/sqlite3/soci-sqlite3.h>
+#include <boost/format.hpp>
 
 
 namespace   openbook {
@@ -48,10 +49,12 @@ void Database::init()
             "path   TEXT NOT NULL, "
             // the peer we're downloading from
             "peer   INTEGER NOT NULL, "
+            // transaction id, incremented if download is pre-empted
+            "tx     INTEGER NOT NULL, "
             // the temporary file we're storing data in
             "temp   TEXT NOT NULL, "
             // the number of bytes we have received
-            "sent   INTEGER NOT NULL, "
+            "recd   INTEGER NOT NULL, "
             // the size of the file in bytes
             "size   INTEGER NOT NULL,"
             // a path/peer is unique
@@ -68,7 +71,7 @@ void Database::init()
             // the value of the version vector
             "v_version  INTEGER NOT NULL,"
             // a path/peer is unique
-            "PRIMARY KEY(path,peer) ) ";
+            "PRIMARY KEY(path,peer,v_peer) ) ";
 
 
 
@@ -99,7 +102,7 @@ void Database::init()
             // the value of the version vector
             "v_version  INTEGER NOT NULL,"
             // a path/peer is unique
-            "PRIMARY KEY(path,peer) ) ";
+            "PRIMARY KEY(path,peer,v_peer) ) ";
 
     // stores clients that we know about and assigns them a unique
     // numerical index
@@ -215,6 +218,123 @@ void Database::buildPeerMap( messages::IdMap* map )
     catch( const std::exception& ex )
     {
         std::cerr << "Database: Failed to build client map: " << ex.what()
+                  << "\n";
+    }
+}
+
+
+void Database::addDownload( int64_t peer,
+                            const Path_t& path,
+                            int64_t size,
+                            const VersionVector& version,
+                            const Path_t& stageDir  )
+{
+    pthreads::ScopedLock lock(m_mutex);
+
+    namespace fs = boost::filesystem;
+    using namespace soci;
+
+    // create sqlite connection
+    session sql(soci::sqlite3, m_dbFile.string() );
+
+    // initialize the id map
+    try
+    {
+        // get previous instance of the download
+        int count=0;
+        sql << boost::format(
+                "SELECT count(*) FROM downloads WHERE path='%s' AND peer=%d"
+                    % path.string() % peer ), into(count);
+
+        // if the download exists then get the version being downloaded
+        if(count > 0)
+        {
+            // perform the version query
+            rowset<row> rs = ( sql.prepare << boost::format(
+                    "SELECT v_peer,v_version FROM downloads_v "
+                    " WHERE path='%s' AND peer='%d'" )
+                    % path.string()
+                    % peer );
+
+            // build the version vector
+            VersionVector v_prev;
+            for( auto& row : rs )
+                v_prev[ row.get<int64_t>(0) ] = row.get<int64_t>(1);
+
+            // if the current download is the not less then the requested
+            // download there is nothing left to do
+            if( v_prev >= version )
+            {
+                std::cerr << "Database::addDownload ignoring download for "
+                          << peer << " : "
+                          << path << "because already in progress\n";
+                return;
+            }
+
+            // otherwise simply reset the bytes received, increment the
+            // transaction number, and set the size
+            sql << boost::format(
+                    "UPDATE downloads SET tx=tx+1, recd=0, size=%d"
+                    " WHERE path='%s' AND peer='%d'" )
+                    % size
+                    % path.string()
+                    % peer;
+
+            // delete any old version info
+            sql << boost::format(
+                    "DELETE FROM downloads_v WHERE path='%s' AND peer=%d")
+                    % path.string()
+                    % peer;
+
+            // insert new version info
+            for( auto& pair : version )
+            {
+                sql << boost::format(
+                    "INSERT INTO downloads_v (path,peer,v_peer,v_version) "
+                    "VALUES ('%s',%d,%d,%d)" )
+                        % path.string()
+                        % peer
+                        % pair.first
+                        % pair.second
+                    ;
+            }
+
+            return;
+        }
+
+        // if the file is not already being downloaded
+        // create a file to store the download
+        std::string tpl = ( fs::absolute(stageDir) / "XXXXXX");
+        int fd = mkstemp( &tpl[0] );
+        if( fd < 0 )
+            ex()() << "Failed to create a temporary with template " << tpl;
+        std::string temp = tpl.substr(tpl.size()-6,6);
+
+        // insert the download
+        sql << boost::format(
+                "INSERT INTO downloads (path,peer,tx,temp,recd,size) "
+                "VALUES ('%s',%d,0,'%s',0,%d)" )
+                % path.string()
+                % peer
+                % temp
+                % size;
+
+        // insert new version info
+        for( auto& pair : version )
+        {
+            sql << boost::format(
+                "INSERT INTO downloads_v (path,peer,v_peer,v_version) "
+                "VALUES ('%s',%d,%d,%d)" )
+                    % path.string()
+                    % peer
+                    % pair.first
+                    % pair.second
+                ;
+        }
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "Database::addDownload Failed to add download: " << ex.what()
                   << "\n";
     }
 }

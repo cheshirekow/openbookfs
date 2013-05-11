@@ -251,6 +251,14 @@ void Backend::buildPeerMap( messages::IdMap* map )
     m_db.buildPeerMap(map);
 }
 
+void Backend::addDownload( int64_t peer,
+                            const Path_t& path,
+                            int64_t size,
+                            const VersionVector& version )
+{
+    m_db.addDownload(peer,path,size,version,m_stageDir);
+}
+
 void Backend::setDisplayName( const std::string& name )
 {
     pthreads::ScopedLock lock(m_mutex);
@@ -267,10 +275,11 @@ void Backend::setDataDir( const std::string& dir )
 
     m_dataDir = dir;
     m_rootDir = m_dataDir / "root";
+    m_stageDir= m_dataDir / "stage";
     namespace fs = boost::filesystem;
 
     // check that the data directory and subdirectories exist
-    if( !fs::exists( fs::path(m_dataDir) ) )
+    if( !fs::exists( m_dataDir ) )
     {
         std::cout << "creating data directory: "
                   << fs::absolute( fs::path(m_dataDir) )
@@ -281,7 +290,7 @@ void Backend::setDataDir( const std::string& dir )
     }
 
     // check that the root directory exists
-    if( !fs::exists( fs::path(m_rootDir) ) )
+    if( !fs::exists( m_rootDir) )
     {
         std::cout << "creating root directory: "
                   << fs::absolute( fs::path(m_rootDir) )
@@ -289,6 +298,17 @@ void Backend::setDataDir( const std::string& dir )
         bool result = fs::create_directories( fs::path(m_rootDir ) );
         if( !result )
             ex()() << "failed to create root directory: " << m_rootDir;
+    }
+
+    // check that the stage directory exists
+    if( !fs::exists( m_stageDir ) )
+    {
+        std::cout << "creating stage directory: "
+                  << fs::absolute( fs::path(m_stageDir) )
+                  << std::endl;
+        bool result = fs::create_directories( fs::path(m_stageDir ) );
+        if( !result )
+            ex()() << "failed to create stage directory: " << m_stageDir;
     }
 
     // if there is no private key file then create one
