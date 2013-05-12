@@ -39,16 +39,17 @@ namespace       gui {
 class Connect:
     public Options
 {
+    /*
     TCLAP::SwitchArg                      isLocal;       ///< same host machine
     TCLAP::UnlabeledValueArg<std::string> remoteNode;    ///< remote address
     TCLAP::UnlabeledValueArg<std::string> remoteService; ///< remote port
-
+*/
     public:
         static const std::string COMMAND;
         static const std::string DESCRIPTION;
 
 
-        Connect( TCLAP::CmdLine& cmd );
+        Connect();
         void go();
 };
 

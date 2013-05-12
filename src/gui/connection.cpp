@@ -134,8 +134,9 @@ void handshake( Marshall& marshall )
 
     // trade public keys
     msgs::AuthRequest* authReq = new msgs::AuthRequest();
-    authReq->set_display_name("GUI");
+    authReq->set_display_name("CLUI");
     authReq->set_public_key("UserInterface");
+
     marshall.writeMsg( authReq );
 
     RefPtr<AutoMessage> recv = marshall.read( );

@@ -13,7 +13,7 @@ namespace   openbook {
 namespace filesystem {
 namespace       gui {
 
-ListKnownPeers::ListKnownPeers(TCLAP::CmdLine& cmd):
+ListKnownPeers::ListKnownPeers():
     Options()
 
     {}
@@ -38,6 +38,8 @@ FdPtr_t sockfd = connectToClient(*this);    //< create a connection
 
     // if the backend replied with a message we weren't expecting then
     // print an error
+
+    std::cout<<"TYPE: "<<reply->type<<std::endl;
     if( reply->type != MSG_PEER_LIST )
     {
         std::cerr << "Unexpected reply of type: "
@@ -87,6 +89,7 @@ FdPtr_t sockfd = connectToClient(*this);    //< create a connection
         std::cout <<"\n";
 
         // now print out data
+        std::cout<<"SIZE: "<<msg->peers_size()<<std::endl;
         for(int i=0; i < msg->peers_size(); i++)
         {
             int nSpaces = 0;

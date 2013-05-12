@@ -92,7 +92,8 @@ INCLUDEPATH += ../ \
 
 unix|win32: LIBS += \
     -lcrypto++ \
-    -lprotobuf
+    -lprotobuf \
+    -lboost_system
 
 OTHER_FILES += \
     ../messages.proto \

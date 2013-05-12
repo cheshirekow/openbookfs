@@ -39,8 +39,8 @@ namespace       gui {
 const std::string Connect::COMMAND      = "connect";
 const std::string Connect::DESCRIPTION  = "initiate a connection with a peer";
 
-Connect::Connect( TCLAP::CmdLine& cmd ):
-    Options(),
+Connect::Connect():
+    Options()/*,
     isLocal("l",    //< short flag character, usage: "-l"
         "local",    //< long flag, usage: "--local"
         // help message
@@ -63,7 +63,7 @@ Connect::Connect( TCLAP::CmdLine& cmd ):
         true,
         "3031",
         "port",
-        cmd)
+        cmd)*/
 {}
 
 void Connect::go()
@@ -76,9 +76,9 @@ void Connect::go()
     // send the message
     messages::AttemptConnection* msg =
             new messages::AttemptConnection();
-    msg->set_isremote(!isLocal.getValue());
-    msg->set_node( remoteNode.getValue() );
-    msg->set_service( remoteService.getValue() );
+    msg->set_isremote(true);
+    msg->set_node("localhost");
+    msg->set_service("3033");
     marshall.writeMsg(msg);
 
     // wait for the reply

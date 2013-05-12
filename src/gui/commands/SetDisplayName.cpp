@@ -32,20 +32,13 @@
 #include "ExceptionStream.h"
 #include "SetDisplayName.h"
 
+
 namespace   openbook {
 namespace filesystem {
 namespace       gui {
 
-SetDisplayName::SetDisplayName( TCLAP::CmdLine& cmd ):
-    Options(),
-    displayName(
-        "displayName",
-        "remote network interface to use",
-        true,
-        "test_x",
-        "displayName",
-        cmd
-        )
+SetDisplayName::SetDisplayName():
+    Options()
 {}
 
 void SetDisplayName::go()
@@ -55,9 +48,12 @@ void SetDisplayName::go()
     marshall.setFd(sockfd);
     handshake(marshall);
 
+    std::cout<<"Here Final"<<std::endl;
     // send the message
     messages::SetDisplayName* msg = new messages::SetDisplayName();
-    msg->set_displayname(   displayName.getValue() );
+    const char* value = "Displayname";
+
+    msg->set_displayname(value);
     marshall.writeMsg(msg);
 
     // wait for the reply

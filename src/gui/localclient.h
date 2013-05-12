@@ -4,6 +4,9 @@
 #include <QWidget>
 #include "connection.h"
 #include "commands/ListMounts.h"
+#include "commands/ListKnownPeers.h"
+#include "commands/SetDisplayName.h"
+#include "commands/Connect.h"
 
 namespace Ui {
 class LocalClient;
@@ -19,7 +22,7 @@ class LocalClient : public QWidget
 public:
     explicit LocalClient(QWidget *parent = 0);
     ~LocalClient();
-    ListMounts l;
+
     
 private:
     Ui::LocalClient *ui;

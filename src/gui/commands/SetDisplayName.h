@@ -36,12 +36,11 @@ namespace       gui {
 class SetDisplayName:
     public Options
 {
-    TCLAP::UnlabeledValueArg<std::string> displayName;    ///< display name
 
     public:
         static const std::string COMMAND;
         static const std::string DESCRIPTION;
-        SetDisplayName( TCLAP::CmdLine& cmd );
+        SetDisplayName();
         void go();
 };
 
