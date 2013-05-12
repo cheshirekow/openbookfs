@@ -29,6 +29,7 @@ void handleMessage( messages::Subscribe*           msg);
 void handleMessage( messages::Unsubscribe*         msg);
 void handleMessage( messages::IdMap*               msg);
 void handleMessage( messages::NodeInfo*            msg);
+void handleMessage( messages::SendFile*            msg);
 void handleMessage( messages::NewVersion*          msg);
 void handleMessage( messages::RequestFile*         msg);
 void handleMessage( messages::FileChunk*           msg);

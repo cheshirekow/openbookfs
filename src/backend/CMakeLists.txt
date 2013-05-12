@@ -72,6 +72,7 @@ if( (FUSE_FOUND)
                     SocketListener.cpp
                     VersionVector.cpp
                     ../jobs/SendTree.cpp
+                    ../jobs/SendFile.cpp
                     ../messages.cpp
                     ../FdSet.cpp
                     ../FileDescriptor.cpp

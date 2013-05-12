@@ -34,6 +34,7 @@
 #include "VersionVector.h"
 #include "jobs/PingJob.h"
 #include "jobs/SendTree.h"
+#include "jobs/SendFile.h"
 
 
 namespace   openbook {
@@ -407,6 +408,7 @@ void MessageHandler::handleMessage( messages::IdMap* msg )
 {
     for( int i=0; i < msg->peermap_size(); i++ )
         m_backend->mapPeer( msg->peermap(i), m_peerMap );
+    m_peerMap[0] = m_peerId;
 
     std::stringstream report;
     report << "MessageHandler: built id map: \n";
@@ -468,6 +470,19 @@ void MessageHandler::handleMessage( messages::NodeInfo* msg )
             std::cout << "MessageHandler::(NodeInfo)  : "
                       << " version is strictly greater, adding download\n";
             m_backend->addDownload(m_peerId,relpath,msg->size(),v_theirs);
+
+            messages::SendFile* sendFile = new messages::SendFile();
+            sendFile->set_path(relpath.string());
+            sendFile->set_tx(0);
+
+            for( auto& pair : v_theirs )
+            {
+                messages::VersionEntry* entry = sendFile->add_version();
+                entry->set_client(pair.first);
+                entry->set_version(pair.second);
+            }
+
+            m_outboundQueue->insert( new AutoMessage(sendFile) );
         }
         else
         {
@@ -481,8 +496,41 @@ void MessageHandler::handleMessage( messages::NodeInfo* msg )
         std::cerr << "Failed to handle NodeInfo message: " << ex.what()
                   << "\n";
     }
+}
 
+void MessageHandler::handleMessage( messages::SendFile* msg )
+{
+    // read the version vector
+    VersionVector v_recd;
+    for(int i=0; i < msg->version_size(); i++)
+    {
+        auto& entry = msg->version(i);
+        v_recd[ entry.client() ] = entry.version();
+    }
 
+    // map version keys
+    VersionVector v_theirs;
+    mapVersion(v_recd,v_theirs);
+
+    std::stringstream report;
+    report << "Received file tx request:"
+           << "\n      path: " << msg->path()
+           << "\n        tx: " << msg->tx()
+           << "\n   version: " << v_theirs
+           << "\n";
+
+    std::cout << report.str();
+
+    // create the job
+    jobs::SendFile* sendFile = new jobs::SendFile(
+            m_backend, m_peerId,
+            msg->path(),
+            msg->tx(),
+            msg->offset(),
+            v_theirs );
+
+    // add the job
+    m_backend->jobs()->enqueue(sendFile);
 }
 
 

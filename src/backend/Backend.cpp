@@ -265,6 +265,8 @@ void Backend::addDownload( int64_t peer,
     m_db.addDownload(peer,path,size,version,m_stageDir);
 }
 
+
+
 void Backend::setDisplayName( const std::string& name )
 {
     pthreads::ScopedLock lock(m_mutex);

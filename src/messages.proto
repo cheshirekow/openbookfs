@@ -282,10 +282,11 @@ message NodeInfo {
 
 // asks the peer to send a file
 message SendFile {
-    optional string     path = 1;   // the file to send
-    optional int64      tx   = 2;   // transaction identifier
+    optional string     path    = 1;   // the file to send
+    optional int64      tx      = 2;   // transaction identifier
+    optional int64      offset  = 3 [default = 0];   // first byte to send
     
-    repeated VersionEntry version = 3;  // version to send
+    repeated VersionEntry version = 4;  // version to send
 }
 
 
@@ -326,8 +327,10 @@ message RequestFile {
 
 // Message containing  chunk of a file
 message FileChunk {
-    optional int64  offset  = 1;    // offset of chunk
-    optional bytes  data    = 2;    // actual data chunk
+    optional string path    = 1;    // path of the file
+    optional int64  tx      = 2;    // transaction id
+    optional int64  offset  = 3;    // offset of chunk
+    optional bytes  data    = 4;    // actual data chunk
 }
 
  
