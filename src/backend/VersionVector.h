@@ -30,6 +30,7 @@
 #include <map>
 #include <set>
 #include <cstdint>
+#include <ostream>
 
 namespace   openbook {
 namespace filesystem {
@@ -61,9 +62,7 @@ class VersionVector:
         bool operator>=( const VersionVector& other ) const;
 };
 
-
-
-
+std::ostream& operator<<( std::ostream& out, const VersionVector& v );
 
 
 

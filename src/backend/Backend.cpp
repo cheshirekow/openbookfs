@@ -249,6 +249,11 @@ void Backend::mapPeer( const messages::IdMapEntry& entry, std::map<int,int>& map
 void Backend::buildPeerMap( messages::IdMap* map )
 {
     m_db.buildPeerMap(map);
+
+    messages::IdMapEntry* entry = map->add_peermap();
+    entry->set_peerid     ( 0 );
+    entry->set_publickey  ( m_pubKey );
+    entry->set_displayname( m_displayName );
 }
 
 void Backend::addDownload( int64_t peer,
@@ -256,6 +261,7 @@ void Backend::addDownload( int64_t peer,
                             int64_t size,
                             const VersionVector& version )
 {
+    std::cout << "Backend::addDownload() : here\n";
     m_db.addDownload(peer,path,size,version,m_stageDir);
 }
 
@@ -380,6 +386,9 @@ void Backend::setDataDir( const std::string& dir )
         m_db.setPath( m_dbFile );
         m_db.init();
         m_db.getClientMap(idMap);
+
+        // ensure that 0 in the map is us
+        (*idMap)[m_pubKey] = 0;
     }
     catch( const std::exception& ex )
     {

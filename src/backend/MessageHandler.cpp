@@ -93,8 +93,17 @@ void MessageHandler::main()
 
 void MessageHandler::mapVersion( const VersionVector& v_in, VersionVector& v_out )
 {
+    std::stringstream report;
+    report << "MessageHandler::mapVersion():\n";
     for( auto& pair : v_in )
+    {
         v_out[ m_peerMap[pair.first] ] = pair.second;
+        report << boost::format("   %d -> %d : %d\n")
+                    % pair.first
+                    % m_peerMap[pair.first]
+                    % pair.second;
+    }
+    std::cout << report.str();
 }
 
 
@@ -430,33 +439,42 @@ void MessageHandler::handleMessage( messages::NodeInfo* msg )
         fs::path relpath = msg->path();
 
         // create a version vector from the message
-        VersionVector v_theirs;
+        VersionVector v_recv;
         for(int i=0; i < msg->version_size(); i++)
         {
             const messages::VersionEntry& entry = msg->version(i);
-            v_theirs[ entry.client() ] = entry.version();
+            v_recv[ entry.client() ] = entry.version();
         }
 
         // map version keys
-        VersionVector v_mine;
-        mapVersion( v_theirs, v_mine );
+        VersionVector v_theirs;
+        mapVersion( v_recv, v_theirs );
 
         // get the metadata file for this path
         MetaFile meta(root / relpath);
 
         // assimilate version keys so that future file changes notify
         // connected peers
-        meta.assimilateKeys( relpath.filename().string(), v_mine );
+        meta.assimilateKeys( relpath.filename().string(), v_theirs );
+
+        // retrieve my version
+        VersionVector v_mine;
+        meta.getVersion(relpath.filename().string(),v_mine);
 
         // compare version vectors, if their version is strictly newer then
         // we register it for download
         if( v_mine < v_theirs )
         {
-
+            std::cout << "MessageHandler::(NodeInfo)  : "
+                      << " version is strictly greater, adding download\n";
+            m_backend->addDownload(m_peerId,relpath,msg->size(),v_theirs);
         }
-
-
-
+        else
+        {
+            std::cout << "MessageHandler::(NodeInfo)  : "
+                      << " version " << v_theirs
+                      << "is not strictly greater than " << v_mine << "\n";
+        }
     }
     catch( const std::exception& ex )
     {

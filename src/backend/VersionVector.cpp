@@ -25,6 +25,7 @@
  */
 
 #include "VersionVector.h"
+#include <boost/format.hpp>
 
 namespace   openbook {
 namespace filesystem {
@@ -73,7 +74,7 @@ bool VersionVector::operator<( const VersionVector& other ) const
         int64_t v2 = other[key];
         if( v1 > v2 )
             return false;
-        else if( v2 < v2 )
+        else if( v1 < v2 )
             atLeastOneLess = true;
     }
 
@@ -107,6 +108,16 @@ bool VersionVector::operator>=( const VersionVector& other ) const
     return (other <= *this);
 }
 
+
+std::ostream& operator<<( std::ostream& out, const VersionVector& v )
+{
+    out << "[ ";
+    for( auto& pair : v )
+        out << boost::format("(%d:%d) ") % pair.first % pair.second;
+    out << "]";
+
+    return out;
+}
 
 
 } //< namespace filesystem

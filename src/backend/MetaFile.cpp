@@ -10,6 +10,7 @@
 #include <fcntl.h>
 
 #include <boost/tuple/tuple.hpp>
+#include <boost/format.hpp>
 #include <soci/boost-tuple.h>
 #include <soci/soci.h>
 #include <soci/sqlite3/soci-sqlite3.h>
@@ -162,13 +163,12 @@ void MetaFile::assimilateKeys( const std::string& path, const VersionVector& v)
 {
     for( auto& pair : v )
     {
-        m_sql << "INSERT OR IGNORE INTO version "
-                    "(path,client,version) "
-                    "VALUES ("
-                    "'" << path << "',"
-                    << pair.first << ","
-                    << pair.second
-                    << ")";
+        m_sql << boost::format(
+                "INSERT OR IGNORE INTO version (path,client,version) "
+                " VALUES ('%s',%d,%d) ")
+                % path
+                % pair.first
+                % 0;
     }
 }
 

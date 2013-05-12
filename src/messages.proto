@@ -280,6 +280,14 @@ message NodeInfo {
 }
 
 
+// asks the peer to send a file
+message SendFile {
+    optional string     path = 1;   // the file to send
+    optional int64      tx   = 2;   // transaction identifier
+    
+    repeated VersionEntry version = 3;  // version to send
+}
+
 
 
 

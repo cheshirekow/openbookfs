@@ -251,6 +251,9 @@ void Database::addDownload( int64_t peer,
         // if the download exists then get the version being downloaded
         if(count > 0)
         {
+            std::cout << "Database::addDownload() : download already exists, "
+                        "checking if I need to update\n";
+
             // perform the version query
             rowset<row> rs = ( sql.prepare << boost::format(
                     "SELECT v_peer,v_version FROM downloads_v "
@@ -301,8 +304,19 @@ void Database::addDownload( int64_t peer,
                     ;
             }
 
+            // truncate the temporary file
+            std::string temp;
+            sql << boost::format(
+                "SELECT temp FROM downloads WHERE path='%s' AND peer=%d" )
+                % path.string()
+                % peer, into(temp);
+
+            truncate( (stageDir / temp).c_str(), size );
+
             return;
         }
+
+        std::cout << "Database::addDownload() : creating new download\n";
 
         // if the file is not already being downloaded
         // create a file to store the download
@@ -313,6 +327,9 @@ void Database::addDownload( int64_t peer,
             codedExcept(errno)()
                 << "Failed to create a temporary with template " << tpl;
         }
+        ftruncate(fd,size);
+        close(fd);
+
         std::string temp = tpl.substr(tpl.size()-6,6);
 
         // insert the download
@@ -339,7 +356,8 @@ void Database::addDownload( int64_t peer,
     }
     catch( const std::exception& ex )
     {
-        std::cerr << "Database::addDownload Failed to add download: " << ex.what()
+        std::cerr << "Database::addDownload Failed to add download: "
+                  << ex.what()
                   << "\n";
     }
 }
