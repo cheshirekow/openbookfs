@@ -28,6 +28,7 @@
 #define OPENBOOK_FS_GUI_DISPLAYNAMEOPTIONS_H_
 
 #include "Options.h"
+#include <QString>
 
 namespace   openbook {
 namespace filesystem {
@@ -41,7 +42,7 @@ class SetDisplayName:
         static const std::string COMMAND;
         static const std::string DESCRIPTION;
         SetDisplayName();
-        void go();
+        void go(QString DisplayName);
 };
 
 

@@ -3,7 +3,7 @@
 Info::Info(QWidget *parent) :
     QPushButton(parent)
 {
-    QPixmap pixmap("/Users/ga22612/Code/Openbookfs/openbookfs/src/gui/i_icon.png");
+    QPixmap pixmap("/home/gabe/Code/openbookfs/src/gui/i_icon.png");
     QIcon ButtonIcon(pixmap);
     this->setIcon(ButtonIcon);
     this->setIconSize(pixmap.rect().size());
@@ -11,7 +11,7 @@ Info::Info(QWidget *parent) :
 
     i = new QWidget(parent);
 
-    i->setGeometry(400,0,400,300);
+    i->setGeometry(450,0,350,300);
     i->setStyleSheet("background:#fff");
     QVBoxLayout *layout = new QVBoxLayout();
     layout->setAlignment(Qt::AlignTop);

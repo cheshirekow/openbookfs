@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>826</width>
-    <height>616</height>
+    <height>671</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -41,7 +41,7 @@
     <property name="geometry">
      <rect>
       <x>10</x>
-      <y>520</y>
+      <y>580</y>
       <width>98</width>
       <height>27</height>
      </rect>
@@ -56,11 +56,15 @@
       <x>10</x>
       <y>0</y>
       <width>811</width>
-      <height>341</height>
+      <height>591</height>
      </rect>
     </property>
     <layout class="QVBoxLayout" name="layout"/>
    </widget>
+   <zorder>textBrowser</zorder>
+   <zorder>label</zorder>
+   <zorder>verticalLayoutWidget</zorder>
+   <zorder>connect</zorder>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">

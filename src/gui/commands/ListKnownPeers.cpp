@@ -9,6 +9,7 @@
 #include "ExceptionStream.h"
 #include "ListKnownPeers.h"
 
+
 namespace   openbook {
 namespace filesystem {
 namespace       gui {
@@ -18,7 +19,7 @@ ListKnownPeers::ListKnownPeers():
 
     {}
 
-void ListKnownPeers::go(){
+QStringList ListKnownPeers::go(){
 FdPtr_t sockfd = connectToClient(*this);    //< create a connection
     Marshall marshall;        //< create a marshaller
     marshall.setFd(*sockfd);  //< tell the marshaller the socket to use
@@ -39,12 +40,15 @@ FdPtr_t sockfd = connectToClient(*this);    //< create a connection
     // if the backend replied with a message we weren't expecting then
     // print an error
 
+    QStringList response;
     std::cout<<"TYPE: "<<reply->type<<std::endl;
     if( reply->type != MSG_PEER_LIST )
     {
         std::cerr << "Unexpected reply of type: "
                   << messageIdToString( reply->type )
                   << "\n";
+
+        response.append("Unexpected reply type");
     }
     // otherwise print the result of the operation
     else
@@ -96,11 +100,16 @@ FdPtr_t sockfd = connectToClient(*this);    //< create a connection
 
         // now print out data
         std::cout<<"SIZE: "<<msg->peers_size()<<std::endl;
+
+
         for(int i=0; i < msg->peers_size(); i++)
         {
             int nSpaces = 0;
 
+            QString name;
             std::stringstream strm;
+            name.append(QString::number(msg->peers(i).peerid()));
+            name += ": ";
             strm << msg->peers(i).peerid();
             nSpaces = lenId - strm.str().length();
             for(int i=0; i < nSpaces; i++)
@@ -109,6 +118,7 @@ FdPtr_t sockfd = connectToClient(*this);    //< create a connection
 
             strm.str("");
             strm << msg->peers(i).displayname();
+            name.append(QString::fromUtf8(msg->peers(i).displayname().c_str()));
             nSpaces = lenName - strm.str().length();
             for(int i=0; i < nSpaces; i++)
                 strm << " ";
@@ -130,10 +140,12 @@ FdPtr_t sockfd = connectToClient(*this);    //< create a connection
                     std::cout << ":";
             }
             std::cout << "\n";
+            response.append(name);
         }
         std::cout<<std::endl;
 
     }
+    return response;
 }
 
 const std::string ListKnownPeers::COMMAND       = "knownPeers";

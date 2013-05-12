@@ -31,6 +31,7 @@
 #include <dirent.h>
 #include <netdb.h>
 #include <sys/time.h>
+#include <iostream>
 
 #include "Options.h"
 #include "FileDescriptor.h"

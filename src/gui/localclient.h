@@ -28,6 +28,8 @@ public:
 private:
     Ui::LocalClient *ui;
 
+    void initial_params();
+
 private slots:
     void update_params();
 };

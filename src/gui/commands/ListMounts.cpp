@@ -52,6 +52,7 @@ void ListMounts::go(){
         std::size_t lenPath     = 0;
 
         // compute field lengths
+
         for(int i=0; i < msg->mounts_size(); i++)
         {
             lenRelDir = std::max(lenRelDir,

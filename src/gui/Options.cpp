@@ -34,7 +34,7 @@ namespace       gui {
 
 
 
-Options::Options():
+Options::Options(QString port, QString node, QString family)/*:
     clientFamily(
         "a",                //< short flag name, usage: "-a [value]"
         "address-family",   //< long flag: "--address-family [value]"
@@ -58,51 +58,47 @@ Options::Options():
         "client port number / service name to use",
         false,
         "3030",
-        "port")
-{}
+        "port")*/
+{
+
+        this->clientPort = port;
+        this->clientNode = node;
+        this->clientFamily = family;
+
+
+}
 
 
 
 int Options::get_clientFamily()
 {
-    std::string clientFamilyStr = clientFamily.getValue();
+    //std::string clientFamilyStr = clientFamily.getValue();
     int family = AF_INET;
-    if( clientFamilyStr == "AF_INET" )
+    if( clientFamily == "AF_INET" )
         family = AF_INET;
-    else if( clientFamilyStr == "AF_INET6" )
+    else if( clientFamily == "AF_INET6" )
         family = AF_INET6;
-    else if( clientFamilyStr == "AF_UNIX" )
+    else if( clientFamily == "AF_UNIX" )
         family = AF_UNIX;
-    else if( clientFamilyStr == "AF_UNSPEC" )
+    else if( clientFamily == "AF_UNSPEC" )
         family = AF_UNSPEC;
+
 
     return family;
 }
 
 std::string Options::get_clientNode()
 {
-    std::string clientNodeStr = clientNode.getValue();
-    if( clientNodeStr == "any" )
+    //std::string clientNodeStr = clientNode.getValue();
+    if( clientNode == "any" )
         return "";
     else
-        return clientNodeStr;
+        return clientNode.toUtf8().constData();
 }
 
 std::string Options::get_clientService()
 {
-    return clientService.getValue();
-}
-
-
-CmdLine::CmdLine(const std::string& cmd,
-        const std::string& message,
-        const char delimiter,
-        const std::string& version,
-        bool helpAndVersion
-        ):
-    TCLAP::CmdLine(message,delimiter,version,helpAndVersion)
-{
-    _progName = "obfs " + cmd;
+    return clientPort.toUtf8().constData();
 }
 
 

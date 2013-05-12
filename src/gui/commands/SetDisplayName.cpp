@@ -41,7 +41,7 @@ SetDisplayName::SetDisplayName():
     Options()
 {}
 
-void SetDisplayName::go()
+void SetDisplayName::go(QString displayName)
 {
     FdPtr_t sockfd = connectToClient(*this);
     Marshall marshall;
@@ -53,9 +53,9 @@ void SetDisplayName::go()
     std::cout<<"Here Final"<<std::endl;
     // send the message
     messages::SetDisplayName* msg = new messages::SetDisplayName();
-    char *value = "Displayname";
 
-    msg->set_displayname("value");
+
+    msg->set_displayname(displayName.toUtf8().constData());
     marshall.writeMsg(msg);
 
     // wait for the reply

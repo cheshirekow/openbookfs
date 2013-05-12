@@ -31,6 +31,8 @@
 #include <string>
 #include <tclap/CmdLine.h>
 
+#include <QString>
+
 #include "messages.h"
 
 namespace   openbook {
@@ -103,15 +105,17 @@ namespace       gui {
  */
 class Options
 {
-    TCLAP::ValueArg<std::string> clientFamily;  ///< client address family
-    TCLAP::ValueArg<std::string> clientNode;    ///< client address
-    TCLAP::ValueArg<std::string> clientService; ///< client port
 
     public:
-        Options();
+    Options(QString port = "3032", QString node="localhost", QString family="AF_INET");
         int get_clientFamily();
         std::string get_clientNode();
         std::string get_clientService();
+
+private:
+        QString clientFamily;
+        QString clientNode;
+        QString clientPort;
 };
 
 
