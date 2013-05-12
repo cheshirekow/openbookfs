@@ -44,6 +44,8 @@ void Database::init()
     std::cout << "Initializing database" << std::endl;
     session sql(sqlite3,m_dbFile.string());
 
+    // stores a list of all files that we know about
+
     // stores a list of files that we are in the progress of receiving, these
     // are either newer files or conflict files
     sql << "CREATE TABLE IF NOT EXISTS downloads ("

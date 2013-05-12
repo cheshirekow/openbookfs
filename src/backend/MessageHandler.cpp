@@ -366,6 +366,10 @@ void MessageHandler::handleMessage( messages::StartSync* msg )
     jobs::SendTree* job = new jobs::SendTree(m_backend,msg->peerid());
     m_backend->jobs()->enqueue(job);
 
+    messages::SendTree* peerMsg = new messages::SendTree();
+    peerMsg->set_dummy(5);
+    m_backend->sendMessage(msg->peerid(),peerMsg,PRIO_NOW);
+
     messages::UserInterfaceReply* reply =
             new messages::UserInterfaceReply();
     reply->set_ok(true);
@@ -373,6 +377,13 @@ void MessageHandler::handleMessage( messages::StartSync* msg )
     strm << "Sync not really implemented but OK";
     reply->set_msg( strm.str() );
     m_outboundQueue->insert( new AutoMessage(reply) );
+}
+
+void MessageHandler::handleMessage( messages::SendTree* msg )
+{
+    std::cout << "Handling send tree message\n";
+    jobs::SendTree* job = new jobs::SendTree(m_backend,m_peerId);
+    m_backend->jobs()->enqueue(job);
 }
 
 void MessageHandler::handleMessage( messages::Quit* msg )
