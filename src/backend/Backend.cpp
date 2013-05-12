@@ -267,7 +267,7 @@ void Backend::addDownload( int64_t peer,
 
 void Backend::mergeData( int64_t peer, messages::FileChunk* chunk )
 {
-    m_db.mergeData( peer, m_stageDir, chunk );
+    m_db.mergeData( peer, m_stageDir, m_rootDir, chunk );
 }
 
 

@@ -159,6 +159,21 @@ void MetaFile::getVersion( const std::string& path, VersionVector& v )
         v[ row.get<int>(0) ] = row.get<int>(1);
 }
 
+void MetaFile::setVersion( const std::string& path, const VersionVector& v )
+{
+    m_sql << boost::format("DELETE FROM version WHERE path='%s'")
+                % path ;
+
+    for( auto& pair : v )
+    {
+        m_sql << boost::format("INSERT INTO version (path,client,version) "
+                    "VALUES ('%s',%d,%d)")
+                % path
+                % pair.first
+                % pair.second;
+    }
+}
+
 void MetaFile::assimilateKeys( const std::string& path, const VersionVector& v)
 {
     for( auto& pair : v )

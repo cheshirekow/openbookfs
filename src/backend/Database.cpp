@@ -13,6 +13,7 @@
 
 #include "Database.h"
 #include "ExceptionStream.h"
+#include "MetaFile.h"
 
 
 namespace   openbook {
@@ -366,6 +367,7 @@ void Database::addDownload( int64_t peer,
 
 void Database::mergeData( int64_t peer,
                             const Path_t& stageDir,
+                            const Path_t& rootDir,
                             messages::FileChunk* chunk )
 {
     pthreads::ScopedLock lock(m_mutex);
@@ -375,6 +377,8 @@ void Database::mergeData( int64_t peer,
 
     // create sqlite connection
     session sql(soci::sqlite3, m_dbFile.string() );
+
+    Path_t relpath = chunk->path();
 
     // initialize the id map
     try
@@ -409,7 +413,7 @@ void Database::mergeData( int64_t peer,
         int fd = open(fullpath.c_str(), O_WRONLY );
         if( fd < 0 )
         {
-            codedExcept(errno) << "Database::mergeData: Failed to open "
+            codedExcept(errno)() << "Database::mergeData: Failed to open "
                                << fullpath;
         }
 
@@ -417,7 +421,7 @@ void Database::mergeData( int64_t peer,
         if( chunk->offset() != lseek(fd,chunk->offset(),SEEK_SET) )
         {
             close(fd);
-            codedExcept(errno) << "Database::mergeData: Failed to seek to offset "
+            codedExcept(errno)() << "Database::mergeData: Failed to seek to offset "
                                << chunk->offset()
                                << " of file " << fullpath;
         }
@@ -427,7 +431,7 @@ void Database::mergeData( int64_t peer,
         if( bytesWritten < 0 )
         {
             close(fd);
-            codedExcept(errno) << "Database::mergeData: Failed to write to "
+            codedExcept(errno)() << "Database::mergeData: Failed to write to "
                                << fullpath;
         }
 
@@ -436,27 +440,64 @@ void Database::mergeData( int64_t peer,
 
         // update bytes written
         recd += chunk->data().size();
-        if( recd < size )
-        {
-            sql << boost::format(
-                "UPDATE downloads SET recd=%d "
-                    "WHERE path='%s' AND peer=%d" )
-                % recd
-                % chunk->path()
-                % peer;
-        }
-        else
-        {
-            // delete the download if it is complete
-            sql << boost::format(
-                "DELETE FROM downloads WHERE path='%s' AND peer=%d" )
-                % chunk->path()
-                % peer;
+        sql << boost::format(
+            "UPDATE downloads SET recd=%d "
+                "WHERE path='%s' AND peer=%d" )
+            % recd
+            % chunk->path()
+            % peer;
 
-            sql << boost::format(
-                "DELETE FROM downloads_v WHERE path='%s' AND peer=%d" )
-                % chunk->path()
-                % peer;
+        if( recd >= size )
+        {
+            // check to make sure that this file is truly newer
+            VersionVector v_mine;
+            MetaFile( rootDir / relpath ).getVersion(
+                    relpath.filename().string(), v_mine );
+
+            // perform the version query
+            rowset<row> rs = ( sql.prepare << boost::format(
+                    "SELECT v_peer,v_version FROM downloads_v "
+                    " WHERE path='%s' AND peer=%d" )
+                    % relpath.string()
+                    % peer );
+
+            std::cout << "Database::mergeData : building version vector\n";
+
+            // build the version vector
+            VersionVector v_theirs;
+            for( auto& row : rs )
+                v_theirs[ row.get<int>(0) ] = row.get<int>(1);
+
+            std::cout << "Database::mergeData : version built\n";
+
+            // if it is truely newer, move the file and delete the
+            // download
+            if( v_mine < v_theirs )
+            {
+                int result = rename( (stageDir/temp).c_str(),
+                                        (rootDir/relpath).c_str() );
+                if( result < 0 )
+                {
+                    codedExcept(errno)() << "Database::mergeData : "
+                            "Failed to rename " << (stageDir/temp)
+                            << " -> " << (rootDir/relpath);
+                }
+
+                // update the version vector
+                MetaFile( rootDir / relpath ).setVersion(
+                        relpath.filename().string(), v_theirs );
+
+                // delete the download if it is complete
+                sql << boost::format(
+                    "DELETE FROM downloads WHERE path='%s' AND peer=%d" )
+                    % chunk->path()
+                    % peer;
+
+                sql << boost::format(
+                    "DELETE FROM downloads_v WHERE path='%s' AND peer=%d" )
+                    % chunk->path()
+                    % peer;
+            }
         }
     }
     catch( const std::exception& ex )

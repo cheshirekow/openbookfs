@@ -104,6 +104,8 @@ void MessageHandler::mapVersion( const VersionVector& v_in, VersionVector& v_out
                     % m_peerMap[pair.first]
                     % pair.second;
     }
+    if( v_out.find(0) == v_out.end() )
+        v_out[0] = 0;
     std::cout << report.str();
 }
 

@@ -67,6 +67,9 @@ class MetaFile
         /// get the version for a path
         void getVersion( const std::string& path, VersionVector& v );
 
+        /// get the version for a path
+        void setVersion( const std::string& path, const VersionVector& v );
+
         /// assimilate keys for the specified path
         void assimilateKeys( const std::string& path, const VersionVector& v);
 

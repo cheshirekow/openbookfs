@@ -69,6 +69,7 @@ class Database
 
         void mergeData( int64_t peer,
                         const Path_t& stageDir,
+                        const Path_t& rootDir,
                         messages::FileChunk* chunk );
 
 
