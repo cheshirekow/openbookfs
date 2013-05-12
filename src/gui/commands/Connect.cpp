@@ -76,9 +76,9 @@ void Connect::go()
     // send the message
     messages::AttemptConnection* msg =
             new messages::AttemptConnection();
-    msg->set_isremote(true);
+    msg->set_isremote(false);
     msg->set_node("localhost");
-    msg->set_service("3033");
+    msg->set_service("3032");
     marshall.writeMsg(msg);
 
     // wait for the reply

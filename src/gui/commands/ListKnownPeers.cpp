@@ -52,11 +52,17 @@ FdPtr_t sockfd = connectToClient(*this);    //< create a connection
         messages::PeerList* msg =
                 static_cast<messages::PeerList*>(reply->msg);
 
+        std::string out;
+        reply->msg->SerializeToString(&out);
+
+        std::cout<<"Message: "<<out<<std::endl;
 
         std::size_t lenId   = 0;
         std::size_t lenName = 0;
 
         // compute field lengths
+
+
         for(int i=0; i < msg->peers_size(); i++)
         {
             std::stringstream strm;
@@ -125,6 +131,7 @@ FdPtr_t sockfd = connectToClient(*this);    //< create a connection
             }
             std::cout << "\n";
         }
+        std::cout<<std::endl;
 
     }
 }

@@ -25,7 +25,7 @@
  */
 
 #ifndef OPENBOOK_FS_GUI_STARTSYNC_H_
-#define OPENBOOK_ST_GUI_STARTSYNC_H_
+#define OPENBOOK_FS_GUI_STARTSYNC_H_
 
 
 #include <tclap/CmdLine.h>
@@ -39,7 +39,6 @@ namespace       gui {
 class StartSync:
     public Options
 {
-    TCLAP::UnlabeledValueArg<int> peerId;    ///< peer to sync
 
     public:
         static const std::string COMMAND;

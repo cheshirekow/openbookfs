@@ -7,6 +7,7 @@
 #include "commands/ListKnownPeers.h"
 #include "commands/SetDisplayName.h"
 #include "commands/Connect.h"
+#include "commands/StartSync.h"
 
 namespace Ui {
 class LocalClient;

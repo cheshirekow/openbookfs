@@ -43,17 +43,19 @@ SetDisplayName::SetDisplayName():
 
 void SetDisplayName::go()
 {
-    int sockfd = connectToClient(*this);
+    FdPtr_t sockfd = connectToClient(*this);
     Marshall marshall;
-    marshall.setFd(sockfd);
+    marshall.setFd(*sockfd);
     handshake(marshall);
+
+
 
     std::cout<<"Here Final"<<std::endl;
     // send the message
     messages::SetDisplayName* msg = new messages::SetDisplayName();
-    const char* value = "Displayname";
+    char *value = "Displayname";
 
-    msg->set_displayname(value);
+    msg->set_displayname("value");
     marshall.writeMsg(msg);
 
     // wait for the reply

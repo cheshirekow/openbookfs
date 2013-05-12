@@ -106,6 +106,8 @@ void ListMounts::go(){
                 std::cout << msg->mounts(i).argv(j) << " ";
             std::cout << "\n";
         }
+        std::cout<<std::endl;
+
     }
 }
 

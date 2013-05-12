@@ -42,7 +42,7 @@ const std::string StartSync::COMMAND      = "sync";
 const std::string StartSync::DESCRIPTION  = "begin a full sync with a peer";
 
 StartSync::StartSync():
-    Options(),
+    Options()/*,
     peerId(
         "peerId",   //< unique name, not really used anywhere
         // help message
@@ -50,7 +50,7 @@ StartSync::StartSync():
         true,       //< required?
         0,          //< default value
         "peerId"   //< placeholder for this argument in the help
-        )
+        )*/
 {}
 
 void StartSync::go()
@@ -63,7 +63,7 @@ void StartSync::go()
     // send the message
     messages::StartSync* msg =
             new messages::StartSync();
-    msg->set_peerid(peerId.getValue());
+    msg->set_peerid(1);
     marshall.writeMsg(msg);
 
     // wait for the reply

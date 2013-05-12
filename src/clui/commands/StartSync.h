@@ -25,7 +25,7 @@
  */
 
 #ifndef OPENBOOK_FS_CLUI_STARTSYNC_H_
-#define OPENBOOK_ST_CLUI_STARTSYNC_H_
+#define OPENBOOK_FS_CLUI_STARTSYNC_H_
 
 
 #include <tclap/CmdLine.h>
