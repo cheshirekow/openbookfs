@@ -2,12 +2,15 @@
 #define LOCALCLIENT_H
 
 #include <QWidget>
-
 #include "connection.h"
+#include "commands/ListMounts.h"
 
 namespace Ui {
 class LocalClient;
 }
+namespace   openbook {
+namespace filesystem {
+namespace       gui {
 
 class LocalClient : public QWidget
 {
@@ -16,14 +19,16 @@ class LocalClient : public QWidget
 public:
     explicit LocalClient(QWidget *parent = 0);
     ~LocalClient();
+    ListMounts l;
     
 private:
     Ui::LocalClient *ui;
 
-    Connection *connection;
-
 private slots:
     void update_params();
 };
+}
+}
+}
 
 #endif // LOCALCLIENT_H

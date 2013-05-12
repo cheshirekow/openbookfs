@@ -1,178 +1,157 @@
+/*
+ *  Copyright (C) 2012 Josh Bialkowski (jbialk@mit.edu)
+ *
+ *  This file is part of openbook.
+ *
+ *  openbook is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  openbook is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
+ */
+/**
+ *  @file   src/gui/connection.h
+ *
+ *  @date   Apr 14, 2013
+ *  @author Josh Bialkowski (jbialk@mit.edu)
+ *  @brief  
+ */
+
+#include <cerrno>
+#include <dirent.h>
+#include <netdb.h>
+#include <sys/time.h>
+
 #include "connection.h"
+#include "ExceptionStream.h"
 
-using namespace openbook;
-using namespace filesystem;
-using namespace messages;
+namespace   openbook {
+namespace filesystem {
+namespace       gui {
 
 
-Connection::Connection(QString hostname, int port, QObject *parent) :
-    QObject(parent)
+typedef RefPtr<FileDescriptor>  FdPtr_t;
+
+/// create a connection to the desired server
+FdPtr_t connectToClient( Options& opts )
 {
-    socket = new QTcpSocket();
+    // defaults
+    addrinfo  hints;
+    addrinfo* found;
+    memset(&hints,0,sizeof(addrinfo));
+    hints.ai_family   = opts.get_clientFamily();
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_protocol = 0;
 
-    socket->connectToHost(hostname,port);
+    // create a socket
+    const char* node    = 0;
+    const char* service = 0;
 
-    setAuthReq();
-
-
-    connect(socket,SIGNAL(readyRead()),this,SLOT(read_data()));
-
-}
-void Connection::setDisplayName( const QString& name )
-{
-
-
-    SetDisplayName nameset;
-    nameset.set_displayname(name.toAscii());
-
-    std::ostringstream out;
-    nameset.SerializeToOstream(&out);
-    QByteArray byteArray(out.str().c_str());
-
-
-    #pragma pack(1)
-    struct header{
-        int16_t size;
-        int8_t id;
-    };
-    #pragma pack()
-
-    header *h = new header;
-    h->size = byteArray.size()+1;
-    h->id = MSG_SET_DISPLAY_NAME;
-
-
-
-    char *p = (char*)h;
-    QByteArray b(p,3);
-    qDebug()<<b.length();
-    byteArray.prepend(b);
-    qDebug()<<byteArray.toHex();
-
-    socket->write(byteArray);
-
-
-    SetDisplayName read;
-    qDebug()<<read.ParseFromArray(byteArray.right(byteArray.length()-3).data(),byteArray.length()-3);
-
-    if(socket->waitForBytesWritten(3000))
+    int sockfd = socket(hints.ai_family,
+                        hints.ai_socktype ,
+                        hints.ai_protocol);
+    if(sockfd < 0)
     {
-        qDebug()<<"Written";
-    }else{
-        qDebug()<<"Failed to write";
-    }
-    if(socket->waitForReadyRead(3000))
-    {
-        QByteArray response = socket->readAll().toHex();
-
-
-    }else{
-        qDebug()<<"FAIL TO READ";
-
+        std::cerr << "Failed create client socket\n";
+        return FdPtr_t();
     }
 
+    FdPtr_t clientfd = FileDescriptor::create(sockfd);
+
+    // attempt to make connection
+    std::string clientNode    = opts.get_clientNode();
+    std::string clientService = opts.get_clientService();
+    node    = clientNode.c_str();
+    service = clientService.c_str();
+
+    std::cout << "Searching for host addr matching "
+              << node << ":" << service << std::endl;
+
+    int result = getaddrinfo(node,service,&hints,&found);
+    if( result < 0 )
+    {
+        ex()() << "Failed to find an interface which matches: "
+               << node << ":" << service
+               << "\nErrno is " << errno << " : " << strerror(errno);
+    }
+
+    addrinfo* addr = 0;
+    for( addr = found; addr; addr = addr->ai_next )
+    {
+        std::cout << "Attempting to connect to server:"
+                  << "\n   family: " << addr->ai_family
+                  << "\n     type: " << addr->ai_socktype
+                  << "\n protocol: " << addr->ai_protocol
+                  << std::endl;
+
+        int connectResult =
+                connect( *clientfd, addr->ai_addr, addr->ai_addrlen );
+        if (connectResult < 0 )
+        {
+            std::cerr << "Connection failed, errno " << errno << " : "
+                      << strerror(errno) << "\n";
+            continue;
+        }
+        else
+            break;
+    }
+
+    freeaddrinfo(found);
+
+    if( !addr )
+        ex()() << "None of the matched server interfaces work";
+
+    return clientfd;
 }
 
-QString Connection::getMountPoints()
+
+
+static void validate_message( RefPtr<AutoMessage> msg, MessageId expected )
 {
-
-    std::ostringstream out;
-
-
-    messages::GetBackendInfo* msg =
-                new messages::GetBackendInfo();
-    // fill the message
-    msg->set_req(messages::KNOWN_PEERS);
-
-    msg->SerializeToOstream(&out);
-    QByteArray byteArray(out.str().c_str());
-
-    #pragma pack(1)
-    struct header{
-        int16_t size;
-        int8_t id;
-    };
-    #pragma pack()
-
-    header *h = new header;
-    h->size = byteArray.size()+1;
-    h->id = MSG_GET_BACKEND_INFO;
-
-
-
-    char *p = (char*)h;
-    QByteArray b(p,3);
-    qDebug()<<b.length();
-    byteArray.prepend(b);
-    qDebug()<<byteArray.toHex();
-
-    socket->write(byteArray);
-
-    socket->waitForBytesWritten();
-
-
-
-    return "Success!";
-
+    if( msg->type != expected )
+    {
+        ex()() << "Protocol Error: expected "
+               << messageIdToString(expected)
+               << " from peer, instead got"
+               << messageIdToString(msg->type)
+               << "(" << (int)msg->type << ")";
+    }
 }
 
-void Connection::read_data()
+
+/// perform handshake to notify client that we are a ui
+void handshake( Marshall& marshall )
 {
-    QByteArray response;
-    response = socket->readAll();
+    namespace msgs = messages;
+    using namespace CryptoPP;
 
-    qDebug()<<"Response data:";
-    qDebug()<<response.data();
-
-    qDebug()<<response.toHex();
-
-}
-
-void Connection::setAuthReq()
-{
-    AuthRequest *authReq = new AuthRequest();
-    authReq->set_display_name("CLUI");
+    // trade public keys
+    msgs::AuthRequest* authReq = new msgs::AuthRequest();
+    authReq->set_display_name("GUI");
     authReq->set_public_key("UserInterface");
+    marshall.writeMsg( authReq );
 
+    RefPtr<AutoMessage> recv = marshall.read( );
+    validate_message( recv, MSG_AUTH_REQ );
+    authReq = static_cast<msgs::AuthRequest*>( recv->msg );
 
-    std::ostringstream out;
-    authReq->SerializeToOstream(&out);
-    QByteArray byteArray(out.str().c_str());
-
-
-    #pragma pack(1)
-    struct header{
-        int16_t size;
-        int8_t id;
-    };
-    #pragma pack()
-
-    header *h = new header;
-    h->size = byteArray.size()+1;
-    h->id = MSG_AUTH_REQ;
-
-
-    char *p = (char*)h;
-    QByteArray b(p,3);
-    qDebug()<<b.length();
-    byteArray.prepend(b);
-    qDebug()<<byteArray.toHex();
-
-    socket->write(byteArray);
-
-    if(socket->waitForBytesWritten(3000))
-    {
-        qDebug()<<"Written";
-    }else{
-        qDebug()<<"Failed to write";
-    }
-    if(socket->waitForReadyRead(3000))
-    {
-        qDebug()<<socket->readAll().toHex();
-    }else{
-        qDebug()<<"FAIL TO READ";
-
-    }
-
-
+    std::cout << "Handshake with client:"
+              << "\n" << authReq->display_name()
+              << "\n" << authReq->public_key()
+              << "\n";
 }
+
+
+} //< namespace gui
+} //< namespace filesystem
+} //< namespace openbook
+
+
+

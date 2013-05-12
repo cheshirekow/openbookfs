@@ -2,17 +2,17 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
-
-
-
-
-
+#include <QTcpSocket>
 #include "localclient.h"
 
 
 namespace Ui {
 class MainWindow;
 }
+
+namespace   openbook {
+namespace filesystem {
+namespace       gui {
 
 class MainWindow : public QMainWindow
 {
@@ -37,5 +37,8 @@ private slots:
 
 
 };
+}
+}
+}
 
 #endif // MAINWINDOW_H

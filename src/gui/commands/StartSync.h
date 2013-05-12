@@ -17,45 +17,42 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   src/gui/connection.h
+ *  @file   /home/josh/Codes/cpp/openbookfs/src/gui/commands/StartSync.h
  *
- *  @date   Apr 14, 2013
+ *  @date   May 5, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_FS_GUI_CONNECTION_H_
-#define OPENBOOK_FS_GUI_CONNECTION_H_
+#ifndef OPENBOOK_FS_GUI_STARTSYNC_H_
+#define OPENBOOK_ST_GUI_STARTSYNC_H_
 
-#include <cerrno>
-#include <dirent.h>
-#include <netdb.h>
-#include <sys/time.h>
+
+#include <tclap/CmdLine.h>
 
 #include "Options.h"
-#include "FileDescriptor.h"
-#include "Marshall.h"
-#include "ReferenceCounted.h"
-
 
 namespace   openbook {
 namespace filesystem {
 namespace       gui {
 
+class StartSync:
+    public Options
+{
+    TCLAP::UnlabeledValueArg<int> peerId;    ///< peer to sync
 
-typedef RefPtr<FileDescriptor>  FdPtr_t;
+    public:
+        static const std::string COMMAND;
+        static const std::string DESCRIPTION;
 
-/// create a connection to the desired server
-FdPtr_t connectToClient( Options& opts );
+        StartSync();
+        void go();
+};
 
-/// perform handshake to notify client that we are a ui
-void handshake( Marshall& marshall );
 
 
 } //< namespace gui
 } //< namespace filesystem
 } //< namespace openbook
 
-
-
-#endif // CONNECTION_H_
+#endif // STARTSYNC_H_

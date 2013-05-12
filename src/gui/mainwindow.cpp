@@ -6,6 +6,9 @@
 #include <sstream>
 #include <string>
 
+namespace   openbook {
+namespace filesystem {
+namespace       gui {
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -32,6 +35,10 @@ void MainWindow::connect_to()
     localclient = new LocalClient();
 
     ui->layout->addWidget(localclient);
+}
+
+}
+}
 }
 
 
