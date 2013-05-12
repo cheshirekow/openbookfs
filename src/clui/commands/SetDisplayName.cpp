@@ -50,9 +50,9 @@ SetDisplayName::SetDisplayName( TCLAP::CmdLine& cmd ):
 
 void SetDisplayName::go()
 {
-    int sockfd = connectToClient(*this);
+    FdPtr_t sockfd = connectToClient(*this);
     Marshall marshall;
-    marshall.setFd(sockfd);
+    marshall.setFd(*sockfd);
     handshake(marshall);
 
     // send the message
