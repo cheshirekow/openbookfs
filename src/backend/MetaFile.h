@@ -15,7 +15,7 @@
 
 #include "fuse_include.h"
 #include "messages.pb.h"
-
+#include "VersionVector.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -27,7 +27,6 @@ class MetaFile
     public:
         typedef boost::filesystem::path Path_t;
         typedef soci::session           Session_t;
-        typedef std::map<int,int>       Version_t;
 
     private:
         Session_t   m_sql;
@@ -66,7 +65,10 @@ class MetaFile
         void incrementVersion( const std::string& path );
 
         /// get the version for a path
-        void getVersion( const std::string& path, Version_t& v );
+        void getVersion( const std::string& path, VersionVector& v );
+
+        /// assimilate keys for the specified path
+        void assimilateKeys( const std::string& path, const VersionVector& v);
 
 
 };

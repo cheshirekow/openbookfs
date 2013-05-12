@@ -33,6 +33,7 @@
 #include "Marshall.h"
 #include "Queue.h"
 #include "PriorityQueue.h"
+#include "VersionVector.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -126,6 +127,9 @@ class MessageHandler
                << " during worker loop";
         }
 
+        /// create a version vector by mapping a peers keys to our keys
+        void mapVersion( const VersionVector& v_in, VersionVector& v_out );
+
         /// typed message  handlers
         void handleMessage( messages::Quit*                msg);
         void handleMessage( messages::Ping*                msg);
@@ -158,6 +162,7 @@ class MessageHandler
         void handleMessage( messages::Unsubscribe*         msg);
         void handleMessage( messages::IdMap*               msg);
         void handleMessage( messages::NodeInfo*            msg);
+        void handleMessage( messages::SendFile*            msg);
         void handleMessage( messages::NewVersion*          msg);
         void handleMessage( messages::RequestFile*         msg);
         void handleMessage( messages::FileChunk*           msg);

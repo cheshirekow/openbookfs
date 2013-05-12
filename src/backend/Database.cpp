@@ -6,11 +6,13 @@
  *  @brief  
  */
 
-
-
-#include "Database.h"
+#include <fcntl.h>
 #include <soci/soci.h>
 #include <soci/sqlite3/soci-sqlite3.h>
+#include <boost/format.hpp>
+
+#include "Database.h"
+#include "ExceptionStream.h"
 
 
 namespace   openbook {
@@ -48,10 +50,12 @@ void Database::init()
             "path   TEXT NOT NULL, "
             // the peer we're downloading from
             "peer   INTEGER NOT NULL, "
+            // transaction id, incremented if download is pre-empted
+            "tx     INTEGER NOT NULL, "
             // the temporary file we're storing data in
             "temp   TEXT NOT NULL, "
             // the number of bytes we have received
-            "sent   INTEGER NOT NULL, "
+            "recd   INTEGER NOT NULL, "
             // the size of the file in bytes
             "size   INTEGER NOT NULL,"
             // a path/peer is unique
@@ -68,7 +72,7 @@ void Database::init()
             // the value of the version vector
             "v_version  INTEGER NOT NULL,"
             // a path/peer is unique
-            "PRIMARY KEY(path,peer) ) ";
+            "PRIMARY KEY(path,peer,v_peer) ) ";
 
 
 
@@ -99,7 +103,7 @@ void Database::init()
             // the value of the version vector
             "v_version  INTEGER NOT NULL,"
             // a path/peer is unique
-            "PRIMARY KEY(path,peer) ) ";
+            "PRIMARY KEY(path,peer,v_peer) ) ";
 
     // stores clients that we know about and assigns them a unique
     // numerical index
@@ -215,6 +219,250 @@ void Database::buildPeerMap( messages::IdMap* map )
     catch( const std::exception& ex )
     {
         std::cerr << "Database: Failed to build client map: " << ex.what()
+                  << "\n";
+    }
+}
+
+
+void Database::addDownload( int64_t peer,
+                            const Path_t& path,
+                            int64_t size,
+                            const VersionVector& version,
+                            const Path_t& stageDir  )
+{
+    pthreads::ScopedLock lock(m_mutex);
+
+    namespace fs = boost::filesystem;
+    using namespace soci;
+
+    // create sqlite connection
+    session sql(soci::sqlite3, m_dbFile.string() );
+
+    // initialize the id map
+    try
+    {
+        // get previous instance of the download
+        int count=0;
+        sql << boost::format(
+                "SELECT count(*) FROM downloads WHERE path='%s' AND peer=%d" )
+                % path.string()
+                % peer, into(count);
+
+        // if the download exists then get the version being downloaded
+        if(count > 0)
+        {
+            std::cout << "Database::addDownload() : download already exists, "
+                        "checking if I need to update\n";
+
+            // perform the version query
+            rowset<row> rs = ( sql.prepare << boost::format(
+                    "SELECT v_peer,v_version FROM downloads_v "
+                    " WHERE path='%s' AND peer='%d'" )
+                    % path.string()
+                    % peer );
+
+            // build the version vector
+            VersionVector v_prev;
+            for( auto& row : rs )
+                v_prev[ row.get<int64_t>(0) ] = row.get<int64_t>(1);
+
+            // if the current download is the not less then the requested
+            // download there is nothing left to do
+            if( v_prev >= version )
+            {
+                std::cerr << "Database::addDownload ignoring download for "
+                          << peer << " : "
+                          << path << "because already in progress\n";
+                return;
+            }
+
+            // otherwise simply reset the bytes received, increment the
+            // transaction number, and set the size
+            sql << boost::format(
+                    "UPDATE downloads SET tx=tx+1, recd=0, size=%d"
+                    " WHERE path='%s' AND peer='%d'" )
+                    % size
+                    % path.string()
+                    % peer;
+
+            // delete any old version info
+            sql << boost::format(
+                    "DELETE FROM downloads_v WHERE path='%s' AND peer=%d")
+                    % path.string()
+                    % peer;
+
+            // insert new version info
+            for( auto& pair : version )
+            {
+                sql << boost::format(
+                    "INSERT INTO downloads_v (path,peer,v_peer,v_version) "
+                    "VALUES ('%s',%d,%d,%d)" )
+                        % path.string()
+                        % peer
+                        % pair.first
+                        % pair.second
+                    ;
+            }
+
+            // truncate the temporary file
+            std::string temp;
+            sql << boost::format(
+                "SELECT temp FROM downloads WHERE path='%s' AND peer=%d" )
+                % path.string()
+                % peer, into(temp);
+
+            truncate( (stageDir / temp).c_str(), size );
+
+            return;
+        }
+
+        std::cout << "Database::addDownload() : creating new download\n";
+
+        // if the file is not already being downloaded
+        // create a file to store the download
+        std::string tpl = ( stageDir / "XXXXXX").string();
+        int fd = mkstemp( &tpl[0] );
+        if( fd < 0 )
+        {
+            codedExcept(errno)()
+                << "Failed to create a temporary with template " << tpl;
+        }
+        ftruncate(fd,size);
+        close(fd);
+
+        std::string temp = tpl.substr(tpl.size()-6,6);
+
+        // insert the download
+        sql << boost::format(
+                "INSERT INTO downloads (path,peer,tx,temp,recd,size) "
+                "VALUES ('%s',%d,0,'%s',0,%d)" )
+                % path.string()
+                % peer
+                % temp
+                % size;
+
+        // insert new version info
+        for( auto& pair : version )
+        {
+            sql << boost::format(
+                "INSERT INTO downloads_v (path,peer,v_peer,v_version) "
+                "VALUES ('%s',%d,%d,%d)" )
+                    % path.string()
+                    % peer
+                    % pair.first
+                    % pair.second
+                ;
+        }
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "Database::addDownload Failed to add download: "
+                  << ex.what()
+                  << "\n";
+    }
+}
+
+
+
+void Database::mergeData( int64_t peer,
+                            const Path_t& stageDir,
+                            messages::FileChunk* chunk )
+{
+    pthreads::ScopedLock lock(m_mutex);
+
+    namespace fs = boost::filesystem;
+    using namespace soci;
+
+    // create sqlite connection
+    session sql(soci::sqlite3, m_dbFile.string() );
+
+    // initialize the id map
+    try
+    {
+        std::string temp;
+        int64_t     tx;
+        int64_t     recd;
+        int64_t     size;
+
+        // get download context
+        sql << boost::format(
+                "SELECT temp,tx,recd,size FROM downloads "
+                    "WHERE path='%s' AND peer=%d" )
+                % chunk->path()
+                % peer,
+                into(temp),
+                into(tx),
+                into(recd),
+                into(size);
+
+        if( tx > chunk->tx() )
+        {
+            std::stringstream report;
+            report << "Database::mergeData : aborting merge b/c file chunk"
+                        " is from an older version\n";
+            std::cout << report;
+        }
+
+        Path_t fullpath = stageDir / temp;
+
+        // otherwise read in some bytes
+        int fd = open(fullpath.c_str(), O_WRONLY );
+        if( fd < 0 )
+        {
+            codedExcept(errno) << "Database::mergeData: Failed to open "
+                               << fullpath;
+        }
+
+        // move the read head
+        if( chunk->offset() != lseek(fd,chunk->offset(),SEEK_SET) )
+        {
+            close(fd);
+            codedExcept(errno) << "Database::mergeData: Failed to seek to offset "
+                               << chunk->offset()
+                               << " of file " << fullpath;
+        }
+
+        // write the data
+        int bytesWritten = write(fd,&chunk->data()[0],chunk->data().size());
+        if( bytesWritten < 0 )
+        {
+            close(fd);
+            codedExcept(errno) << "Database::mergeData: Failed to write to "
+                               << fullpath;
+        }
+
+        // close the file
+        close(fd);
+
+        // update bytes written
+        recd += chunk->data().size();
+        if( recd < size )
+        {
+            sql << boost::format(
+                "UPDATE downloads SET recd=%d "
+                    "WHERE path='%s' AND peer=%d" )
+                % recd
+                % chunk->path()
+                % peer;
+        }
+        else
+        {
+            // delete the download if it is complete
+            sql << boost::format(
+                "DELETE FROM downloads WHERE path='%s' AND peer=%d" )
+                % chunk->path()
+                % peer;
+
+            sql << boost::format(
+                "DELETE FROM downloads_v WHERE path='%s' AND peer=%d" )
+                % chunk->path()
+                % peer;
+        }
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "Database::mergeData failed: "
+                  << ex.what()
                   << "\n";
     }
 }

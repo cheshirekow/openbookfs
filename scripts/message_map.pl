@@ -62,6 +62,7 @@ $messageMap =
     ['UNSUBSCRIBE'       ,'Unsubscribe'],
     ['ID_MAP'            ,'IdMap'],
     ['NODE_INFO'         ,'NodeInfo'],
+    ['SEND_FILE'         ,'SendFile'],
     ['NEW_VERSION'       ,'NewVersion'],
     ['REQUEST_FILE'      ,'RequestFile'],
     ['FILE_CHUNK'        ,'FileChunk'],

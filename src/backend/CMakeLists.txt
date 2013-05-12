@@ -70,7 +70,9 @@ if( (FUSE_FOUND)
                     MetaFile.cpp
                     MountPoint.cpp
                     SocketListener.cpp
+                    VersionVector.cpp
                     ../jobs/SendTree.cpp
+                    ../jobs/SendFile.cpp
                     ../messages.cpp
                     ../FdSet.cpp
                     ../FileDescriptor.cpp

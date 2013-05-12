@@ -38,6 +38,7 @@
 #include "SocketListener.h"
 #include "MountPoint.h"
 #include "Database.h"
+#include "VersionVector.h"
 
 
 
@@ -76,6 +77,7 @@ class Backend
         Path_t          m_dataDir;  ///< where data is stored
         Path_t          m_rootDir;  ///< base of the mirrored file system
         Path_t          m_dbFile;   ///< sqlite database with state
+        Path_t          m_stageDir; ///< where files are staged for download
         std::string     m_pubKey;   ///< base64 encoded public key
         Path_t          m_privKey;  ///< path to private key file
 
@@ -172,6 +174,16 @@ class Backend
 
         /// fill a peer map message
         void buildPeerMap( messages::IdMap* map );
+
+        /// adds the requested path for download or pre-empts a current
+        /// download if a newer version is to be retrieved
+        void addDownload( int64_t peer,
+                            const Path_t& path,
+                            int64_t size,
+                            const VersionVector& version );
+
+        void mergeData( int64_t peer, messages::FileChunk* chunk );
+
 
 
 

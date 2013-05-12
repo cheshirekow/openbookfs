@@ -30,6 +30,7 @@
 #include <exception>
 #include <stdexcept>
 #include <sstream>
+#include <cstring>
 
 namespace   openbook {
 namespace filesystem {
@@ -95,7 +96,11 @@ class CodedExceptionStream :
     public:
         CodedExceptionStream( int error ):
             m_error(error)
-        {}
+        {
+            *this << "CodedException (" << error << ") : "
+                   << strerror(error)
+                   << "\n";
+        }
 
         ~CodedExceptionStream()
         {

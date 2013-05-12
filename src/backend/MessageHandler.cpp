@@ -30,10 +30,11 @@
 #include "Backend.h"
 #include "MessageHandler.h"
 #include "Marshall.h"
+#include "MetaFile.h"
+#include "VersionVector.h"
 #include "jobs/PingJob.h"
 #include "jobs/SendTree.h"
-#include "MetaFile.h"
-
+#include "jobs/SendFile.h"
 
 
 namespace   openbook {
@@ -91,7 +92,20 @@ void MessageHandler::main()
     std::cout << "Message Handler " << (void*)this << "Shutting down\n";
 }
 
-
+void MessageHandler::mapVersion( const VersionVector& v_in, VersionVector& v_out )
+{
+    std::stringstream report;
+    report << "MessageHandler::mapVersion():\n";
+    for( auto& pair : v_in )
+    {
+        v_out[ m_peerMap[pair.first] ] = pair.second;
+        report << boost::format("   %d -> %d : %d\n")
+                    % pair.first
+                    % m_peerMap[pair.first]
+                    % pair.second;
+    }
+    std::cout << report.str();
+}
 
 
 void MessageHandler::handleMessage( messages::LeaderElect* msg )        { exceptMessage(msg); }
@@ -394,6 +408,7 @@ void MessageHandler::handleMessage( messages::IdMap* msg )
 {
     for( int i=0; i < msg->peermap_size(); i++ )
         m_backend->mapPeer( msg->peermap(i), m_peerMap );
+    m_peerMap[0] = m_peerId;
 
     std::stringstream report;
     report << "MessageHandler: built id map: \n";
@@ -415,6 +430,107 @@ void MessageHandler::handleMessage( messages::NodeInfo* msg )
     report << "MessageHandler: received node info: \n"
            << "    path: " << msg->parent() << "/" << msg->path() << "\n";
     std::cout << report.str();
+
+    // first check to see if the file is currently checked out
+    namespace fs = boost::filesystem;
+
+    try
+    {
+        // decompose the path into a directory and file part
+        fs::path root    = m_backend->realRoot();
+        fs::path relpath = msg->path();
+
+        // create a version vector from the message
+        VersionVector v_recv;
+        for(int i=0; i < msg->version_size(); i++)
+        {
+            const messages::VersionEntry& entry = msg->version(i);
+            v_recv[ entry.client() ] = entry.version();
+        }
+
+        // map version keys
+        VersionVector v_theirs;
+        mapVersion( v_recv, v_theirs );
+
+        // get the metadata file for this path
+        MetaFile meta(root / relpath);
+
+        // assimilate version keys so that future file changes notify
+        // connected peers
+        meta.assimilateKeys( relpath.filename().string(), v_theirs );
+
+        // retrieve my version
+        VersionVector v_mine;
+        meta.getVersion(relpath.filename().string(),v_mine);
+
+        // compare version vectors, if their version is strictly newer then
+        // we register it for download
+        if( v_mine < v_theirs )
+        {
+            std::cout << "MessageHandler::(NodeInfo)  : "
+                      << " version is strictly greater, adding download\n";
+            m_backend->addDownload(m_peerId,relpath,msg->size(),v_theirs);
+
+            messages::SendFile* sendFile = new messages::SendFile();
+            sendFile->set_path(relpath.string());
+            sendFile->set_tx(0);
+
+            for( auto& pair : v_theirs )
+            {
+                messages::VersionEntry* entry = sendFile->add_version();
+                entry->set_client(pair.first);
+                entry->set_version(pair.second);
+            }
+
+            m_outboundQueue->insert( new AutoMessage(sendFile) );
+        }
+        else
+        {
+            std::cout << "MessageHandler::(NodeInfo)  : "
+                      << " version " << v_theirs
+                      << "is not strictly greater than " << v_mine << "\n";
+        }
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "Failed to handle NodeInfo message: " << ex.what()
+                  << "\n";
+    }
+}
+
+void MessageHandler::handleMessage( messages::SendFile* msg )
+{
+    // read the version vector
+    VersionVector v_recd;
+    for(int i=0; i < msg->version_size(); i++)
+    {
+        auto& entry = msg->version(i);
+        v_recd[ entry.client() ] = entry.version();
+    }
+
+    // map version keys
+    VersionVector v_theirs;
+    mapVersion(v_recd,v_theirs);
+
+    std::stringstream report;
+    report << "Received file tx request:"
+           << "\n      path: " << msg->path()
+           << "\n        tx: " << msg->tx()
+           << "\n   version: " << v_theirs
+           << "\n";
+
+    std::cout << report.str();
+
+    // create the job
+    jobs::SendFile* sendFile = new jobs::SendFile(
+            m_backend, m_peerId,
+            msg->path(),
+            msg->tx(),
+            msg->offset(),
+            v_theirs );
+
+    // add the job
+    m_backend->jobs()->enqueue(sendFile);
 }
 
 
@@ -432,7 +548,7 @@ void MessageHandler::handleMessage( messages::RequestFile* msg )
 
 void MessageHandler::handleMessage( messages::FileChunk* msg )
 {
-
+    m_backend->mergeData(m_peerId,msg);
 }
 
 
