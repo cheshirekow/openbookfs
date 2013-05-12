@@ -16,23 +16,23 @@ SOURCES += main.cpp\
         mainwindow.cpp \
     localclient.cpp \
     info.cpp \
-    ../../build/src/messages.pb.cc \
+    /home/gabe/Code/build/openbookfs/src/messages.pb.cc \
     connection.cpp \
-    connectiondialog.cpp
+
 
 HEADERS  += mainwindow.h \
     localclient.h \
     info.h \
-    ../../build/src/messages.pb.h \
+    /home/gabe/Code/build/openbookfs/src/messages.pb.h \
     connection.h \
-    connectiondialog.h
 
 FORMS    += mainwindow.ui \
     localclient.ui
 
 
 INCLUDEPATH += ../ \
-    ../../build/src/ \
+    /home/gabe/Code/build/openbookfs/src/ \
+    /home/gabe/Code/openbookfs/src/ \
     /usr/local/include/ \
     /usr/local/include/google/
 
@@ -40,3 +40,9 @@ INCLUDEPATH += ../ \
 unix|win32: LIBS += \
     -lcrypto++ \
     -lprotobuf
+
+OTHER_FILES += \
+    ../messages.proto \
+    ../CMakeLists.txt \
+    ../backend/config.yaml \
+    ../backend/CMakeLists.txt

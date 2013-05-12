@@ -6,8 +6,8 @@
 
 
 
-#include "connection.h"
 
+#include "localclient.h"
 
 
 namespace Ui {
@@ -27,6 +27,12 @@ private:
     Ui::MainWindow *ui;
 
     QTcpSocket *socket;
+
+
+    LocalClient *localclient;
+
+private slots:
+    void connect_to();
 
 
 

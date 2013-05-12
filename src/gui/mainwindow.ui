@@ -14,16 +14,6 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <widget class="LocalClient" name="client_control" native="true">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>10</y>
-      <width>811</width>
-      <height>321</height>
-     </rect>
-    </property>
-   </widget>
    <widget class="QTextBrowser" name="textBrowser">
     <property name="geometry">
      <rect>
@@ -50,8 +40,8 @@
    <widget class="QPushButton" name="connect">
     <property name="geometry">
      <rect>
-      <x>340</x>
-      <y>320</y>
+      <x>10</x>
+      <y>520</y>
       <width>98</width>
       <height>27</height>
      </rect>
@@ -59,6 +49,17 @@
     <property name="text">
      <string>Connect...</string>
     </property>
+   </widget>
+   <widget class="QWidget" name="verticalLayoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>0</y>
+      <width>811</width>
+      <height>341</height>
+     </rect>
+    </property>
+    <layout class="QVBoxLayout" name="layout"/>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menuBar">
@@ -100,14 +101,6 @@
   </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
- <customwidgets>
-  <customwidget>
-   <class>LocalClient</class>
-   <extends>QWidget</extends>
-   <header>localclient.h</header>
-   <container>1</container>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>

@@ -9,6 +9,11 @@
 #include "messages.pb.h"
 
 
+using namespace openbook;
+using namespace filesystem;
+using namespace messages;
+
+
 class Connection : public QObject
 {
     Q_OBJECT
@@ -16,13 +21,13 @@ public:
     explicit Connection(QString hostname, int port, QObject *parent = 0);
     
     void setAuthReq();
-
     void setDisplayName( const QString& name );
-
+    QString getMountPoints();
 
 signals:
     
 public slots:
+    void read_data();
 
 
 private:
@@ -49,6 +54,7 @@ private:
         MSG_GET_BACKEND_INFO,
         MSG_PEER_LIST,
         MSG_MOUNT_LIST,
+        MSG_START_SYNC,
         MSG_LEADER_ELECT,
         MSG_DH_PARAMS,
         MSG_KEY_EXCHANGE,
@@ -68,6 +74,7 @@ private:
         MSG_INVALID,
         NUM_MSG = MSG_INVALID,
     };
+
 };
 
 #endif // CONNECTION_H

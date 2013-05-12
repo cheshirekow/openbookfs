@@ -3,6 +3,7 @@
 
 #include <QWidget>
 
+#include "connection.h"
 
 namespace Ui {
 class LocalClient;
@@ -18,6 +19,11 @@ public:
     
 private:
     Ui::LocalClient *ui;
+
+    Connection *connection;
+
+private slots:
+    void update_params();
 };
 
 #endif // LOCALCLIENT_H
