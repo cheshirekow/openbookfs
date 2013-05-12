@@ -29,6 +29,7 @@ SOURCES += main.cpp\
     commands/ListMounts.cpp \
     commands/ListKnownPeers.cpp \
     commands/Connect.cpp \
+    commands/SetDataDir.cpp \
     ../TimeVal.cpp \
     ../TimeSpec.cpp \
     ../SelectSpec.cpp \
@@ -39,6 +40,7 @@ SOURCES += main.cpp\
     ../FileDescriptor.cpp \
     ../FdSet.cpp \
     ../base64.cpp
+
 
 
 HEADERS  += mainwindow.h \

@@ -37,8 +37,8 @@ namespace   openbook {
 namespace filesystem {
 namespace       gui {
 
-SetDisplayName::SetDisplayName():
-    Options()
+SetDisplayName::SetDisplayName(QString port):
+    Options(port)
 {}
 
 void SetDisplayName::go(QString displayName)

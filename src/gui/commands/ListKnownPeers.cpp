@@ -14,8 +14,8 @@ namespace   openbook {
 namespace filesystem {
 namespace       gui {
 
-ListKnownPeers::ListKnownPeers():
-    Options()
+ListKnownPeers::ListKnownPeers(QString port):
+    Options(port)
 
     {}
 

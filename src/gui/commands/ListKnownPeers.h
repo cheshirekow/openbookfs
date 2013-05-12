@@ -14,7 +14,7 @@ class ListKnownPeers:
 	public:
         static const std::string COMMAND;
         static const std::string DESCRIPTION;
-        ListKnownPeers();
+        ListKnownPeers(QString port= "3030");
         QStringList go();
 
 };

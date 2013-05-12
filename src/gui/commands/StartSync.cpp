@@ -41,8 +41,8 @@ namespace       gui {
 const std::string StartSync::COMMAND      = "sync";
 const std::string StartSync::DESCRIPTION  = "begin a full sync with a peer";
 
-StartSync::StartSync():
-    Options()/*,
+StartSync::StartSync(QString port):
+    Options(port)/*,
     peerId(
         "peerId",   //< unique name, not really used anywhere
         // help message
@@ -53,7 +53,7 @@ StartSync::StartSync():
         )*/
 {}
 
-void StartSync::go()
+void StartSync::go(int peer)
 {
     FdPtr_t sockfd = connectToClient(*this);
     Marshall marshall;
@@ -63,7 +63,7 @@ void StartSync::go()
     // send the message
     messages::StartSync* msg =
             new messages::StartSync();
-    msg->set_peerid(1);
+    msg->set_peerid(peer);
     marshall.writeMsg(msg);
 
     // wait for the reply

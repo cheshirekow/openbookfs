@@ -44,8 +44,8 @@ class StartSync:
         static const std::string COMMAND;
         static const std::string DESCRIPTION;
 
-        StartSync();
-        void go();
+        StartSync(QString port);
+        void go(int peer = 1);
 };
 
 

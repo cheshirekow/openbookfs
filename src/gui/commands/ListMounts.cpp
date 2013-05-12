@@ -10,11 +10,11 @@ namespace   openbook {
 namespace filesystem {
 namespace       gui {
 
-ListMounts::ListMounts():
-    Options()
+ListMounts::ListMounts(QString port):
+    Options(port)
     {}
 
-void ListMounts::go(){
+QStringList ListMounts::go(){
     FdPtr_t sockfd = connectToClient(*this);    //< create a connection
     Marshall marshall;        //< create a marshaller
     marshall.setFd(*sockfd);  //< tell the marshaller the socket to use
@@ -36,11 +36,13 @@ void ListMounts::go(){
 
     // if the backend replied with a message we weren't expecting then
     // print an error
+    QStringList response;
     if( reply->type != MSG_MOUNT_LIST )
     {
         std::cerr << "Unexpected reply of type: "
                   << messageIdToString( reply->type )
                   << "\n";
+        response.append("Unexpected reply type");
     }
     // otherwise print the result of the operation
     else
@@ -97,6 +99,8 @@ void ListMounts::go(){
             std::cout << "   ";
 
             out = msg->mounts(i).path();
+
+            response.append(QString::fromUtf8(msg->mounts(i).path().c_str()));
             nSpaces = lenPath - out.length();
             std::cout << out;
             for(int i=0; i < nSpaces; i++)
@@ -110,6 +114,7 @@ void ListMounts::go(){
         std::cout<<std::endl;
 
     }
+    return response;
 }
 
 const std::string ListMounts::COMMAND       = "mounts";

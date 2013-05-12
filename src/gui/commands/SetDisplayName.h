@@ -41,7 +41,7 @@ class SetDisplayName:
     public:
         static const std::string COMMAND;
         static const std::string DESCRIPTION;
-        SetDisplayName();
+        SetDisplayName(QString port="3030");
         void go(QString DisplayName);
 };
 

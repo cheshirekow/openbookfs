@@ -2,12 +2,14 @@
 #define LOCALCLIENT_H
 
 #include <QWidget>
+#include <QFileDialog>
 #include "connection.h"
 #include "commands/ListMounts.h"
 #include "commands/ListKnownPeers.h"
 #include "commands/SetDisplayName.h"
 #include "commands/Connect.h"
 #include "commands/StartSync.h"
+#include "commands/SetDataDir.h"
 
 namespace Ui {
 class LocalClient;
@@ -32,6 +34,8 @@ private:
 
 private slots:
     void update_params();
+    void start_sync();
+    void get_data_dir();
 };
 }
 }

@@ -49,8 +49,8 @@ class Connect:
         static const std::string DESCRIPTION;
 
 
-        Connect();
-        void go();
+        Connect(QString port);
+        void go(QString remote_port = "3032",QString remote_host = "localhost");
 };
 
 

@@ -2,6 +2,7 @@
 #define OPENBOOK_FS_GUI_LISTMOUNTS_H_
 
 #include "Options.h"
+#include <QStringList>
 
 namespace   openbook {
 namespace filesystem {
@@ -13,8 +14,8 @@ class ListMounts:
 	public:
         static const std::string COMMAND;
         static const std::string DESCRIPTION;
-        ListMounts();
-		void go();
+        ListMounts(QString port = "3030");
+        QStringList go();
 };
 
 

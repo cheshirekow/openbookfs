@@ -39,8 +39,8 @@ namespace       gui {
 const std::string Connect::COMMAND      = "connect";
 const std::string Connect::DESCRIPTION  = "initiate a connection with a peer";
 
-Connect::Connect():
-    Options()/*,
+Connect::Connect(QString port):
+    Options(port)/*,
     isLocal("l",    //< short flag character, usage: "-l"
         "local",    //< long flag, usage: "--local"
         // help message
@@ -66,7 +66,7 @@ Connect::Connect():
         cmd)*/
 {}
 
-void Connect::go()
+void Connect::go(QString remote_port, QString remote_host)
 {
     FdPtr_t sockfd = connectToClient(*this);
     Marshall marshall;
@@ -78,7 +78,7 @@ void Connect::go()
             new messages::AttemptConnection();
     msg->set_isremote(false);
     msg->set_node("localhost");
-    msg->set_service("3032");
+    msg->set_service(remote_port.toUtf8().constData());
     marshall.writeMsg(msg);
 
     // wait for the reply
