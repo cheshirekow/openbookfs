@@ -38,12 +38,14 @@
 #include <crypto++/gcm.h>
 #include <crypto++/aes.h>
 
+#include <cpp-pthreads.h>
 #include <protobuf/message.h>
 
 #include "messages.h"
 #include "messages.pb.h"
 #include "ExceptionStream.h"
 #include "ReferenceCounted.h"
+
 
 
 namespace   openbook {

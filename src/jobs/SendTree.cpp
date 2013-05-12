@@ -111,10 +111,9 @@ void SendTree::go()
                   << "\n directory : " << dir
                   << "\n contents  : \n";
 
-
         for( auto& child : listing )
         {
-            std::cout << "   " << (dir/child) << "\n";
+            std::cout << "   " << child << "\n";
             if( fs::is_directory(root/dir/child) )
                 queue.push_back(dir/child);
 

@@ -146,7 +146,7 @@ class Database
         /// already have are set to version value of zero
         void assimilateKeys( const Path_t& path, const VersionVector& v);
 
-
+        bool isSubscribed( const Path_t& path );
 
 
 };

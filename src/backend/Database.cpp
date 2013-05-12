@@ -295,7 +295,7 @@ void Database::addDownload( int64_t peer,
             // build the version vector
             VersionVector v_prev;
             for( auto& row : rs )
-                v_prev[ row.get<int64_t>(0) ] = row.get<int64_t>(1);
+                v_prev[ row.get<int>(0) ] = row.get<int>(1);
 
             // if the current download is the not less then the requested
             // download there is nothing left to do
@@ -481,7 +481,7 @@ void Database::mergeData( int64_t peer,
         {
             // check to make sure that this file is truly newer
             VersionVector v_mine;
-            getVersion( relpath, v_mine );
+            lockless_getVersion( relpath, v_mine );
 
             // perform the version query
             rowset<row> rs = ( sql.prepare << boost::format(
@@ -513,7 +513,7 @@ void Database::mergeData( int64_t peer,
                 }
 
                 // update the version vector
-                setVersion( relpath, v_theirs );
+                lockless_setVersion( relpath, v_theirs );
 
                 // delete the download if it is complete
                 sql << boost::format(
@@ -968,6 +968,36 @@ void Database::assimilateKeys( const Path_t& path, const VersionVector& v)
 {
     pthreads::ScopedLock lock(m_mutex);
     lockless_assimilateKeys(path,v);
+}
+
+bool Database::isSubscribed( const Path_t& path )
+{
+    pthreads::ScopedLock lock(m_mutex);
+
+    namespace fs = boost::filesystem;
+    using namespace soci;
+
+    // create sqlite connection
+    session sql(soci::sqlite3, m_dbFile.string() );
+
+    try
+    {
+        int subscribed;
+        sql << boost::format("SELECT subscribed FROM files WHERE path='%s'")
+                % path.string(), soci::into(subscribed);
+
+        if(subscribed)
+            return true;
+    }
+    catch( const std::exception& ex )
+    {
+        std::stringstream report;
+        report << "Database::isSubscribed('" << path << "') failed:\n"
+               << ex.what() << "\n";
+        std::cerr << report.str();
+    }
+
+    return false;
 }
 
 

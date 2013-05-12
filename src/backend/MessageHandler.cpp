@@ -450,7 +450,13 @@ void MessageHandler::handleMessage( messages::NodeInfo* msg )
     {
         // decompose the path into a directory and file part
         fs::path root    = m_backend->realRoot();
-        fs::path relpath = msg->path();
+        fs::path relpath = fs::path(msg->parent()) / msg->path();
+        if( msg->parent() == "/" )
+            relpath = "/" + msg->path();
+
+        // check if we are subscribed
+        if( !m_backend->db().isSubscribed(relpath) )
+            ex()() << "Not subscribed to " << relpath;
 
         // create a version vector from the message
         VersionVector v_recv;
@@ -463,9 +469,6 @@ void MessageHandler::handleMessage( messages::NodeInfo* msg )
         // map version keys
         VersionVector v_theirs;
         mapVersion( v_recv, v_theirs );
-
-        // get the metadata file for this path
-
 
         // assimilate version keys so that future file changes notify
         // connected peers
