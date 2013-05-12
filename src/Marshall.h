@@ -92,8 +92,10 @@ class Marshall
         /// size of the static buffer used to cache data
         static const unsigned int BUFSIZE = 2048;
 
-        std::string  m_cipher;          ///< encrypted data
-        std::string  m_plain;           ///< decrypted
+        std::string  m_cipherR;          ///< encrypted data
+        std::string  m_plainR;           ///< decrypted
+        std::string  m_cipherW;          ///< encrypted data
+        std::string  m_plainW;           ///< decrypted
 
         int         m_fd;   ///< file descriptor
 
