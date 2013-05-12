@@ -905,6 +905,8 @@ int FuseContext::getxattr (const char *path,
                             char *value,
                             size_t bufsize)
 {
+    std::string attr(key);
+
     Path_t wrapped = m_realRoot / path;
     int result = ::getxattr( wrapped.c_str(), key, value, bufsize );
     if( result < 0 )
