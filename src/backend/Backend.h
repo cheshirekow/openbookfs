@@ -182,6 +182,8 @@ class Backend
                             int64_t size,
                             const VersionVector& version );
 
+        void mergeData( int64_t peer, messages::FileChunk* chunk );
+
 
 
 

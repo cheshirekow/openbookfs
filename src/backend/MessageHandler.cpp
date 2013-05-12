@@ -548,7 +548,7 @@ void MessageHandler::handleMessage( messages::RequestFile* msg )
 
 void MessageHandler::handleMessage( messages::FileChunk* msg )
 {
-
+    m_backend->mergeData(m_peerId,msg);
 }
 
 

@@ -265,6 +265,10 @@ void Backend::addDownload( int64_t peer,
     m_db.addDownload(peer,path,size,version,m_stageDir);
 }
 
+void Backend::mergeData( int64_t peer, messages::FileChunk* chunk )
+{
+    m_db.mergeData( peer, m_stageDir, chunk );
+}
 
 
 void Backend::setDisplayName( const std::string& name )

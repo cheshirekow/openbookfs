@@ -67,6 +67,10 @@ class Database
                             const VersionVector& version,
                             const Path_t& stageDir );
 
+        void mergeData( int64_t peer,
+                        const Path_t& stageDir,
+                        messages::FileChunk* chunk );
+
 
 
 

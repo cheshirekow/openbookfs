@@ -6,12 +6,12 @@
  *  @brief  
  */
 
-
-
-#include "Database.h"
+#include <fcntl.h>
 #include <soci/soci.h>
 #include <soci/sqlite3/soci-sqlite3.h>
 #include <boost/format.hpp>
+
+#include "Database.h"
 #include "ExceptionStream.h"
 
 
@@ -357,6 +357,111 @@ void Database::addDownload( int64_t peer,
     catch( const std::exception& ex )
     {
         std::cerr << "Database::addDownload Failed to add download: "
+                  << ex.what()
+                  << "\n";
+    }
+}
+
+
+
+void Database::mergeData( int64_t peer,
+                            const Path_t& stageDir,
+                            messages::FileChunk* chunk )
+{
+    pthreads::ScopedLock lock(m_mutex);
+
+    namespace fs = boost::filesystem;
+    using namespace soci;
+
+    // create sqlite connection
+    session sql(soci::sqlite3, m_dbFile.string() );
+
+    // initialize the id map
+    try
+    {
+        std::string temp;
+        int64_t     tx;
+        int64_t     recd;
+        int64_t     size;
+
+        // get download context
+        sql << boost::format(
+                "SELECT temp,tx,recd,size FROM downloads "
+                    "WHERE path='%s' AND peer=%d" )
+                % chunk->path()
+                % peer,
+                into(temp),
+                into(tx),
+                into(recd),
+                into(size);
+
+        if( tx > chunk->tx() )
+        {
+            std::stringstream report;
+            report << "Database::mergeData : aborting merge b/c file chunk"
+                        " is from an older version\n";
+            std::cout << report;
+        }
+
+        Path_t fullpath = stageDir / temp;
+
+        // otherwise read in some bytes
+        int fd = open(fullpath.c_str(), O_WRONLY );
+        if( fd < 0 )
+        {
+            codedExcept(errno) << "Database::mergeData: Failed to open "
+                               << fullpath;
+        }
+
+        // move the read head
+        if( chunk->offset() != lseek(fd,chunk->offset(),SEEK_SET) )
+        {
+            close(fd);
+            codedExcept(errno) << "Database::mergeData: Failed to seek to offset "
+                               << chunk->offset()
+                               << " of file " << fullpath;
+        }
+
+        // write the data
+        int bytesWritten = write(fd,&chunk->data()[0],chunk->data().size());
+        if( bytesWritten < 0 )
+        {
+            close(fd);
+            codedExcept(errno) << "Database::mergeData: Failed to write to "
+                               << fullpath;
+        }
+
+        // close the file
+        close(fd);
+
+        // update bytes written
+        recd += chunk->data().size();
+        if( recd < size )
+        {
+            sql << boost::format(
+                "UPDATE downloads SET recd=%d "
+                    "WHERE path='%s' AND peer=%d" )
+                % recd
+                % chunk->path()
+                % peer;
+        }
+        else
+        {
+            // delete the download if it is complete
+            sql << boost::format(
+                "DELETE FROM downloads WHERE path='%s' AND peer=%d" )
+                % chunk->path()
+                % peer;
+
+            sql << boost::format(
+                "DELETE FROM downloads_v WHERE path='%s' AND peer=%d" )
+                % chunk->path()
+                % peer;
+        }
+    }
+    catch( const std::exception& ex )
+    {
+        std::cerr << "Database::mergeData failed: "
                   << ex.what()
                   << "\n";
     }
