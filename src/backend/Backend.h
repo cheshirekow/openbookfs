@@ -184,6 +184,8 @@ class Backend
 
         void mergeData( int64_t peer, messages::FileChunk* chunk );
 
+        Database& db(){ return m_db; };
+
 
 
 

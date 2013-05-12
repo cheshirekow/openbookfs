@@ -25,15 +25,17 @@
  */
 
 
+#include "Backend.h"
 #include "FileContext.h"
 #include "ExceptionStream.h"
 
 namespace   openbook {
 namespace filesystem {
 
-FileContext::FileContext( const Path_t& path, int fd ):
+FileContext::FileContext( Backend* backend, const Path_t& path, int fd ):
+    m_backend(backend),
+    m_path(path),
     m_fd(fd),
-    m_meta(path),
     m_changed(false)
 {
 
@@ -44,18 +46,19 @@ FileContext::~FileContext()
     if(m_fd > -1 )
         ::close(m_fd);
     if(m_changed)
-        m_meta.incrementVersion();
+        m_backend->db().incrementVersion(m_path);
 }
 
-RefPtr<FileContext> FileContext::create( const Path_t& path, int fd )
+RefPtr<FileContext> FileContext::create( Backend* backend, const Path_t& path, int fd )
 {
-    return new FileContext(path,fd);
+    return new FileContext(backend,path,fd);
 }
 
 
 
-FileMap::FileMap( int size )
+FileMap::FileMap( Backend* backend, int size )
 {
+    m_backend = backend;
     m_mutex.init();
     m_fileVec.resize(size,0);
     m_freeStore.reserve(size);
@@ -90,7 +93,7 @@ int FileMap::registerFile( const Path_t& path, int os_fd )
 
     try
     {
-        m_fileVec[fd] = FileContext::create(path,os_fd);
+        m_fileVec[fd] = FileContext::create(m_backend,path,os_fd);
     }
     catch( const std::exception& ex )
     {

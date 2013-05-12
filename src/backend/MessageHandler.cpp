@@ -30,7 +30,6 @@
 #include "Backend.h"
 #include "MessageHandler.h"
 #include "Marshall.h"
-#include "MetaFile.h"
 #include "VersionVector.h"
 #include "jobs/PingJob.h"
 #include "jobs/SendTree.h"
@@ -466,15 +465,15 @@ void MessageHandler::handleMessage( messages::NodeInfo* msg )
         mapVersion( v_recv, v_theirs );
 
         // get the metadata file for this path
-        MetaFile meta(root / relpath);
+
 
         // assimilate version keys so that future file changes notify
         // connected peers
-        meta.assimilateKeys( relpath.filename().string(), v_theirs );
+        m_backend->db().assimilateKeys( relpath, v_theirs );
 
         // retrieve my version
         VersionVector v_mine;
-        meta.getVersion(relpath.filename().string(),v_mine);
+        m_backend->db().getVersion( relpath, v_mine );
 
         // compare version vectors, if their version is strictly newer then
         // we register it for download
@@ -575,8 +574,7 @@ void MessageHandler::handleMessage( messages::DirChunk* msg )
     {
         if( !fs::exists(dir) )
             fs::create_directories(dir);
-        MetaFile meta(dir);
-        meta.merge(msg);
+        m_backend->db().merge( msg );
     }
     catch( const std::exception& ex )
     {

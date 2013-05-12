@@ -29,7 +29,6 @@
 #include "Backend.h"
 #include "SendTree.h"
 #include "ExceptionStream.h"
-#include "MetaFile.h"
 #include "VersionVector.h"
 
 namespace   openbook {
@@ -101,12 +100,10 @@ void SendTree::go()
         // create a chunk unless we didn't use it at the last round
         // pointer to message to send
         msg::DirChunk* chunk = new msg::DirChunk();
-
-        // get the metadata file
-        MetaFile meta( root / dir );
+        chunk->set_path(dir.string());
 
         // get the contents
-        meta.readdir( chunk );
+        m_backend->db().readdir( dir, chunk );
 
         // if the directory has children then recurse on any subidrs
         std::cout << "SendTree::go() : built directory message: "
@@ -190,7 +187,7 @@ void SendTree::go()
             nodeInfo->set_type( ntype );
 
             VersionVector version;
-            meta.getVersion(subpath.string(),version);
+            m_backend->db().getVersion(subpath,version);
 
             for( auto& pair : version )
             {

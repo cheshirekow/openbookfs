@@ -74,6 +74,36 @@ class Database
                         const Path_t& rootDir,
                         messages::FileChunk* chunk );
 
+        /// add an entry to the file list for
+        void lockless_mknod( const Path_t& path );
+
+        /// remove an entry from the file list
+        void lockless_unlink( const Path_t& path );
+
+        /// read directory entries into a fuse buffer
+        void lockless_readdir( const Path_t& path,
+                        void *buf, fuse_fill_dir_t filler, off_t offset );
+
+        /// read directory entries into a message
+        void lockless_readdir( const Path_t& path,
+                        messages::DirChunk* msg );
+
+        /// merge entries from another peer
+        void lockless_merge( messages::DirChunk* msg );
+
+        /// increase the version vector for entry 0 (this peer)
+        void lockless_incrementVersion( const Path_t& path );
+
+        /// get the version for a path
+        void lockless_getVersion( const Path_t& path, VersionVector& v );
+
+        /// set the version for a path
+        void lockless_setVersion( const Path_t& path, const VersionVector& v );
+
+        /// assimilate keys for the specified path, any keys which we dont
+        /// already have are set to version value of zero
+        void lockless_assimilateKeys( const Path_t& path, const VersionVector& v);
+
         //-----------------MetaFile Replacement API-------------------------
         /// add an entry to the file list for
         void mknod( const Path_t& path );

@@ -13,7 +13,6 @@
 
 #include "Database.h"
 #include "ExceptionStream.h"
-#include "MetaFile.h"
 
 
 namespace   openbook {
@@ -59,6 +58,9 @@ void Database::init()
             // parent, node pairs must be unique
             "UNIQUE (parent,node)"
             ") ";
+
+    sql << "INSERT OR IGNORE INTO files (parent,node,path,subscribed) "
+            " VALUES(0,'/','/',0) ";
 
     // stores local version information for each checked out file
     sql << "CREATE TABLE IF NOT EXISTS version ("
@@ -479,8 +481,7 @@ void Database::mergeData( int64_t peer,
         {
             // check to make sure that this file is truly newer
             VersionVector v_mine;
-            MetaFile( rootDir / relpath ).getVersion(
-                    relpath.filename().string(), v_mine );
+            getVersion( relpath, v_mine );
 
             // perform the version query
             rowset<row> rs = ( sql.prepare << boost::format(
@@ -512,8 +513,7 @@ void Database::mergeData( int64_t peer,
                 }
 
                 // update the version vector
-                MetaFile( rootDir / relpath ).setVersion(
-                        relpath.filename().string(), v_theirs );
+                setVersion( relpath, v_theirs );
 
                 // delete the download if it is complete
                 sql << boost::format(
@@ -538,10 +538,9 @@ void Database::mergeData( int64_t peer,
 
 
 
-void Database::mknod( const Path_t& path )
+void Database::lockless_mknod( const Path_t& path )
 {
     namespace fs = boost::filesystem;
-    pthreads::ScopedLock lock(m_mutex);
 
     // create sqlite connection
     soci::session sql(soci::sqlite3, m_dbFile.string() );
@@ -591,11 +590,9 @@ void Database::mknod( const Path_t& path )
     }
 }
 
-void Database::unlink( const Path_t& path )
+void Database::lockless_unlink( const Path_t& path )
 {
     namespace fs = boost::filesystem;
-
-    pthreads::ScopedLock lock(m_mutex);
 
     // create sqlite connection
     soci::session sql(soci::sqlite3, m_dbFile.string() );
@@ -621,12 +618,10 @@ void Database::unlink( const Path_t& path )
     }
 }
 
-void Database::readdir( const Path_t& path,
+void Database::lockless_readdir( const Path_t& path,
                 void *buf, fuse_fill_dir_t filler, off_t offset )
 {
     namespace fs = boost::filesystem;
-
-    pthreads::ScopedLock lock(m_mutex);
 
     // create sqlite connection
     soci::session sql(soci::sqlite3, m_dbFile.string() );
@@ -661,12 +656,10 @@ void Database::readdir( const Path_t& path,
     }
 }
 
-void Database::readdir( const Path_t& path,
+void Database::lockless_readdir( const Path_t& path,
                 messages::DirChunk* msg )
 {
     namespace fs = boost::filesystem;
-
-    pthreads::ScopedLock lock(m_mutex);
 
     // create sqlite connection
     soci::session sql(soci::sqlite3, m_dbFile.string() );
@@ -700,12 +693,10 @@ void Database::readdir( const Path_t& path,
     }
 }
 
-void Database::merge( messages::DirChunk* msg )
+void Database::lockless_merge( messages::DirChunk* msg )
 {
     namespace fs = boost::filesystem;
     using namespace soci;
-
-    pthreads::ScopedLock lock(m_mutex);
 
     // create sqlite connection
     session sql(soci::sqlite3, m_dbFile.string() );
@@ -739,21 +730,23 @@ void Database::merge( messages::DirChunk* msg )
     }
 }
 
-void Database::incrementVersion( const Path_t& path )
+void Database::lockless_incrementVersion( const Path_t& path )
 {
     namespace fs = boost::filesystem;
     using namespace soci;
-
-    pthreads::ScopedLock lock(m_mutex);
 
     // create sqlite connection
     session sql(soci::sqlite3, m_dbFile.string() );
 
     try
     {
+        int64_t fileId;
+        sql << boost::format("SELECT id FROM files WHERE path='%s'")
+                % path.string(), soci::into(fileId);
+
         sql << boost::format(
             "UPDATE version SET version=version+1 "
-            "WHERE path='%s' AND client=0" ) % path.string();
+            "WHERE file_id=%d AND peer=0" ) % fileId;
     }
     catch( const std::exception& ex )
     {
@@ -764,12 +757,10 @@ void Database::incrementVersion( const Path_t& path )
     }
 }
 
-void Database::getVersion( const Path_t& path, VersionVector& v )
+void Database::lockless_getVersion( const Path_t& path, VersionVector& v )
 {
     namespace fs = boost::filesystem;
     using namespace soci;
-
-    pthreads::ScopedLock lock(m_mutex);
 
     // create sqlite connection
     session sql(soci::sqlite3, m_dbFile.string() );
@@ -797,12 +788,10 @@ void Database::getVersion( const Path_t& path, VersionVector& v )
     }
 }
 
-void Database::setVersion( const Path_t& path, const VersionVector& v )
+void Database::lockless_setVersion( const Path_t& path, const VersionVector& v )
 {
     namespace fs = boost::filesystem;
     using namespace soci;
-
-    pthreads::ScopedLock lock(m_mutex);
 
     // create sqlite connection
     session sql(soci::sqlite3, m_dbFile.string() );
@@ -832,12 +821,10 @@ void Database::setVersion( const Path_t& path, const VersionVector& v )
     }
 }
 
-void Database::assimilateKeys( const Path_t& path, const VersionVector& v)
+void Database::lockless_assimilateKeys( const Path_t& path, const VersionVector& v)
 {
     namespace fs = boost::filesystem;
     using namespace soci;
-
-    pthreads::ScopedLock lock(m_mutex);
 
     // create sqlite connection
     session sql(soci::sqlite3, m_dbFile.string() );
@@ -865,6 +852,63 @@ void Database::assimilateKeys( const Path_t& path, const VersionVector& v)
                << ex.what() << "\n";
         std::cerr << report.str();
     }
+}
+
+
+void Database::mknod( const Path_t& path )
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_mknod(path);
+}
+
+void Database::unlink( const Path_t& path )
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_unlink(path);
+}
+
+void Database::readdir( const Path_t& path,
+                void *buf, fuse_fill_dir_t filler, off_t offset )
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_readdir(path,buf,filler,offset);
+}
+
+void Database::readdir( const Path_t& path,
+                messages::DirChunk* msg )
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_readdir(path,msg);
+}
+
+void Database::merge( messages::DirChunk* msg )
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_merge(msg);
+}
+
+void Database::incrementVersion( const Path_t& path )
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_incrementVersion(path);
+}
+
+void Database::getVersion( const Path_t& path, VersionVector& v )
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_getVersion(path,v);
+}
+
+void Database::setVersion( const Path_t& path, const VersionVector& v )
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_setVersion(path,v);
+}
+
+void Database::assimilateKeys( const Path_t& path, const VersionVector& v)
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_assimilateKeys(path,v);
 }
 
 

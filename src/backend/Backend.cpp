@@ -44,7 +44,6 @@
 #include <crypto++/base64.h>
 #include <soci/sqlite3/soci-sqlite3.h>
 #include "SelectSpec.h"
-#include "MetaFile.h"
 
 
 
@@ -400,18 +399,6 @@ void Backend::setDataDir( const std::string& dir )
     {
         std::cerr << "Backend::setDataDir() : Failed to initialize "
                      "database: \n   " << ex.what() << "\n";
-    }
-
-    try
-    {
-        // initialize the root directory if not already initialized
-        MetaFile rootMeta( m_rootDir );
-        rootMeta.init();
-    }
-    catch( const std::exception& ex )
-    {
-        std::cerr << "Backend::setDataDir() : Failed to initialize "
-                     "root metadata: \n   " << ex.what() << "\n";
     }
 
     std::cout << "Done initializing\n";
