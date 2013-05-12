@@ -693,6 +693,57 @@ void Database::lockless_readdir( const Path_t& path,
     }
 }
 
+void Database::lockless_readdir( const Path_t& path,
+                std::list<std::string>& listing,
+                bool subscribed )
+{
+    namespace fs = boost::filesystem;
+
+    // create sqlite connection
+    soci::session sql(soci::sqlite3, m_dbFile.string() );
+
+    try
+    {
+        // get the fileId
+        int64_t fileId;
+        sql << boost::format("SELECT id FROM files WHERE path='%s'")
+                % path.string(), soci::into(fileId);
+
+        std::stringstream query;
+        if(subscribed)
+        {
+            query << boost::format(
+                    "SELECT node FROM files "
+                    "WHERE parent=%d AND subscribed=1 "
+                    "ORDER BY node" )
+                    % fileId;
+        }
+        else
+        {
+            query << boost::format(
+                    "SELECT node FROM files "
+                    "WHERE parent=%d "
+                    "ORDER BY node" )
+                    % fileId;
+        }
+
+
+        // now iterate over all children
+        typedef soci::rowset<std::string> rowset_t;
+        rowset_t rs = ( sql.prepare << query.str() );
+
+        for( auto& path : rs )
+            listing.push_back(path);
+    }
+    catch( const std::exception& ex )
+    {
+        std::stringstream report;
+        report << "Database::readdir('" << path << "', msg) failed:\n"
+               << ex.what() << "\n";
+        std::cerr << report.str();
+    }
+}
+
 void Database::lockless_merge( messages::DirChunk* msg )
 {
     namespace fs = boost::filesystem;
@@ -879,6 +930,14 @@ void Database::readdir( const Path_t& path,
 {
     pthreads::ScopedLock lock(m_mutex);
     lockless_readdir(path,msg);
+}
+
+void Database::readdir( const Path_t& path,
+                std::list<std::string>& listing,
+                bool subscribed )
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_readdir(path,listing,subscribed);
 }
 
 void Database::merge( messages::DirChunk* msg )

@@ -11,6 +11,7 @@
 
 #include <map>
 #include <string>
+#include <list>
 
 #include <boost/filesystem.hpp>
 #include <cpp-pthreads.h>
@@ -88,6 +89,11 @@ class Database
         void lockless_readdir( const Path_t& path,
                         messages::DirChunk* msg );
 
+        /// read directory entries into a list of paths
+        void lockless_readdir( const Path_t& path,
+                        std::list<std::string>& listing,
+                        bool subscribed);
+
         /// merge entries from another peer
         void lockless_merge( messages::DirChunk* msg );
 
@@ -118,6 +124,11 @@ class Database
         /// read directory entries into a message
         void readdir( const Path_t& path,
                         messages::DirChunk* msg );
+
+        /// read directory entries into a list of paths
+        void readdir( const Path_t& path,
+                        std::list<std::string>& listing,
+                        bool subscribed=false );
 
         /// merge entries from another peer
         void merge( messages::DirChunk* msg );
