@@ -453,20 +453,23 @@ int FuseContext::getattr (const char *path, struct stat *out)
         int result = ::lstat( wrapped.c_str(), out );
         if( result < 0 )
             return -errno;
+
+        return result;
     }
     else
     {
-        out->st_mode  = S_IFREG | S_IRUSER | S_IWUSR;
+        out->st_mode  = S_IFREG | S_IRUSR | S_IWUSR;
         out->st_nlink = 0;
         out->st_uid   = getuid();
         out->st_gid   = getgid();
         out->st_size  = 0;
-        out->st_atime = {0,0};
-        out->st_mtime = {0,0};
-        out->st_ctime = {0,0};
+        out->st_atime = 0;
+        out->st_mtime = 0;
+        out->st_ctime = 0;
+
+        return 0;
     }
 
-    return result;
 }
 
 
