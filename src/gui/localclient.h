@@ -11,6 +11,9 @@
 #include "commands/StartSync.h"
 #include "commands/SetDataDir.h"
 
+#include "commands/Checkout.h"
+#include "commands/Release.h"
+
 namespace Ui {
 class LocalClient;
 }
@@ -32,10 +35,16 @@ private:
 
     void initial_params();
 
+    QStringList *mountList;
+
+    QStringList *checked_out_files;
+
 private slots:
     void update_params();
     void start_sync();
     void get_data_dir();
+    void checkout_file();
+    void release_file();
 };
 }
 }

@@ -39,7 +39,9 @@ SOURCES += main.cpp\
     ../Marshall.cpp \
     ../FileDescriptor.cpp \
     ../FdSet.cpp \
-    ../base64.cpp
+    ../base64.cpp \
+    commands/Release.cpp \
+    commands/Checkout.cpp
 
 
 
@@ -79,7 +81,9 @@ HEADERS  += mainwindow.h \
     ../FdSet.h \
     ../ExceptionStream.h \
     ../Bytes.h \
-    ../base64.h
+    ../base64.h \
+    commands/Release.h \
+    commands/Checkout.h
 
 FORMS    += mainwindow.ui \
     localclient.ui

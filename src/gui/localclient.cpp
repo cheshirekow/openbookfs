@@ -16,6 +16,12 @@ LocalClient::LocalClient(QWidget *parent) :
     connect(ui->submit, SIGNAL(clicked()),this,SLOT(update_params()));
     connect(ui->sync_files,SIGNAL(clicked()),this,SLOT(start_sync()));
     connect(ui->data_dir,SIGNAL(clicked()),this,SLOT(get_data_dir()));
+    connect(ui->checkout_file,SIGNAL(clicked()),this,SLOT(checkout_file()));
+    connect(ui->release_file,SIGNAL(clicked()),this,SLOT(release_file()));
+
+    mountList = new QStringList();
+    checked_out_files = new QStringList();
+
 }
 
 LocalClient::~LocalClient()
@@ -41,9 +47,14 @@ void LocalClient::update_params()
     ListMounts lm(port);
     QStringList mounts = lm.go();
     ui->mount_points->clear();
+    mountList->clear();
     for(int i = 0; i < mounts.length();i++)
-        ui->mount_points->addItem(mounts.at(i));
-
+    {
+        QListWidgetItem *item = new QListWidgetItem(mounts.at(i));
+        ui->mount_points->addItem(item);
+        ui->mount_points->setItemSelected(item,true);
+        mountList->append(mounts.at(i));
+    }
 
 
     ListKnownPeers l(port);
@@ -54,16 +65,16 @@ void LocalClient::update_params()
         ui->current_peers->addItem(peers.at(i));
 
 
-    SetDisplayName dn(ui->local_port->text());
+    SetDisplayName dn(port);
     dn.go(ui->display_name->text());
 
 
-    SetDataDir data(ui->local_port->text());
+    SetDataDir data(port);
     QString t_data_dir = ui->data_directory->text();
 
     if(t_data_dir == "")
     {
-        ui->log->addItem("No Directory Chosen");
+        qDebug()<<"No Directory Chosen";
     }
     else{
         data.go(ui->data_directory->text());
@@ -79,7 +90,7 @@ void LocalClient::start_sync()
     int current_peer = ui->current_peers->currentRow();
     if(current_peer == -1)
     {
-        ui->log->addItem("Peer not selected");
+       qDebug()<<"Peer not selected";
     }
     else{
         int peer = ui->current_peers->currentItem()->text().split(":").at(0).toInt();
@@ -96,7 +107,41 @@ void LocalClient::get_data_dir()
                                                     | QFileDialog::DontResolveSymlinks);
 
     ui->data_directory->setText(dir);
+}
 
+void LocalClient::checkout_file()
+{
+    QString def = "/home";
+
+    if(mountList->length()>0)
+        def = mountList->first();
+    QString fileName = QFileDialog::getOpenFileName(this,
+         tr("Checkout File"), def, tr("Any File (*)"));
+
+    qDebug()<<"Checking Out: "<<fileName;
+    Checkout c(ui->local_port->text());
+    c.go(fileName);
+
+    if(checked_out_files->indexOf(fileName) == -1)
+    {
+        qDebug()<<"Index:"<<checked_out_files->indexOf(fileName);
+        ui->checked_out_files->addItem(fileName);
+        checked_out_files->append(fileName);
+    }
+}
+
+void LocalClient::release_file()
+{
+    QListWidgetItem *w = ui->checked_out_files->currentItem();
+    QString filename = w->text();
+
+    checked_out_files->removeAt(checked_out_files->indexOf(filename));
+    ui->checked_out_files->removeItemWidget(w);
+    delete(w);
+    qDebug()<<"Releasing: "<<filename;
+
+    Release r(ui->local_port->text());
+    r.go(filename);
 }
 
 }
