@@ -1016,7 +1016,7 @@ void Database::checkout( const Path_t& rootDir, const Path_t& path )
     {
         int fileId, subscribed;
         sql << boost::format(
-                "SELECT fileId, subscribed FROM files WHERE path='%s'")
+                "SELECT id, subscribed FROM files WHERE path='%s'")
                 % path.string(),
                 soci::into(fileId),
                 soci::into(subscribed);
@@ -1068,7 +1068,7 @@ void Database::release( const Path_t& rootDir, const Path_t& path )
     {
         int fileId, subscribed;
         sql << boost::format(
-                "SELECT fileId, subscribed FROM files WHERE path='%s'")
+                "SELECT id, subscribed FROM files WHERE path='%s'")
                 % path.string(),
                 soci::into(fileId),
                 soci::into(subscribed);
@@ -1086,7 +1086,7 @@ void Database::release( const Path_t& rootDir, const Path_t& path )
 
         // delete the file
         Path_t fullpath = rootDir / path;
-        int result = unlink( fullpath.c_str() );
+        int result = ::unlink( fullpath.c_str() );
         if( result < 0 )
         {
             codedExcept(errno)() << "Failed to unlink file "
@@ -1100,6 +1100,7 @@ void Database::release( const Path_t& rootDir, const Path_t& path )
         report << "Database::checkout(" << path << ") failed:\n"
                << ex.what() << "\n";
         std::cerr << report.str();
+    }
 }
 
 
