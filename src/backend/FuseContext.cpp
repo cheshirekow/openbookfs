@@ -64,7 +64,8 @@ FuseContext::FuseContext(Backend* backend, const std::string& relpath):
 {
     m_backend  = backend;
     m_dataDir  = backend->dataDir();
-    if( relpath.length() > 0 )
+    m_relDir   = relpath;
+    if( relpath.length() > 0 && relpath != "/" )
         m_realRoot = backend->realRoot() / relpath;
     else
         m_realRoot = backend->realRoot();
@@ -912,6 +913,7 @@ int FuseContext::getxattr (const char *path,
         report << "FuseContext::getxattr : intercepted checkout hook for"
                << path <<"\n";
         std::cout << report.str();
+        m_backend->db().checkout( m_relDir / path );
         return 0;
     }
     else if( attr == "obfs:release" )
@@ -920,6 +922,7 @@ int FuseContext::getxattr (const char *path,
         report << "FuseContext::getxattr : intercepted release hook for"
                << path <<"\n";
         std::cout << report.str();
+        m_backend->db().release( m_relDir / path );
         return 0;
     }
     else

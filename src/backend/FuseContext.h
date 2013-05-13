@@ -54,6 +54,7 @@ class FuseContext
     private:
         Backend*    m_backend;
         Path_t      m_dataDir;
+        Path_t      m_relDir;
         Path_t      m_realRoot;
         FileMap     m_openedFiles;
 

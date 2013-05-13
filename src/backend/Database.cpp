@@ -1000,6 +1000,20 @@ bool Database::isSubscribed( const Path_t& path )
     return false;
 }
 
+void Database::checkout( const Path_t& path )
+{
+    std::stringstream report;
+    report << "Database::checkout('" << path << "') stub\n";
+    std::cout << report.str();
+}
+
+void Database::release( const Path_t& path )
+{
+    std::stringstream report;
+    report << "Database::release('" << path << "') stub\n";
+    std::cout << report.str();
+}
+
 
 } //< namespace filesystem
 } //< namespace openbook

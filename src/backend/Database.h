@@ -148,6 +148,10 @@ class Database
 
         bool isSubscribed( const Path_t& path );
 
+        void checkout( const Path_t& path );
+
+        void release( const Path_t& path );
+
 
 };
 
