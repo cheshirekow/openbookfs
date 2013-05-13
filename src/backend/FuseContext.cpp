@@ -39,6 +39,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #include <boost/filesystem.hpp>
 #include <tclap/CmdLine.h>
@@ -447,9 +448,23 @@ int FuseContext::getattr (const char *path, struct stat *out)
     namespace fs = boost::filesystem;
     Path_t wrapped = m_realRoot / path;
 
-    int result = ::lstat( wrapped.c_str(), out );
-    if( result < 0 )
-        return -errno;
+    if( m_backend->db().isSubscribed( m_relDir / path ) )
+    {
+        int result = ::lstat( wrapped.c_str(), out );
+        if( result < 0 )
+            return -errno;
+    }
+    else
+    {
+        out->st_mode  = S_IFREG | S_IRUSER | S_IWUSR;
+        out->st_nlink = 0;
+        out->st_uid   = getuid();
+        out->st_gid   = getgid();
+        out->st_size  = 0;
+        out->st_atime = {0,0};
+        out->st_mtime = {0,0};
+        out->st_ctime = {0,0};
+    }
 
     return result;
 }
