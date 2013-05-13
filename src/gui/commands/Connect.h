@@ -17,15 +17,15 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/clui/commands/StartSync.h
+ *  @file   src/gui/Connect.h
  *
- *  @date   May 5, 2013
+ *  @date   Apr 14, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_FS_CLUI_STARTSYNC_H_
-#define OPENBOOK_FS_CLUI_STARTSYNC_H_
+#ifndef OPENBOOK_FS_GUI_CONNECTOPTIONS_H_
+#define OPENBOOK_FS_GUI_CONNECTOPTIONS_H_
 
 
 #include <tclap/CmdLine.h>
@@ -34,25 +34,33 @@
 
 namespace   openbook {
 namespace filesystem {
-namespace       clui {
+namespace       gui {
 
-class StartSync:
+class Connect:
     public Options
 {
-    TCLAP::UnlabeledValueArg<int> peerId;    ///< peer to sync
-
+    /*
+    TCLAP::SwitchArg                      isLocal;       ///< same host machine
+    TCLAP::UnlabeledValueArg<std::string> remoteNode;    ///< remote address
+    TCLAP::UnlabeledValueArg<std::string> remoteService; ///< remote port
+*/
     public:
         static const std::string COMMAND;
         static const std::string DESCRIPTION;
 
-        StartSync( TCLAP::CmdLine& cmd );
-        void go();
+
+        Connect(QString port);
+        void go(QString remote_port = "3032",QString remote_host = "localhost");
 };
 
 
 
-} //< namespace clui
+} //< namespace gui
 } //< namespace filesystem
 } //< namespace openbook
 
-#endif // STARTSYNC_H_
+
+
+
+
+#endif // CONNECTOPTIONS_H_

@@ -16,27 +16,92 @@ SOURCES += main.cpp\
         mainwindow.cpp \
     localclient.cpp \
     info.cpp \
-    ../../build/src/messages.pb.cc \
+    /home/gabe/Code/build/openbookfs/src/messages.pb.cc \
     connection.cpp \
-    connectiondialog.cpp
+    Options.cpp \
+    commands/StartSync.cpp \
+    commands/SetRemoteSocket.cpp \
+    commands/SetLocalSocket.cpp \
+    commands/SetDisplayName.cpp \
+    commands/SetClientSocket.cpp \
+    commands/SaveConfig.cpp \
+    commands/LoadConfig.cpp \
+    commands/ListMounts.cpp \
+    commands/ListKnownPeers.cpp \
+    commands/Connect.cpp \
+    commands/SetDataDir.cpp \
+    ../TimeVal.cpp \
+    ../TimeSpec.cpp \
+    ../SelectSpec.cpp \
+    ../NotifyPipe.cpp \
+    ../messages.cpp \
+    ../MessageBuffer.cpp \
+    ../Marshall.cpp \
+    ../FileDescriptor.cpp \
+    ../FdSet.cpp \
+    ../base64.cpp \
+    commands/Release.cpp \
+    commands/Checkout.cpp
+
+
 
 HEADERS  += mainwindow.h \
     localclient.h \
     info.h \
-    ../../build/src/messages.pb.h \
+    /home/gabe/Code/build/openbookfs/src/messages.pb.h \
     connection.h \
-    connectiondialog.h
+    Options.h \
+    global.h \
+    commands/UnmountOptions.h \
+    commands/StartSync.h \
+    commands/SetRemoteSocket.h \
+    commands/SetLocalSocket.h \
+    commands/SetDisplayName.h \
+    commands/SetDataDir.h \
+    commands/SetClientSocket.h \
+    commands/SaveConfig.h \
+    commands/MaxConnectionsOptions.h \
+    commands/LoadConfig.h \
+    commands/ListMounts.h \
+    commands/ListKnownPeers.h \
+    commands/Connect.h \
+    ../TimeVal.h \
+    ../TimeSpec.h \
+    ../Synchronized.h \
+    ../SelectSpec.h \
+    ../ReferenceCounted.h \
+    ../Queue.h \
+    ../PriorityQueue.h \
+    ../Pool.h \
+    ../NotifyPipe.h \
+    ../messages.h \
+    ../MessageBuffer.h \
+    ../Marshall.h \
+    ../FileDescriptor.h \
+    ../FdSet.h \
+    ../ExceptionStream.h \
+    ../Bytes.h \
+    ../base64.h \
+    commands/Release.h \
+    commands/Checkout.h
 
 FORMS    += mainwindow.ui \
     localclient.ui
 
 
 INCLUDEPATH += ../ \
-    ../../build/src/ \
+    /home/gabe/Code/build/openbookfs/src/ \
+    /home/gabe/Code/openbookfs/src/ \
     /usr/local/include/ \
     /usr/local/include/google/
 
 
 unix|win32: LIBS += \
     -lcrypto++ \
-    -lprotobuf
+    -lprotobuf \
+    -lboost_system
+
+OTHER_FILES += \
+    ../messages.proto \
+    ../CMakeLists.txt
+

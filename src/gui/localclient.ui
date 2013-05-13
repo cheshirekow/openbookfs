@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>450</width>
-    <height>300</height>
+    <width>790</width>
+    <height>545</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -114,7 +114,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>3031</string>
+    <string>3032</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_6">
@@ -128,32 +128,6 @@
    </property>
    <property name="text">
     <string>Port:</string>
-   </property>
-  </widget>
-  <widget class="QLabel" name="label_7">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>180</y>
-     <width>121</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Max Connections:</string>
-   </property>
-  </widget>
-  <widget class="QLineEdit" name="max_connections">
-   <property name="geometry">
-    <rect>
-     <x>130</x>
-     <y>180</y>
-     <width>41</width>
-     <height>22</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>20</string>
    </property>
   </widget>
   <widget class="QLabel" name="label_8">
@@ -179,13 +153,13 @@
     </rect>
    </property>
   </widget>
-  <widget class="QPushButton" name="pushButton">
+  <widget class="QPushButton" name="data_dir">
    <property name="geometry">
     <rect>
      <x>310</x>
      <y>41</y>
      <width>71</width>
-     <height>31</height>
+     <height>21</height>
     </rect>
    </property>
    <property name="text">
@@ -244,17 +218,125 @@
     <string/>
    </property>
   </widget>
-  <widget class="Info" name="max_connections_i">
+  <widget class="QPushButton" name="submit">
    <property name="geometry">
     <rect>
-     <x>180</x>
-     <y>180</y>
-     <width>21</width>
-     <height>21</height>
+     <x>330</x>
+     <y>510</y>
+     <width>98</width>
+     <height>27</height>
     </rect>
    </property>
    <property name="text">
-    <string/>
+    <string>Update</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_9">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>330</y>
+     <width>111</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Current Peers:</string>
+   </property>
+  </widget>
+  <widget class="QListWidget" name="current_peers">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>350</y>
+     <width>421</width>
+     <height>151</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QListWidget" name="mount_points">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>230</y>
+     <width>421</width>
+     <height>91</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="sync_files">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>510</y>
+     <width>98</width>
+     <height>27</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Sync Files</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_11">
+   <property name="geometry">
+    <rect>
+     <x>460</x>
+     <y>210</y>
+     <width>141</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Checked out files</string>
+   </property>
+  </widget>
+  <widget class="QListWidget" name="checked_out_files">
+   <property name="geometry">
+    <rect>
+     <x>460</x>
+     <y>230</y>
+     <width>321</width>
+     <height>271</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="Line" name="line">
+   <property name="geometry">
+    <rect>
+     <x>430</x>
+     <y>210</y>
+     <width>20</width>
+     <height>321</height>
+    </rect>
+   </property>
+   <property name="orientation">
+    <enum>Qt::Vertical</enum>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="checkout_file">
+   <property name="geometry">
+    <rect>
+     <x>680</x>
+     <y>510</y>
+     <width>98</width>
+     <height>27</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Checkout File</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="release_file">
+   <property name="geometry">
+    <rect>
+     <x>460</x>
+     <y>510</y>
+     <width>98</width>
+     <height>27</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Release File</string>
    </property>
   </widget>
  </widget>

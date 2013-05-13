@@ -7,51 +7,18 @@
     <x>0</x>
     <y>0</y>
     <width>826</width>
-    <height>616</height>
+    <height>671</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralWidget">
-   <widget class="LocalClient" name="client_control" native="true">
-    <property name="geometry">
-     <rect>
-      <x>10</x>
-      <y>10</y>
-      <width>811</width>
-      <height>321</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QTextBrowser" name="textBrowser">
-    <property name="geometry">
-     <rect>
-      <x>560</x>
-      <y>370</y>
-      <width>256</width>
-      <height>192</height>
-     </rect>
-    </property>
-   </widget>
-   <widget class="QLabel" name="label">
-    <property name="geometry">
-     <rect>
-      <x>560</x>
-      <y>350</y>
-      <width>70</width>
-      <height>16</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Log:</string>
-    </property>
-   </widget>
    <widget class="QPushButton" name="connect">
     <property name="geometry">
      <rect>
-      <x>340</x>
-      <y>320</y>
+      <x>10</x>
+      <y>580</y>
       <width>98</width>
       <height>27</height>
      </rect>
@@ -60,6 +27,19 @@
      <string>Connect...</string>
     </property>
    </widget>
+   <widget class="QWidget" name="verticalLayoutWidget">
+    <property name="geometry">
+     <rect>
+      <x>10</x>
+      <y>0</y>
+      <width>811</width>
+      <height>591</height>
+     </rect>
+    </property>
+    <layout class="QVBoxLayout" name="layout"/>
+   </widget>
+   <zorder>verticalLayoutWidget</zorder>
+   <zorder>connect</zorder>
   </widget>
   <widget class="QMenuBar" name="menuBar">
    <property name="geometry">
@@ -100,14 +80,6 @@
   </action>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
- <customwidgets>
-  <customwidget>
-   <class>LocalClient</class>
-   <extends>QWidget</extends>
-   <header>localclient.h</header>
-   <container>1</container>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>

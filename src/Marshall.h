@@ -65,7 +65,7 @@ struct AutoMessage :
         msg(msg)
     {}
 
-    /// construct with dectected type key
+    /// construct with detected type key
     template <typename Message_t>
     AutoMessage( Message_t* msg_in )
     {
@@ -173,7 +173,7 @@ class Marshall
         /// write an encrypted message to a socket, will throw a
         /// MessageException on any problems
         /**
-         *  Does not destroy the message, do the desctruction in the calling
+         *  Does not destroy the message, do the destruction in the calling
          *  method
          */
         void write( RefPtr<AutoMessage> msg, bool encrypted=false );

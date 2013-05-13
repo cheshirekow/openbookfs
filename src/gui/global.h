@@ -24,8 +24,8 @@
  *  @brief  
  */
 
-#ifndef OPENBOOK_FS_GUI_GLOBAL_H_
-#define OPENBOOK_FS_GUI_GLOBAL_H_
+#ifndef OPENBOOK_FS_GLOBAL_H_
+#define OPENBOOK_FS_GLOBAL_H_
 
 
 #include <cpp-pthreads.h>

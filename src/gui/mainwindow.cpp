@@ -6,6 +6,9 @@
 #include <sstream>
 #include <string>
 
+namespace   openbook {
+namespace filesystem {
+namespace       gui {
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -13,9 +16,9 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    ui->client_control->setVisible(false);
 
 
+    connect(ui->connect,SIGNAL(clicked()),this,SLOT(connect_to()));
 
 }
 
@@ -23,5 +26,20 @@ MainWindow::~MainWindow()
 {
     delete ui;
 }
+
+void MainWindow::connect_to()
+{
+
+    ui->connect->setVisible(false);
+
+    localclient = new LocalClient();
+
+    ui->layout->addWidget(localclient);
+}
+
+}
+}
+}
+
 
 

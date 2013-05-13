@@ -17,37 +17,49 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/clui/commands/StartSync.h
+ *  @file   src/clui/commands/Release.cpp
  *
- *  @date   May 5, 2013
+ *  @date   Apr 14, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_FS_CLUI_STARTSYNC_H_
-#define OPENBOOK_FS_CLUI_STARTSYNC_H_
+#include <sys/xattr.h>
+#include <cerrno>
 
+#include "global.h"
+#include "ReferenceCounted.h"
+#include "ExceptionStream.h"
+#include "Release.h"
 
-#include <tclap/CmdLine.h>
-
-#include "Options.h"
+#include <QDebug>
 
 namespace   openbook {
 namespace filesystem {
-namespace       clui {
+namespace       gui {
 
-class StartSync:
-    public Options
+const std::string Release::COMMAND       = "release";
+const std::string Release::DESCRIPTION   = "unsubscribe from a file";
+
+Release::Release(QString port):
+    Options(port)
 {
-    TCLAP::UnlabeledValueArg<int> peerId;    ///< peer to sync
 
-    public:
-        static const std::string COMMAND;
-        static const std::string DESCRIPTION;
+}
 
-        StartSync( TCLAP::CmdLine& cmd );
-        void go();
-};
+void Release::go(QString filename)
+{
+    /*
+    std::stringstream path;
+    path << "./" << file.getValue();
+    */
+    int result = getxattr( filename.toUtf8().constData(), "obfs:release", 0, 0 );
+    if( result < 0 )
+        qDebug()<<"Failed to checkout " << filename;
+
+}
+
+
 
 
 
@@ -55,4 +67,5 @@ class StartSync:
 } //< namespace filesystem
 } //< namespace openbook
 
-#endif // STARTSYNC_H_
+
+

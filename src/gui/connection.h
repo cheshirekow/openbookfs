@@ -1,73 +1,62 @@
-#ifndef CONNECTION_H
-#define CONNECTION_H
+/*
+ *  Copyright (C) 2012 Josh Bialkowski (jbialk@mit.edu)
+ *
+ *  This file is part of openbook.
+ *
+ *  openbook is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 3 of the License, or
+ *  (at your option) any later version.
+ *
+ *  openbook is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
+ */
+/**
+ *  @file   src/gui/connection.h
+ *
+ *  @date   Apr 14, 2013
+ *  @author Josh Bialkowski (jbialk@mit.edu)
+ *  @brief  
+ */
 
-#include <QObject>
-#include <QTcpSocket>
-#include <QByteArray>
-#include <arpa/inet.h>
-#include <sstream>
-#include "messages.pb.h"
+#ifndef OPENBOOK_FS_GUI_CONNECTION_H_
+#define OPENBOOK_FS_GUI_CONNECTION_H_
+
+#include <cerrno>
+#include <dirent.h>
+#include <netdb.h>
+#include <sys/time.h>
+#include <iostream>
+
+#include "Options.h"
+#include "FileDescriptor.h"
+#include "Marshall.h"
+#include "ReferenceCounted.h"
 
 
-class Connection : public QObject
-{
-    Q_OBJECT
-public:
-    explicit Connection(QString hostname, int port, QObject *parent = 0);
-    
-    void setAuthReq();
-
-    void setDisplayName( const QString& name );
+namespace   openbook {
+namespace filesystem {
+namespace       gui {
 
 
-signals:
-    
-public slots:
+typedef RefPtr<FileDescriptor>  FdPtr_t;
+
+/// create a connection to the desired server
+FdPtr_t connectToClient( Options& opts );
+
+/// perform handshake to notify client that we are a ui
+void handshake( Marshall& marshall );
 
 
-private:
+} //< namespace gui
+} //< namespace filesystem
+} //< namespace openbook
 
-    QTcpSocket *socket;
 
-    enum MessageId
-    {
-        MSG_QUIT,
-        MSG_PING,
-        MSG_PONG,
-        MSG_SET_DISPLAY_NAME,
-        MSG_SET_DATA_DIR,
-        MSG_SET_LOCAL_SOCKET,
-        MSG_SET_REMOTE_SOCKET,
-        MSG_SET_CLIENT_SOCKET,
-        MSG_SET_MAX_CONN,
-        MSG_LOAD_CONFIG,
-        MSG_SAVE_CONFIG,
-        MSG_ATTEMPT_CONNECT,
-        MSG_ADD_MOUNT_POINT,
-        MSG_REMOVE_MOUNT_POINT,
-        MSG_UI_REPLY,
-        MSG_GET_BACKEND_INFO,
-        MSG_PEER_LIST,
-        MSG_MOUNT_LIST,
-        MSG_LEADER_ELECT,
-        MSG_DH_PARAMS,
-        MSG_KEY_EXCHANGE,
-        MSG_CEK,
-        MSG_AUTH_REQ,
-        MSG_AUTH_CHALLENGE,
-        MSG_AUTH_SOLN,
-        MSG_AUTH_RESULT,
-        MSG_SUBSCRIBE,
-        MSG_UNSUBSCRIBE,
-        MSG_ID_MAP,
-        MSG_NODE_INFO,
-        MSG_NEW_VERSION,
-        MSG_REQUEST_FILE,
-        MSG_FILE_CHUNK,
-        MSG_DIR_CHUNK,
-        MSG_INVALID,
-        NUM_MSG = MSG_INVALID,
-    };
-};
 
-#endif // CONNECTION_H
+#endif // CONNECTION_H_

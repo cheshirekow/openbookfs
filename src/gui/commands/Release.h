@@ -17,42 +17,41 @@
  *  along with openbook.  If not, see <http://www.gnu.org/licenses/>.
  */
 /**
- *  @file   /home/josh/Codes/cpp/openbookfs/src/clui/commands/StartSync.h
+ *  @file   src/clui/commands/Release.h
  *
- *  @date   May 5, 2013
+ *  @date   Apr 14, 2013
  *  @author Josh Bialkowski (jbialk@mit.edu)
  *  @brief  
  */
 
-#ifndef OPENBOOK_FS_CLUI_STARTSYNC_H_
-#define OPENBOOK_FS_CLUI_STARTSYNC_H_
-
-
-#include <tclap/CmdLine.h>
+#ifndef OPENBOOK_FS_CLUI_RELEASE_H_
+#define OPENBOOK_FS_CLUI_RELEASE_H_
 
 #include "Options.h"
 
 namespace   openbook {
 namespace filesystem {
-namespace       clui {
+namespace       gui {
 
-class StartSync:
+class Release:
     public Options
 {
-    TCLAP::UnlabeledValueArg<int> peerId;    ///< peer to sync
+    //TCLAP::UnlabeledValueArg<std::string> file;    ///< to checkout
 
     public:
         static const std::string COMMAND;
         static const std::string DESCRIPTION;
-
-        StartSync( TCLAP::CmdLine& cmd );
-        void go();
+        Release(QString port);
+        void go(QString filename);
 };
-
 
 
 } //< namespace clui
 } //< namespace filesystem
 } //< namespace openbook
 
-#endif // STARTSYNC_H_
+
+
+
+
+#endif // DISPLAYNAMEOPTIONS_H_
