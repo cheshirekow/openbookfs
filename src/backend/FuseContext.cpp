@@ -448,28 +448,30 @@ int FuseContext::getattr (const char *path, struct stat *out)
     namespace fs = boost::filesystem;
     Path_t wrapped = m_realRoot / path;
 
-    if( m_backend->db().isSubscribed( m_relDir / path ) )
+    int result = ::lstat( wrapped.c_str(), out );
+
+    // if we failed to stat the underlying file, then check to see if the
+    // file is unsubscribed
+    if( result < 0 )
     {
-        int result = ::lstat( wrapped.c_str(), out );
-        if( result < 0 )
+        if( m_backend->db().isSubscribed( m_relDir / path ) )
             return -errno;
+        else
+        {
+            out->st_mode  = S_IFREG | S_IRUSR | S_IWUSR;
+            out->st_nlink = 0;
+            out->st_uid   = getuid();
+            out->st_gid   = getgid();
+            out->st_size  = 0;
+            out->st_atime = 0;
+            out->st_mtime = 0;
+            out->st_ctime = 0;
 
-        return result;
-    }
-    else
-    {
-        out->st_mode  = S_IFREG | S_IRUSR | S_IWUSR;
-        out->st_nlink = 0;
-        out->st_uid   = getuid();
-        out->st_gid   = getgid();
-        out->st_size  = 0;
-        out->st_atime = 0;
-        out->st_mtime = 0;
-        out->st_ctime = 0;
-
-        return 0;
+            return 0;
+        }
     }
 
+    return result;
 }
 
 
