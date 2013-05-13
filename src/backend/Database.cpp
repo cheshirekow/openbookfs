@@ -43,6 +43,37 @@ void Database::init()
     std::cout << "Initializing database" << std::endl;
     session sql(sqlite3,m_dbFile.string());
 
+    // stores a list of all files that we know about
+    sql << "CREATE TABLE IF NOT EXISTS files ("
+            // unique identifier
+            "id     INTEGER PRIMARY KEY AUTOINCREMENT, "
+            // link to parent
+            "parent INTEGER NOT NULL, "
+            // name of the entry
+            "node   TEXT NOT NULL, "
+            // full path of the entry
+            "path   TEXT UNIQUE NOT NULL, "
+            // whether or not it's checked out
+            "subscribed INTEGER NOT NULL, "
+            // parent, node pairs must be unique
+            "UNIQUE (parent,node)"
+            ") ";
+
+    sql << "INSERT OR IGNORE INTO files (parent,node,path,subscribed) "
+            " VALUES(0,'/','/',0) ";
+
+    // stores local version information for each checked out file
+    sql << "CREATE TABLE IF NOT EXISTS version ("
+            // the file it belongs to
+            "file_id    INTEGER NOT NULL, "
+            // version key
+            "peer       INTEGER NOT NULL, "
+            // verstion value
+            "version    INTEGER NOT NULL, "
+            // file_id,peer pairs must be unique
+            "UNIQUE (file_id,peer)"
+            ") ";
+
     // stores a list of files that we are in the progress of receiving, these
     // are either newer files or conflict files
     sql << "CREATE TABLE IF NOT EXISTS downloads ("
@@ -264,7 +295,7 @@ void Database::addDownload( int64_t peer,
             // build the version vector
             VersionVector v_prev;
             for( auto& row : rs )
-                v_prev[ row.get<int64_t>(0) ] = row.get<int64_t>(1);
+                v_prev[ row.get<int>(0) ] = row.get<int>(1);
 
             // if the current download is the not less then the requested
             // download there is nothing left to do
@@ -366,6 +397,7 @@ void Database::addDownload( int64_t peer,
 
 void Database::mergeData( int64_t peer,
                             const Path_t& stageDir,
+                            const Path_t& rootDir,
                             messages::FileChunk* chunk )
 {
     pthreads::ScopedLock lock(m_mutex);
@@ -375,6 +407,8 @@ void Database::mergeData( int64_t peer,
 
     // create sqlite connection
     session sql(soci::sqlite3, m_dbFile.string() );
+
+    Path_t relpath = chunk->path();
 
     // initialize the id map
     try
@@ -409,7 +443,7 @@ void Database::mergeData( int64_t peer,
         int fd = open(fullpath.c_str(), O_WRONLY );
         if( fd < 0 )
         {
-            codedExcept(errno) << "Database::mergeData: Failed to open "
+            codedExcept(errno)() << "Database::mergeData: Failed to open "
                                << fullpath;
         }
 
@@ -417,7 +451,7 @@ void Database::mergeData( int64_t peer,
         if( chunk->offset() != lseek(fd,chunk->offset(),SEEK_SET) )
         {
             close(fd);
-            codedExcept(errno) << "Database::mergeData: Failed to seek to offset "
+            codedExcept(errno)() << "Database::mergeData: Failed to seek to offset "
                                << chunk->offset()
                                << " of file " << fullpath;
         }
@@ -427,7 +461,7 @@ void Database::mergeData( int64_t peer,
         if( bytesWritten < 0 )
         {
             close(fd);
-            codedExcept(errno) << "Database::mergeData: Failed to write to "
+            codedExcept(errno)() << "Database::mergeData: Failed to write to "
                                << fullpath;
         }
 
@@ -436,27 +470,62 @@ void Database::mergeData( int64_t peer,
 
         // update bytes written
         recd += chunk->data().size();
-        if( recd < size )
-        {
-            sql << boost::format(
-                "UPDATE downloads SET recd=%d "
-                    "WHERE path='%s' AND peer=%d" )
-                % recd
-                % chunk->path()
-                % peer;
-        }
-        else
-        {
-            // delete the download if it is complete
-            sql << boost::format(
-                "DELETE FROM downloads WHERE path='%s' AND peer=%d" )
-                % chunk->path()
-                % peer;
+        sql << boost::format(
+            "UPDATE downloads SET recd=%d "
+                "WHERE path='%s' AND peer=%d" )
+            % recd
+            % chunk->path()
+            % peer;
 
-            sql << boost::format(
-                "DELETE FROM downloads_v WHERE path='%s' AND peer=%d" )
-                % chunk->path()
-                % peer;
+        if( recd >= size )
+        {
+            // check to make sure that this file is truly newer
+            VersionVector v_mine;
+            lockless_getVersion( relpath, v_mine );
+
+            // perform the version query
+            rowset<row> rs = ( sql.prepare << boost::format(
+                    "SELECT v_peer,v_version FROM downloads_v "
+                    " WHERE path='%s' AND peer=%d" )
+                    % relpath.string()
+                    % peer );
+
+            std::cout << "Database::mergeData : building version vector\n";
+
+            // build the version vector
+            VersionVector v_theirs;
+            for( auto& row : rs )
+                v_theirs[ row.get<int>(0) ] = row.get<int>(1);
+
+            std::cout << "Database::mergeData : version built\n";
+
+            // if it is truely newer, move the file and delete the
+            // download
+            if( v_mine < v_theirs )
+            {
+                int result = rename( (stageDir/temp).c_str(),
+                                        (rootDir/relpath).c_str() );
+                if( result < 0 )
+                {
+                    codedExcept(errno)() << "Database::mergeData : "
+                            "Failed to rename " << (stageDir/temp)
+                            << " -> " << (rootDir/relpath);
+                }
+
+                // update the version vector
+                lockless_setVersion( relpath, v_theirs );
+
+                // delete the download if it is complete
+                sql << boost::format(
+                    "DELETE FROM downloads WHERE path='%s' AND peer=%d" )
+                    % chunk->path()
+                    % peer;
+
+                sql << boost::format(
+                    "DELETE FROM downloads_v WHERE path='%s' AND peer=%d" )
+                    % chunk->path()
+                    % peer;
+            }
         }
     }
     catch( const std::exception& ex )
@@ -464,6 +533,573 @@ void Database::mergeData( int64_t peer,
         std::cerr << "Database::mergeData failed: "
                   << ex.what()
                   << "\n";
+    }
+}
+
+
+
+void Database::lockless_mknod( const Path_t& path )
+{
+    namespace fs = boost::filesystem;
+
+    // create sqlite connection
+    soci::session sql(soci::sqlite3, m_dbFile.string() );
+
+    try
+    {
+        int64_t parentId = -1;
+        // get the parent path
+        sql << boost::format("SELECT id FROM files WHERE path='%s'")
+                % path.parent_path().string(),
+                soci::into(parentId);
+        if( parentId < 0 )
+        {
+            ex()() << "parent directory " << path.parent_path()
+                   << "does not exist";
+        }
+
+        // create the node
+        sql << boost::format(
+                "INSERT OR IGNORE INTO files (parent,node,path,subscribed) "
+                "VALUES (%d,'%s','%s',1)")
+                % parentId
+                % path.filename().string()
+                % path.string();
+
+        int64_t fileId = -1;
+        sql << boost::format(
+                "SELECT id FROM files where parent=%d AND node='%s'")
+                % parentId
+                % path.filename().string(),
+                soci::into(fileId);
+
+        if( fileId < 0 )
+            ex()() << "file was not entered into database";
+
+        // set the initial version of the file
+        sql << boost::format(
+                "INSERT OR IGNORE INTO version (file_id,peer,version) "
+                "VALUES(%d,0,0)" ) % fileId;
+    }
+    catch( const std::exception& ex )
+    {
+        std::stringstream report;
+        report << "Database::mknod('" << path << "') failed:\n"
+               << ex.what() << "\n";
+        std::cerr << report.str();
+    }
+}
+
+void Database::lockless_unlink( const Path_t& path )
+{
+    namespace fs = boost::filesystem;
+
+    // create sqlite connection
+    soci::session sql(soci::sqlite3, m_dbFile.string() );
+
+    try
+    {
+        // get the fileId
+        int64_t fileId;
+        sql << boost::format("SELECT id FROM files WHERE path='%s'")
+                % path.string(), soci::into(fileId);
+
+        sql << boost::format("UPDATE files SET subscribed=0 WHERE id=%d")
+                % fileId;
+        sql << boost::format("DELETE FROM version WHERE file_id=%d")
+                % fileId;
+    }
+    catch( const std::exception& ex )
+    {
+        std::stringstream report;
+        report << "Database::unlink('" << path << "') failed:\n"
+               << ex.what() << "\n";
+        std::cerr << report.str();
+    }
+}
+
+void Database::lockless_readdir( const Path_t& path,
+                void *buf, fuse_fill_dir_t filler, off_t offset )
+{
+    namespace fs = boost::filesystem;
+
+    // create sqlite connection
+    soci::session sql(soci::sqlite3, m_dbFile.string() );
+
+    try
+    {
+        // get the fileId
+        int64_t fileId;
+        sql << boost::format("SELECT id FROM files WHERE path='%s'")
+                % path.string(), soci::into(fileId);
+
+        // now iterate over all children
+        typedef soci::rowset<std::string> rowset_t;
+        rowset_t rs = (
+            sql.prepare << boost::format(
+                "SELECT node FROM files WHERE parent=%d ORDER BY node LIMIT -1 OFFSET %d" )
+                % fileId
+                % offset );
+
+        for( auto& path : rs )
+        {
+            if( filler(buf,path.c_str(),NULL,++offset) )
+                return;
+        }
+    }
+    catch( const std::exception& ex )
+    {
+        std::stringstream report;
+        report << "Database::readdir('" << path << "', fuse) failed:\n"
+               << ex.what() << "\n";
+        std::cerr << report.str();
+    }
+}
+
+void Database::lockless_readdir( const Path_t& path,
+                messages::DirChunk* msg )
+{
+    namespace fs = boost::filesystem;
+
+    // create sqlite connection
+    soci::session sql(soci::sqlite3, m_dbFile.string() );
+
+    try
+    {
+        // get the fileId
+        int64_t fileId;
+        sql << boost::format("SELECT id FROM files WHERE path='%s'")
+                % path.string(), soci::into(fileId);
+
+        // now iterate over all children
+        typedef soci::rowset<std::string> rowset_t;
+        rowset_t rs = (
+            sql.prepare << boost::format(
+                "SELECT node FROM files WHERE parent=%d ORDER BY node" )
+                % fileId );
+
+        for( auto& path : rs )
+        {
+            messages::DirEntry* entry = msg->add_entries();
+            entry->set_path(path);
+        }
+    }
+    catch( const std::exception& ex )
+    {
+        std::stringstream report;
+        report << "Database::readdir('" << path << "', msg) failed:\n"
+               << ex.what() << "\n";
+        std::cerr << report.str();
+    }
+}
+
+void Database::lockless_readdir( const Path_t& path,
+                std::list<std::string>& listing,
+                bool subscribed )
+{
+    namespace fs = boost::filesystem;
+
+    // create sqlite connection
+    soci::session sql(soci::sqlite3, m_dbFile.string() );
+
+    try
+    {
+        // get the fileId
+        int64_t fileId;
+        sql << boost::format("SELECT id FROM files WHERE path='%s'")
+                % path.string(), soci::into(fileId);
+
+        std::stringstream query;
+        if(subscribed)
+        {
+            query << boost::format(
+                    "SELECT node FROM files "
+                    "WHERE parent=%d AND subscribed=1 "
+                    "ORDER BY node" )
+                    % fileId;
+        }
+        else
+        {
+            query << boost::format(
+                    "SELECT node FROM files "
+                    "WHERE parent=%d "
+                    "ORDER BY node" )
+                    % fileId;
+        }
+
+
+        // now iterate over all children
+        typedef soci::rowset<std::string> rowset_t;
+        rowset_t rs = ( sql.prepare << query.str() );
+
+        for( auto& path : rs )
+            listing.push_back(path);
+    }
+    catch( const std::exception& ex )
+    {
+        std::stringstream report;
+        report << "Database::readdir('" << path << "', msg) failed:\n"
+               << ex.what() << "\n";
+        std::cerr << report.str();
+    }
+}
+
+void Database::lockless_merge( messages::DirChunk* msg )
+{
+    namespace fs = boost::filesystem;
+    using namespace soci;
+
+    // create sqlite connection
+    session sql(soci::sqlite3, m_dbFile.string() );
+
+    try
+    {
+        Path_t parentPath = msg->path();
+
+        // get the fileId
+        int64_t parentId;
+        sql << boost::format("SELECT id FROM files WHERE path='%s'")
+                % msg->path(), soci::into(parentId);
+
+        for(int i=0; i < msg->entries_size(); i++)
+        {
+            const messages::DirEntry& entry = msg->entries(i);
+            sql << boost::format(
+                "INSERT OR IGNORE INTO files (parent,node,path,subscribed) "
+                "VALUES(%d,'%s','%s',0) " )
+                % parentId
+                % entry.path()
+                % (parentPath / entry.path()).string();
+        }
+    }
+    catch( const std::exception& ex )
+    {
+        std::stringstream report;
+        report << "Database::merge(...) failed:\n"
+               << ex.what() << "\n";
+        std::cerr << report.str();
+    }
+}
+
+void Database::lockless_incrementVersion( const Path_t& path )
+{
+    namespace fs = boost::filesystem;
+    using namespace soci;
+
+    // create sqlite connection
+    session sql(soci::sqlite3, m_dbFile.string() );
+
+    try
+    {
+        int64_t fileId;
+        sql << boost::format("SELECT id FROM files WHERE path='%s'")
+                % path.string(), soci::into(fileId);
+
+        sql << boost::format(
+            "UPDATE version SET version=version+1 "
+            "WHERE file_id=%d AND peer=0" ) % fileId;
+    }
+    catch( const std::exception& ex )
+    {
+        std::stringstream report;
+        report << "Database::incrementVersion('" << path << "') failed:\n"
+               << ex.what() << "\n";
+        std::cerr << report.str();
+    }
+}
+
+void Database::lockless_getVersion( const Path_t& path, VersionVector& v )
+{
+    namespace fs = boost::filesystem;
+    using namespace soci;
+
+    // create sqlite connection
+    session sql(soci::sqlite3, m_dbFile.string() );
+
+    try
+    {
+        int64_t fileId;
+        sql << boost::format("SELECT id FROM files WHERE path='%s'")
+                % path.string(), soci::into(fileId);
+
+        typedef soci::rowset<soci::row> rowset_t;
+        rowset_t rowset = (sql.prepare << boost::format(
+                "SELECT peer,version FROM version WHERE file_id=%d" )
+                % fileId );
+
+        for( auto& row : rowset )
+            v[ row.get<int>(0) ] = row.get<int>(1);
+    }
+    catch( const std::exception& ex )
+    {
+        std::stringstream report;
+        report << "Database::getVersion('" << path << "') failed:\n"
+               << ex.what() << "\n";
+        std::cerr << report.str();
+    }
+}
+
+void Database::lockless_setVersion( const Path_t& path, const VersionVector& v )
+{
+    namespace fs = boost::filesystem;
+    using namespace soci;
+
+    // create sqlite connection
+    session sql(soci::sqlite3, m_dbFile.string() );
+
+    try
+    {
+        int64_t fileId;
+        sql << boost::format("SELECT id FROM files WHERE path='%s'")
+                % path.string(), soci::into(fileId);
+
+        for( auto& pair : v )
+        {
+            sql << boost::format(
+                    "INSERT OR REPLACE INTO version (file_id,peer,version) "
+                    "VALUES (%d,%d,%d)")
+                    % fileId
+                    % pair.first
+                    % pair.second;
+        }
+    }
+    catch( const std::exception& ex )
+    {
+        std::stringstream report;
+        report << "Database::setVersion('" << path << "') failed:\n"
+               << ex.what() << "\n";
+        std::cerr << report.str();
+    }
+}
+
+void Database::lockless_assimilateKeys( const Path_t& path, const VersionVector& v)
+{
+    namespace fs = boost::filesystem;
+    using namespace soci;
+
+    // create sqlite connection
+    session sql(soci::sqlite3, m_dbFile.string() );
+
+    try
+    {
+        int64_t fileId;
+        sql << boost::format("SELECT id FROM files WHERE path='%s'")
+                % path.string(), soci::into(fileId);
+
+        for( auto& pair : v )
+        {
+            sql << boost::format(
+                    "INSERT OR IGNORE INTO version (file_id,peer,version) "
+                    "VALUES (%d,%d,%d)")
+                    % fileId
+                    % pair.first
+                    % 0;
+        }
+    }
+    catch( const std::exception& ex )
+    {
+        std::stringstream report;
+        report << "Database::assimilateKeys('" << path << "') failed:\n"
+               << ex.what() << "\n";
+        std::cerr << report.str();
+    }
+}
+
+
+void Database::mknod( const Path_t& path )
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_mknod(path);
+}
+
+void Database::unlink( const Path_t& path )
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_unlink(path);
+}
+
+void Database::readdir( const Path_t& path,
+                void *buf, fuse_fill_dir_t filler, off_t offset )
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_readdir(path,buf,filler,offset);
+}
+
+void Database::readdir( const Path_t& path,
+                messages::DirChunk* msg )
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_readdir(path,msg);
+}
+
+void Database::readdir( const Path_t& path,
+                std::list<std::string>& listing,
+                bool subscribed )
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_readdir(path,listing,subscribed);
+}
+
+void Database::merge( messages::DirChunk* msg )
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_merge(msg);
+}
+
+void Database::incrementVersion( const Path_t& path )
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_incrementVersion(path);
+}
+
+void Database::getVersion( const Path_t& path, VersionVector& v )
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_getVersion(path,v);
+}
+
+void Database::setVersion( const Path_t& path, const VersionVector& v )
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_setVersion(path,v);
+}
+
+void Database::assimilateKeys( const Path_t& path, const VersionVector& v)
+{
+    pthreads::ScopedLock lock(m_mutex);
+    lockless_assimilateKeys(path,v);
+}
+
+bool Database::isSubscribed( const Path_t& path )
+{
+    pthreads::ScopedLock lock(m_mutex);
+
+    namespace fs = boost::filesystem;
+    using namespace soci;
+
+    // create sqlite connection
+    session sql(soci::sqlite3, m_dbFile.string() );
+
+    try
+    {
+        int subscribed;
+        sql << boost::format("SELECT subscribed FROM files WHERE path='%s'")
+                % path.string(), soci::into(subscribed);
+
+        if(subscribed)
+            return true;
+    }
+    catch( const std::exception& ex )
+    {
+        std::stringstream report;
+        report << "Database::isSubscribed('" << path << "') failed:\n"
+               << ex.what() << "\n";
+        std::cerr << report.str();
+    }
+
+    return false;
+}
+
+void Database::checkout( const Path_t& rootDir, const Path_t& path )
+{
+    std::stringstream report;
+    report << "Database::checkout('" << path << "') \n";
+    std::cout << report.str();
+
+    pthreads::ScopedLock lock(m_mutex);
+    namespace fs = boost::filesystem;
+
+    // create sqlite connection
+    soci::session sql(soci::sqlite3, m_dbFile.string() );
+
+    try
+    {
+        int fileId, subscribed;
+        sql << boost::format(
+                "SELECT id, subscribed FROM files WHERE path='%s'")
+                % path.string(),
+                soci::into(fileId),
+                soci::into(subscribed);
+
+        if(subscribed)
+            ex()() << "Already subscribed\n";
+
+        // set the file as subscribed
+        sql << boost::format("UPDATE files SET subscribed=1 WHERE id=%d")
+                % fileId;
+
+        // initialize the version to zero
+        sql << boost::format(
+                "INSERT INTO version (file_id,peer,version) "
+                "VALUES (%d,0,0)") % fileId;
+
+        // create an empty regular file
+        Path_t fullpath = rootDir / path;
+        int result = creat( fullpath.c_str(), S_IRUSR | S_IWUSR );
+        if( result < 0 )
+        {
+            codedExcept(errno)() << "Failed to create file "
+                                 << fullpath;
+        }
+
+    }
+    catch( const std::exception& ex )
+    {
+        std::stringstream report;
+        report << "Database::checkout(" << path << ") failed:\n"
+               << ex.what() << "\n";
+        std::cerr << report.str();
+    }
+}
+
+void Database::release( const Path_t& rootDir, const Path_t& path )
+{
+    std::stringstream report;
+    report << "Database::release('" << path << "') \n";
+    std::cout << report.str();
+
+    pthreads::ScopedLock lock(m_mutex);
+    namespace fs = boost::filesystem;
+
+    // create sqlite connection
+    soci::session sql(soci::sqlite3, m_dbFile.string() );
+
+    try
+    {
+        int fileId, subscribed;
+        sql << boost::format(
+                "SELECT id, subscribed FROM files WHERE path='%s'")
+                % path.string(),
+                soci::into(fileId),
+                soci::into(subscribed);
+
+        if(!subscribed)
+            ex()() << "Not subscribed\n";
+
+        // set the file as subscribed
+        sql << boost::format("UPDATE files SET subscribed=0 WHERE id=%d")
+                % fileId;
+
+        // delete version vector
+        sql << boost::format(
+                "DELETE FROM version WHERE file_id=%d" ) % fileId;
+
+        // delete the file
+        Path_t fullpath = rootDir / path;
+        int result = ::unlink( fullpath.c_str() );
+        if( result < 0 )
+        {
+            codedExcept(errno)() << "Failed to unlink file "
+                                 << fullpath;
+        }
+
+    }
+    catch( const std::exception& ex )
+    {
+        std::stringstream report;
+        report << "Database::checkout(" << path << ") failed:\n"
+               << ex.what() << "\n";
+        std::cerr << report.str();
     }
 }
 

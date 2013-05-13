@@ -29,7 +29,6 @@
 #include "SendFile.h"
 #include "Backend.h"
 #include "messages.h"
-#include "MetaFile.h"
 
 
 
@@ -58,7 +57,7 @@ void SendFile::go()
     {
         // get the version of the file
         VersionVector v_curr;
-        MetaFile( fullpath ).getVersion(fullpath.filename().string(),v_curr);
+        m_backend->db().getVersion( m_path, v_curr );
 
         // if the version has changed then abort the send
         if( v_curr != m_version )

@@ -63,10 +63,12 @@ if( (Boost_FOUND)
                     ../SelectSpec.cpp
                     ../TimeVal.cpp
                     ${MESSAGES_PB_CC}
+                    commands/Checkout.cpp
                     commands/Connect.cpp
                     commands/ListKnownPeers.cpp
                     commands/ListMounts.cpp
                     commands/LoadConfig.cpp
+                    commands/Release.cpp
                     commands/SaveConfig.cpp
                     commands/SetClientSocket.cpp
                     commands/SetDisplayName.cpp

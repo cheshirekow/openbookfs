@@ -135,6 +135,11 @@ message StartSync {
     optional int32   peerId = 1; //< the peer to synchronize with 
 }
 
+// tells the backend to synchronized with one of it's peers
+message SendTree {
+    optional int32  dummy = 1;
+}
+
 
 
 // ----------------------------------------------------------------------------

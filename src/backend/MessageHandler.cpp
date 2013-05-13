@@ -30,7 +30,6 @@
 #include "Backend.h"
 #include "MessageHandler.h"
 #include "Marshall.h"
-#include "MetaFile.h"
 #include "VersionVector.h"
 #include "jobs/PingJob.h"
 #include "jobs/SendTree.h"
@@ -104,6 +103,8 @@ void MessageHandler::mapVersion( const VersionVector& v_in, VersionVector& v_out
                     % m_peerMap[pair.first]
                     % pair.second;
     }
+    if( v_out.find(0) == v_out.end() )
+        v_out[0] = 0;
     std::cout << report.str();
 }
 
@@ -364,6 +365,10 @@ void MessageHandler::handleMessage( messages::StartSync* msg )
     jobs::SendTree* job = new jobs::SendTree(m_backend,msg->peerid());
     m_backend->jobs()->enqueue(job);
 
+    messages::SendTree* peerMsg = new messages::SendTree();
+    peerMsg->set_dummy(5);
+    m_backend->sendMessage(msg->peerid(),peerMsg,PRIO_NOW);
+
     messages::UserInterfaceReply* reply =
             new messages::UserInterfaceReply();
     reply->set_ok(true);
@@ -371,6 +376,13 @@ void MessageHandler::handleMessage( messages::StartSync* msg )
     strm << "Sync not really implemented but OK";
     reply->set_msg( strm.str() );
     m_outboundQueue->insert( new AutoMessage(reply) );
+}
+
+void MessageHandler::handleMessage( messages::SendTree* msg )
+{
+    std::cout << "Handling send tree message\n";
+    jobs::SendTree* job = new jobs::SendTree(m_backend,m_peerId);
+    m_backend->jobs()->enqueue(job);
 }
 
 void MessageHandler::handleMessage( messages::Quit* msg )
@@ -438,7 +450,13 @@ void MessageHandler::handleMessage( messages::NodeInfo* msg )
     {
         // decompose the path into a directory and file part
         fs::path root    = m_backend->realRoot();
-        fs::path relpath = msg->path();
+        fs::path relpath = fs::path(msg->parent()) / msg->path();
+        if( msg->parent() == "/" )
+            relpath = "/" + msg->path();
+
+        // check if we are subscribed
+        if( !m_backend->db().isSubscribed(relpath) )
+            ex()() << "Not subscribed to " << relpath;
 
         // create a version vector from the message
         VersionVector v_recv;
@@ -452,16 +470,13 @@ void MessageHandler::handleMessage( messages::NodeInfo* msg )
         VersionVector v_theirs;
         mapVersion( v_recv, v_theirs );
 
-        // get the metadata file for this path
-        MetaFile meta(root / relpath);
-
         // assimilate version keys so that future file changes notify
         // connected peers
-        meta.assimilateKeys( relpath.filename().string(), v_theirs );
+        m_backend->db().assimilateKeys( relpath, v_theirs );
 
         // retrieve my version
         VersionVector v_mine;
-        meta.getVersion(relpath.filename().string(),v_mine);
+        m_backend->db().getVersion( relpath, v_mine );
 
         // compare version vectors, if their version is strictly newer then
         // we register it for download
@@ -562,8 +577,7 @@ void MessageHandler::handleMessage( messages::DirChunk* msg )
     {
         if( !fs::exists(dir) )
             fs::create_directories(dir);
-        MetaFile meta(dir);
-        meta.merge(msg);
+        m_backend->db().merge( msg );
     }
     catch( const std::exception& ex )
     {

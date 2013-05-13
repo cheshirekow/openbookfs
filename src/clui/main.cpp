@@ -45,12 +45,14 @@
 
 #include "connection.h"
 #include "Options.h"
+#include "commands/Checkout.h"
 #include "commands/Connect.h"
 #include "commands/SaveConfig.h"
 #include "commands/SetClientSocket.h"
 #include "commands/SetDataDir.h"
 #include "commands/SetDisplayName.h"
 #include "commands/SetLocalSocket.h"
+#include "commands/Release.h"
 #include "commands/ListKnownPeers.h"
 #include "commands/ListMounts.h"
 #include "commands/LoadConfig.h"
@@ -230,7 +232,9 @@ struct DispatchList<TFirst,TRest...>
 typedef DispatchList< Connect, 
                       LoadConfig,
                       SaveConfig,
-                      StartSync>       SingleCommands;
+                      StartSync,
+                      Checkout,
+                      Release>          SingleCommands;
 
 typedef DispatchList< ListKnownPeers,
                       ListMounts >      ListCommands;

@@ -109,6 +109,30 @@ bool VersionVector::operator>=( const VersionVector& other ) const
 }
 
 
+bool VersionVector::operator==( const VersionVector& other ) const
+{
+    // build a set of all keys in both vectors
+    set_t   keys;
+    keyUnion(keys,other);
+
+    for( auto& key : keys )
+    {
+        int64_t v1 = (*this)[key];
+        int64_t v2 = other[key];
+        if( v1 != v2 )
+            return false;
+    }
+
+    return true;
+}
+
+bool VersionVector::operator!=( const VersionVector& other ) const
+{
+    bool equal = (*this == other);
+    return !equal;
+}
+
+
 std::ostream& operator<<( std::ostream& out, const VersionVector& v )
 {
     out << "[ ";
