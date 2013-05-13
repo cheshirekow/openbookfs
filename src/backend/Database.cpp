@@ -1000,18 +1000,106 @@ bool Database::isSubscribed( const Path_t& path )
     return false;
 }
 
-void Database::checkout( const Path_t& path )
+void Database::checkout( const Path_t& rootDir, const Path_t& path )
 {
     std::stringstream report;
-    report << "Database::checkout('" << path << "') stub\n";
+    report << "Database::checkout('" << path << "') \n";
     std::cout << report.str();
+
+    pthreads::ScopedLock lock(m_mutex);
+    namespace fs = boost::filesystem;
+
+    // create sqlite connection
+    soci::session sql(soci::sqlite3, m_dbFile.string() );
+
+    try
+    {
+        int fileId, subscribed;
+        sql << boost::format(
+                "SELECT fileId, subscribed FROM files WHERE path='%s'")
+                % path.string(),
+                soci::into(fileId),
+                soci::into(subscribed);
+
+        if(subscribed)
+            ex()() << "Already subscribed\n";
+
+        // set the file as subscribed
+        sql << boost::format("UPDATE files SET subscribed=1 WHERE id=%d")
+                % fileId;
+
+        // initialize the version to zero
+        sql << boost::format(
+                "INSERT INTO version (file_id,peer,version) "
+                "VALUES (%d,0,0)") % fileId;
+
+        // create an empty regular file
+        Path_t fullpath = rootDir / path;
+        int result = creat( fullpath.c_str(), S_IRUSR | S_IWUSR );
+        if( result < 0 )
+        {
+            codedExcept(errno)() << "Failed to create file "
+                                 << fullpath;
+        }
+
+    }
+    catch( const std::exception& ex )
+    {
+        std::stringstream report;
+        report << "Database::checkout(" << path << ") failed:\n"
+               << ex.what() << "\n";
+        std::cerr << report.str();
+    }
 }
 
-void Database::release( const Path_t& path )
+void Database::release( const Path_t& rootDir, const Path_t& path )
 {
     std::stringstream report;
-    report << "Database::release('" << path << "') stub\n";
+    report << "Database::release('" << path << "') \n";
     std::cout << report.str();
+
+    pthreads::ScopedLock lock(m_mutex);
+    namespace fs = boost::filesystem;
+
+    // create sqlite connection
+    soci::session sql(soci::sqlite3, m_dbFile.string() );
+
+    try
+    {
+        int fileId, subscribed;
+        sql << boost::format(
+                "SELECT fileId, subscribed FROM files WHERE path='%s'")
+                % path.string(),
+                soci::into(fileId),
+                soci::into(subscribed);
+
+        if(!subscribed)
+            ex()() << "Not subscribed\n";
+
+        // set the file as subscribed
+        sql << boost::format("UPDATE files SET subscribed=0 WHERE id=%d")
+                % fileId;
+
+        // delete version vector
+        sql << boost::format(
+                "DELETE FROM version WHERE file_id=%d" ) % fileId;
+
+        // delete the file
+        Path_t fullpath = rootDir / path;
+        int result = unlink( fullpath.c_str() );
+        if( result < 0 )
+        {
+            codedExcept(errno)() << "Failed to unlink file "
+                                 << fullpath;
+        }
+
+    }
+    catch( const std::exception& ex )
+    {
+        std::stringstream report;
+        report << "Database::checkout(" << path << ") failed:\n"
+               << ex.what() << "\n";
+        std::cerr << report.str();
 }
 
 

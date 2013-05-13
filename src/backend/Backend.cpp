@@ -269,6 +269,15 @@ void Backend::mergeData( int64_t peer, messages::FileChunk* chunk )
     m_db.mergeData( peer, m_stageDir, m_rootDir, chunk );
 }
 
+void Backend::checkout( const Path_t& path )
+{
+    m_db.checkout(m_rootDir,path);
+}
+
+void Backend::release( const Path_t& path )
+{
+    m_db.release(m_rootDir,path);
+}
 
 void Backend::setDisplayName( const std::string& name )
 {

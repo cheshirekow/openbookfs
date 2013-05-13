@@ -186,6 +186,10 @@ class Backend
 
         Database& db(){ return m_db; };
 
+        void checkout( const Path_t& path );
+
+        void release( const Path_t& path );
+
 
 
 
