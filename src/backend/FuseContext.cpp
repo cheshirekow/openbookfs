@@ -906,13 +906,32 @@ int FuseContext::getxattr (const char *path,
                             size_t bufsize)
 {
     std::string attr(key);
+    if( attr == "obfs:checkout" )
+    {
+        std::stringstream report;
+        report << "FuseContext::getxattr : intercepted checkout hook for"
+               << path <<"\n";
+        std::cout << report.str();
+        return 0;
+    }
+    else if( attr == "obfs:release" )
+    {
+        std::stringstream report;
+        report << "FuseContext::getxattr : intercepted release hook for"
+               << path <<"\n";
+        std::cout << report.str();
+        return 0;
+    }
+    else
+    {
+        Path_t wrapped = m_realRoot / path;
+        int result = ::getxattr( wrapped.c_str(), key, value, bufsize );
+        if( result < 0 )
+            return -errno;
 
-    Path_t wrapped = m_realRoot / path;
-    int result = ::getxattr( wrapped.c_str(), key, value, bufsize );
-    if( result < 0 )
-        return -errno;
+        return result;
+    }
 
-    return result;
 }
 
 
