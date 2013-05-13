@@ -184,6 +184,12 @@ class Backend
 
         void mergeData( int64_t peer, messages::FileChunk* chunk );
 
+        Database& db(){ return m_db; };
+
+        void checkout( const Path_t& path );
+
+        void release( const Path_t& path );
+
 
 
 

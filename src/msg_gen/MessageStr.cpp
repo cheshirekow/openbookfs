@@ -65,6 +65,7 @@ const char* g_msgIdStr[] =
     "UNSUBSCRIBE",
     "ID_MAP",
     "NODE_INFO",
+    "SEND_TREE",
     "SEND_FILE",
     "NEW_VERSION",
     "REQUEST_FILE",

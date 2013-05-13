@@ -36,6 +36,9 @@ namespace   openbook {
 namespace filesystem {
 namespace       clui {
 
+const std::string SetDisplayName::COMMAND       = "displayName";
+const std::string SetDisplayName::DESCRIPTION   = "human readable machine name";
+
 SetDisplayName::SetDisplayName( TCLAP::CmdLine& cmd ):
     Options(cmd),
     displayName(
@@ -82,8 +85,7 @@ void SetDisplayName::go()
 }
 
 
-const std::string SetDisplayName::COMMAND       = "displayName";
-const std::string SetDisplayName::DESCRIPTION   = "human readable machine name";
+
 
 
 } //< namespace clui

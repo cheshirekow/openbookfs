@@ -39,13 +39,13 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #include <boost/filesystem.hpp>
 #include <tclap/CmdLine.h>
 
 #include "Backend.h"
 #include "FuseContext.h"
-#include "MetaFile.h"
 
 namespace   openbook {
 namespace filesystem {
@@ -60,11 +60,13 @@ int FuseContext::result_or_errno(int result)
         return result;
 }
 
-FuseContext::FuseContext(Backend* backend, const std::string& relpath)
+FuseContext::FuseContext(Backend* backend, const std::string& relpath):
+    m_openedFiles(backend)
 {
     m_backend  = backend;
     m_dataDir  = backend->dataDir();
-    if( relpath.length() > 0 )
+    m_relDir   = relpath;
+    if( relpath.length() > 0 && relpath != "/" )
         m_realRoot = backend->realRoot() / relpath;
     else
         m_realRoot = backend->realRoot();
@@ -107,8 +109,7 @@ int FuseContext::mknod (const char *path, mode_t mode, dev_t dev)
     {
         mode_t modeMask = 0777;
         mode_t typeMask = ~modeMask;
-        MetaFile parentMeta( parent );
-        parentMeta.mknod( filename.string() );//, mode & typeMask, mode & modeMask );
+        m_backend->db().mknod( Path_t(path) );
     }
     catch( const std::exception& ex )
     {
@@ -151,10 +152,9 @@ int FuseContext::create (const char *path,
     try
     {
         // add an entry to the directory listing
-        MetaFile meta( parent );
-        meta.mknod( filename.string() );//, S_IFREG, mode );
+        m_backend->db().mknod( Path_t(path) );
 
-        my_fd   = m_openedFiles.registerFile(wrapped,os_fd);
+        my_fd   = m_openedFiles.registerFile( Path_t(path) ,os_fd);
         result  = 0;
     }
     catch( const std::exception& ex )
@@ -209,7 +209,7 @@ int FuseContext::open (const char *path, struct fuse_file_info *fi)
     int my_fd = -1;
     try
     {
-        my_fd   = m_openedFiles.registerFile(wrapped,os_fd);
+        my_fd   = m_openedFiles.registerFile( Path_t(path) ,os_fd);
         result  = 0;
     }
     catch( const std::exception& ex )
@@ -332,8 +332,7 @@ int FuseContext::write (const char *path,
             return -errno;
 
         // increment the version
-        MetaFile meta( wrapped.parent_path() );
-        meta.incrementVersion(wrapped.filename().string());
+        m_backend->db().incrementVersion( Path_t(path) );
 
         return result;
     }
@@ -351,8 +350,7 @@ int FuseContext::truncate (const char *path, off_t length)
         return -errno;
 
     // update metadata
-    MetaFile meta( wrapped.parent_path() );
-    meta.incrementVersion( wrapped.filename().string() );
+    m_backend->db().incrementVersion( Path_t(path) );
 
     return result;
 }
@@ -451,8 +449,27 @@ int FuseContext::getattr (const char *path, struct stat *out)
     Path_t wrapped = m_realRoot / path;
 
     int result = ::lstat( wrapped.c_str(), out );
+
+    // if we failed to stat the underlying file, then check to see if the
+    // file is unsubscribed
     if( result < 0 )
-        return -errno;
+    {
+        if( m_backend->db().isSubscribed( m_relDir / path ) )
+            return -errno;
+        else
+        {
+            out->st_mode  = S_IFREG | S_IRUSR | S_IWUSR;
+            out->st_nlink = 0;
+            out->st_uid   = getuid();
+            out->st_gid   = getgid();
+            out->st_size  = 0;
+            out->st_atime = 0;
+            out->st_mtime = 0;
+            out->st_ctime = 0;
+
+            return 0;
+        }
+    }
 
     return result;
 }
@@ -508,8 +525,7 @@ int FuseContext::unlink (const char *path)
     // remove the entry from the parent
     try
     {
-        MetaFile parentMeta( parent );
-        parentMeta.unlink( filename.string() );
+        m_backend->db().unlink( Path_t(path) );
     }
     catch( const std::exception& ex )
     {
@@ -543,9 +559,7 @@ int FuseContext::mkdir (const char *path, mode_t mode)
 
     try
     {
-        // add an entry to the directory listing
-        MetaFile parentMeta( parent );
-        parentMeta.mknod( filename.string() );//, S_IFDIR, mode );
+        m_backend->db().mknod( Path_t(path) );
     }
     catch( const std::exception& ex )
     {
@@ -562,22 +576,6 @@ int FuseContext::mkdir (const char *path, mode_t mode)
     if( result )
         return -errno;
 
-    try
-    {
-        // create the new meta file
-        MetaFile meta( wrapped );
-        meta.init();
-    }
-    catch( const std::exception& ex )
-    {
-        std::cerr << "FuseContext::mkdir: "
-              << "\n path: " << path
-              << "\n real: " << wrapped
-              << "\n  err: " << ex.what()
-              << "\n";
-        return -EINVAL;
-    }
-
     return 0;
 }
 
@@ -589,7 +587,7 @@ int FuseContext::opendir (const char *path, struct fuse_file_info *fi)
     Path_t wrapped = m_realRoot / path;
     try
     {
-        int fd = m_openedFiles.registerFile( wrapped, -1 );
+        int fd = m_openedFiles.registerFile( Path_t(path), -1 );
         fi->fh = fd;
     }
     catch( const std::exception& ex )
@@ -631,10 +629,9 @@ int FuseContext::readdir (const char *path,
             return -EBADF;
     }
     else
-        file = FileContext::create(wrapped,-1);
+        file = FileContext::create(m_backend,Path_t(path),-1);
 
-    file->meta().readdir(buf,filler,offset);
-
+    m_backend->db().readdir( Path_t(path), buf, filler, offset );
     return 0;
 }
 
@@ -687,8 +684,7 @@ int FuseContext::rmdir (const char *path)
     try
     {
         // remove the entry from the parent
-        MetaFile parentMeta( parent );
-        parentMeta.unlink( filename.string() );
+        m_backend->db().unlink( Path_t(path) );
     }
     catch( const std::exception& ex )
     {
@@ -762,11 +758,8 @@ int FuseContext::rename (const char *oldpath, const char *newpath)
         if( result < 0 )
             return -errno;
 
-        MetaFile(newwrap.parent_path())
-            .incrementVersion( newwrap.filename().string() );
-
-        MetaFile(oldwrap.parent_path())
-            .unlink( oldwrap.filename().string() );
+        m_backend->db().incrementVersion( Path_t(newpath) );
+        m_backend->db().unlink( Path_t(oldpath) );
 
         return result;
     }
@@ -776,11 +769,8 @@ int FuseContext::rename (const char *oldpath, const char *newpath)
         if( result < 0 )
             return -errno;
 
-        MetaFile(newwrap.parent_path())
-            .mknod( newwrap.filename().string() );
-
-        MetaFile(oldwrap.parent_path())
-            .unlink( oldwrap.filename().string() );
+        m_backend->db().mknod( Path_t(newpath) );
+        m_backend->db().unlink( Path_t(oldpath) );
 
         return result;
     }
@@ -936,12 +926,35 @@ int FuseContext::getxattr (const char *path,
                             char *value,
                             size_t bufsize)
 {
-    Path_t wrapped = m_realRoot / path;
-    int result = ::getxattr( wrapped.c_str(), key, value, bufsize );
-    if( result < 0 )
-        return -errno;
+    std::string attr(key);
+    if( attr == "obfs:checkout" )
+    {
+        std::stringstream report;
+        report << "FuseContext::getxattr : intercepted checkout hook for"
+               << path <<"\n";
+        std::cout << report.str();
+        m_backend->checkout( m_relDir / path );
+        return 0;
+    }
+    else if( attr == "obfs:release" )
+    {
+        std::stringstream report;
+        report << "FuseContext::getxattr : intercepted release hook for"
+               << path <<"\n";
+        std::cout << report.str();
+        m_backend->release( m_relDir / path );
+        return 0;
+    }
+    else
+    {
+        Path_t wrapped = m_realRoot / path;
+        int result = ::getxattr( wrapped.c_str(), key, value, bufsize );
+        if( result < 0 )
+            return -errno;
 
-    return result;
+        return result;
+    }
+
 }
 
 

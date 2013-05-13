@@ -31,12 +31,13 @@
 #include <boost/filesystem.hpp>
 #include <cpp-pthreads.h>
 
-#include "MetaFile.h"
 #include "ReferenceCounted.h"
 
 
 namespace   openbook {
 namespace filesystem {
+
+class Backend;
 
 /// information about an opened file
 class FileContext:
@@ -46,21 +47,21 @@ class FileContext:
         typedef boost::filesystem::path Path_t;
 
     private:
+        Backend*    m_backend;
+        Path_t      m_path;
         int         m_fd;       ///< os file descriptor
-        MetaFile    m_meta;     ///< sqlite session for meta data
         bool        m_changed;  ///< set to true if there is a write
 
         /// create a file context for file-descriptor based operations
-        FileContext( const Path_t& path, int fd );
+        FileContext( Backend* backend, const Path_t& path, int fd );
 
     public:
         /// closes the file, increments parent directory meta data if changed
         ~FileContext();
         int       fd()  { return m_fd; }
-        MetaFile& meta(){ return m_meta; }
         void      mark(){ m_changed = true; }
 
-        static RefPtr<FileContext> create( const Path_t& path, int fd );
+        static RefPtr<FileContext> create( Backend* backend, const Path_t& path, int fd );
 };
 
 /// maps file descriptors to FileContext structures
@@ -77,12 +78,13 @@ class FileMap
         typedef std::vector<int>            IdxVec_t;
 
     private:
+        Backend*        m_backend;
         pthreads::Mutex m_mutex;
         FileVec_t       m_fileVec;      ///< pointers to allocated FileContexts
         IdxVec_t        m_freeStore;    ///< list of unused file descriptors
 
     public:
-        FileMap( int size = 100 );
+        FileMap( Backend* backend, int size = 100 );
         ~FileMap();
 
         /// retrieve a FileContext from it's file descriptor

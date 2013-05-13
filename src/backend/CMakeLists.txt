@@ -67,7 +67,6 @@ if( (FUSE_FOUND)
                     FuseContext.cpp
                     LongJob.cpp
                     MessageHandler.cpp
-                    MetaFile.cpp
                     MountPoint.cpp
                     SocketListener.cpp
                     VersionVector.cpp

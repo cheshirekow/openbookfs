@@ -60,6 +60,12 @@ class VersionVector:
 
         /// for ordering of version vectors
         bool operator>=( const VersionVector& other ) const;
+
+        /// equality comparison with missing elements set to zero
+        bool operator==( const VersionVector& other ) const;
+
+        /// equality comparison with missing elements set to zero
+        bool operator!=( const VersionVector& other ) const;
 };
 
 std::ostream& operator<<( std::ostream& out, const VersionVector& v );

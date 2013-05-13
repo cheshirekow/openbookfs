@@ -108,8 +108,10 @@ AutoMessage::~AutoMessage()
 
 Marshall::Marshall()
 {
-    m_cipher.reserve(BUFSIZE);
-    m_plain.reserve(BUFSIZE);
+    m_cipherR.reserve(BUFSIZE);
+    m_plainR.reserve(BUFSIZE);
+    m_cipherW.reserve(BUFSIZE);
+    m_plainW.reserve(BUFSIZE);
 }
 
 
@@ -194,7 +196,7 @@ void Marshall::readSize()
 
     std::cout << "Receiving message of size " << size << " bytes "
               << std::endl;
-    m_cipher.resize(size);
+    m_cipherR.resize(size);
 }
 
 void Marshall::readData(  )
@@ -208,8 +210,8 @@ void Marshall::readData(  )
 
     int     received;              //< result of recv
     int     bytes_received =0;     //< total read so far
-    int     size           = m_cipher.size();  //< total to read
-    char*   buf            = &m_cipher[0];     //< write head
+    int     size           = m_cipherR.size();  //< total to read
+    char*   buf            = &m_cipherR[0];     //< write head
 
     // now we can read in the rest of the message
     // since we know it's length
@@ -250,11 +252,11 @@ void Marshall::readData(  )
 void Marshall::decrypt()
 {
     // decrypt the message
-    m_plain.clear();
-    CryptoPP::StringSource( m_cipher, true,
+    m_plainR.clear();
+    CryptoPP::StringSource( m_cipherR, true,
         new CryptoPP::AuthenticatedDecryptionFilter(
             m_dec,
-            new CryptoPP::StringSink( m_plain )
+            new CryptoPP::StringSink( m_plainR )
         )
     );
 
@@ -281,7 +283,7 @@ RefPtr<AutoMessage> Marshall::readEnc(  )
     readSize();
     readData();
     decrypt();
-    return deserialize( m_plain );
+    return deserialize( m_plainR );
 }
 
 RefPtr<AutoMessage> Marshall::read( bool encrypted  )
@@ -291,10 +293,10 @@ RefPtr<AutoMessage> Marshall::read( bool encrypted  )
     if( encrypted )
     {
         decrypt();
-        return deserialize( m_plain );
+        return deserialize( m_plainR );
     }
     else
-        return deserialize( m_cipher );
+        return deserialize( m_cipherR );
 }
 
 void Marshall::serialize( RefPtr<AutoMessage> msg, std::string& data )
@@ -318,11 +320,11 @@ void Marshall::serialize( RefPtr<AutoMessage> msg, std::string& data )
 void Marshall::encrypt()
 {
     // encrypt the message
-    m_cipher.clear();
-    CryptoPP::StringSource( m_plain, true,
+    m_cipherW.clear();
+    CryptoPP::StringSource( m_plainW, true,
         new CryptoPP::AuthenticatedEncryptionFilter(
             m_enc,
-            new CryptoPP::StringSink( m_cipher )
+            new CryptoPP::StringSink( m_cipherW )
         )
     );
 
@@ -330,9 +332,9 @@ void Marshall::encrypt()
     m_enc.Resynchronize(m_iv.BytePtr(), m_iv.SizeInBytes());
 
     // get the size of the target string
-    if( m_cipher.size() > BUFSIZE )
+    if( m_cipherW.size() > BUFSIZE )
         ex()() << "Attempt to send a message of (encrypted) size "
-               << m_cipher.size()
+               << m_cipherW.size()
                << " but my buffer is only " << BUFSIZE;
 
 
@@ -347,7 +349,7 @@ void Marshall::writeSize()
                 ( TimeVal(2,0) );
 
     unsigned char header[2]= {0,0};
-    unsigned int  size     = m_cipher.size();
+    unsigned int  size     = m_cipherW.size();
 
     header[0] = size & 0xFF;   //< first byte of size
     header[1] = size >> 8;     //< second byte of size
@@ -392,8 +394,8 @@ void Marshall::writeData()
                 ( TimeVal(2,0) );
 
     // send header
-    char*   buf    = &m_cipher[0];
-    int     size   = m_cipher.size();
+    char*   buf    = &m_cipherW[0];
+    int     size   = m_cipherW.size();
     int bytes_sent = 0;
     int sent       = 0;
 
@@ -425,7 +427,7 @@ void Marshall::writeData()
 
 void Marshall::writeEnc( RefPtr<AutoMessage> msg )
 {
-    serialize( msg, m_plain );
+    serialize( msg, m_plainW );
     encrypt();
     writeSize();
     writeData();
@@ -435,11 +437,11 @@ void Marshall::write( RefPtr<AutoMessage> msg, bool encrypted )
 {
     if( encrypted )
     {
-        serialize( msg, m_plain );
+        serialize( msg, m_plainW );
         encrypt();
     }
     else
-        serialize( msg, m_cipher );
+        serialize( msg, m_cipherW );
 
     writeSize();
     writeData();
