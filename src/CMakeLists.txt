@@ -12,5 +12,6 @@ if( (Protobuf_FOUND) )
     
     add_subdirectory(backend)
     add_subdirectory(clui)
+    add_subdirectory(gui)
 
 endif()
