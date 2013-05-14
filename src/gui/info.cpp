@@ -3,7 +3,7 @@
 Info::Info(QWidget *parent) :
     QPushButton(parent)
 {
-    QPixmap pixmap("/home/gabe/Code/openbookfs/src/gui/i_icon.png");
+    QPixmap pixmap(":/i_icon.png");
     QIcon ButtonIcon(pixmap);
     this->setIcon(ButtonIcon);
     this->setIconSize(pixmap.rect().size());

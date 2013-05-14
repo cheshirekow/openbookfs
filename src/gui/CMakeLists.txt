@@ -83,9 +83,14 @@ if( (Boost_FOUND)
             mainwindow.ui 
             localclient.ui 
             )
+            
+    set( gui_RESOURCES
+            resources.qrc 
+            )
     
     QT4_WRAP_UI(  gui_FORMS_HEADERS ${gui_FORMS} )
     QT4_WRAP_CPP( gui_HEADERS_MOC ${gui_HEADERS} )        
+    QT4_ADD_RESOURCES( gui_RESOURCES_RCC ${gui_RESOURCES} )
     include(${QT_USE_FILE})
     add_definitions(${QT_DEFINITIONS})
         
@@ -93,6 +98,7 @@ if( (Boost_FOUND)
                     ${gui_SOURCES}
                     ${gui_HEADERS_MOC}
                     ${gui_FORMS_HEADERS}
+                    ${gui_RESOURCES_RCC}
                     )
                             
     set_target_properties( obfs_gui 
