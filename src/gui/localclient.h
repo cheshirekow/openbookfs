@@ -45,6 +45,14 @@ private slots:
     void get_data_dir();
     void checkout_file();
     void release_file();
+
+    void attempt_connection();
+    void get_mounts();
+    void get_peers();
+    void set_display_name();
+    void set_data_dir();
+
+
 };
 }
 }

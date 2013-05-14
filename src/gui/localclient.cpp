@@ -19,6 +19,12 @@ LocalClient::LocalClient(QWidget *parent) :
     connect(ui->checkout_file,SIGNAL(clicked()),this,SLOT(checkout_file()));
     connect(ui->release_file,SIGNAL(clicked()),this,SLOT(release_file()));
 
+    connect( ui->btnConnect,        SIGNAL(clicked()), this, SLOT(attempt_connection()) );
+    connect( ui->btnListMounts,     SIGNAL(clicked()), this, SLOT(get_mounts())         );
+    connect( ui->btnListPeers,      SIGNAL(clicked()), this, SLOT(get_peers())          );
+    connect( ui->btnSetDataDir,     SIGNAL(clicked()), this, SLOT(set_data_dir())       );
+    connect( ui->btnSetDisplayName, SIGNAL(clicked()), this, SLOT(set_display_name())   );
+
     mountList = new QStringList();
     checked_out_files = new QStringList();
 
@@ -82,6 +88,68 @@ void LocalClient::update_params()
 
 
 
+}
+
+void LocalClient::attempt_connection()
+{
+    QString port = ui->local_port->text();
+    Connect c(port);
+    c.go(ui->remote_port->text(),"localhost");
+
+
+}
+
+void LocalClient::get_mounts()
+{
+    QString port = ui->local_port->text();
+    ListMounts lm(port);
+    QStringList mounts = lm.go();
+    ui->mount_points->clear();
+    mountList->clear();
+    for(int i = 0; i < mounts.length();i++)
+    {
+        QListWidgetItem *item = new QListWidgetItem(mounts.at(i));
+        ui->mount_points->addItem(item);
+        ui->mount_points->setItemSelected(item,true);
+        mountList->append(mounts.at(i));
+    }
+
+
+}
+
+void LocalClient::get_peers()
+{
+    QString port = ui->local_port->text();
+    ListKnownPeers l(port);
+    QStringList peers = l.go();
+
+    ui->current_peers->clear();
+    for(int i = 0; i < peers.length(); i++)
+        ui->current_peers->addItem(peers.at(i));
+}
+
+void LocalClient::set_display_name()
+{
+    QString port = ui->local_port->text();
+    QString name = ui->display_name->text();
+    SetDisplayName dn(port);
+    dn.go(ui->display_name->text());
+
+}
+
+void LocalClient::set_data_dir()
+{
+    QString port = ui->local_port->text();
+    SetDataDir data(port);
+    QString t_data_dir = ui->data_directory->text();
+
+    if(t_data_dir == "")
+    {
+        qDebug()<<"No Directory Chosen";
+    }
+    else{
+        data.go(ui->data_directory->text());
+    }
 }
 
 void LocalClient::start_sync()
