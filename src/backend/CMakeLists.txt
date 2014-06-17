@@ -82,6 +82,8 @@ if( (FUSE_FOUND)
                     ../TimeSpec.cpp
                     ${MESSAGES_PB_CC}
                     )
+
+    set_source_files_properties(${MESSAGES_PB_CC} PROPERTIES GENERATED TRUE) 
                             
     set_target_properties( obfs_backend 
         PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -std=gnu++0x" )

@@ -54,33 +54,31 @@
 namespace   openbook {
 namespace filesystem {
 
-Backend::Backend()
-{
-    m_mutex.init();
-    m_configFile  = "./obfs.yaml";
-    m_displayName = "Anonymous";
-    m_dataDir     = "./.obfs";
+Backend::Backend() {
+  m_mutex.init();
+  m_configFile = "./obfs.yaml";
+  m_displayName = "Anonymous";
+  m_dataDir = "./.obfs";
 
-    m_maxPeers = 10;
-    m_connPool.reserve(m_maxPeers);
-    m_workerPool.reserve(m_maxPeers);
+  m_maxPeers = 10;
+  m_connPool.reserve(m_maxPeers);
+  m_workerPool.reserve(m_maxPeers);
 
-    for(int i=0;i < m_maxPeers; i++)
-    {
-        Connection* conn       = new Connection();
-        MessageHandler* worker = new MessageHandler();
-        conn->init(this,&m_connPool);
-        worker->init(this,&m_workerPool);
-    }
+  for (int i = 0; i < m_maxPeers; i++) {
+    Connection* conn = new Connection();
+    MessageHandler* worker = new MessageHandler();
+    conn->init(this, &m_connPool);
+    worker->init(this, &m_workerPool);
+  }
 
-    // connect socket listeners
-    m_listeners[LISTEN_LOCAL].sig_client.connect(
-            sigc::bind<-1>( sigc::mem_fun(*this,&Backend::onConnect),false) );
-    m_listeners[LISTEN_REMOTE].sig_client.connect(
-            sigc::bind<-1>( sigc::mem_fun(*this,&Backend::onConnect),true) );
+  // connect socket listeners
+  m_listeners[LISTEN_LOCAL].sig_client.connect(
+      sigc::bind < -1 > (sigc::mem_fun(*this, &Backend::onConnect), false));
+  m_listeners[LISTEN_REMOTE].sig_client.connect(
+      sigc::bind < -1 > (sigc::mem_fun(*this, &Backend::onConnect), true));
 
-    m_clientFamily = AF_UNSPEC;
-    m_clientNode   = "";
+  m_clientFamily = AF_UNSPEC;
+  m_clientNode = "";
 }
 
 Backend::~Backend()
@@ -465,228 +463,174 @@ void Backend::loadConfig( const std::string& filename )
 {
     namespace fs = boost::filesystem;
 
-    // verify that the config file exists
-    if( !fs::exists( fs::path(filename) ) )
-        ex()() << "Configuration file not found: " << filename;
+  // verify that the config file exists
+  if (!fs::exists(fs::path(filename)))
+    ex()() << "Configuration file not found: " << filename;
 
-    std::ifstream in(filename.c_str());
-    if(!in)
-        ex()() << "Failed to open " << filename << " for reading";
+  YAML::Node config = YAML::LoadFile(filename);
 
-    YAML::Parser parser(in);
-    YAML::Node   config;
-    parser.GetNextDocument(config);
+  // any errors will throw an exception
+  if (config["displayName"]) {
+    std::cout << "Config: Reading display name\n";
+    setDisplayName(config["displayName"].as<std::string>());
+  }
 
-    // any errors will throw an exception
-    const YAML::Node*  node;
-    std::string  strVal,strVal2;
-    int          intVal;
+  if (config["dataDir"]) {
+    std::cout << "Config: Reading data dir\n";
+    setDataDir(config["dataDir"].as<std::string>());
+  }
 
-    node = config.FindValue("displayName");
-    if(node)
-    {
-        std::cout << "Config: Reading display name\n";
-        (*node) >> strVal;
-        setDisplayName( strVal );
-    }
+  if (config["localSocket"]) {
+    YAML::Node node = config["localSocket"];
+    std::cout << "Config: Reading local socket\n";
+    int intVal = 3030;
+    if (node["service"]) {
+      std::cout << "Config: local socket: " << node["service"].as<std::string>()
+                << "\n";
+      intVal = node["service"].as<int>();
+      std::cout << "Config: setting local socket to " << intVal << "\n";
+      setLocalSocket(intVal);
+    } else
+      std::cerr << "Found localSocket entry but no service\n";
+  }
 
-    node = config.FindValue("dataDir");
-    if(node)
-    {
-        std::cout << "Config: Reading data dir\n";
-        (*node) >> strVal;
-        setDataDir(strVal);
-    }
+  if (config["remoteSocket"]) {
+    YAML::Node node = config["remoteSocket"];
+    std::cout << "Config: Reading remote socket\n";
+    int addr_family = AF_UNSPEC;
+    std::string addr_node, addr_service;
 
-    node = config.FindValue("localSocket");
-    if(node)
-    {
-        std::cout << "Config: Reading local socket\n";
-        const YAML::Node* node2 = node->FindValue("service");
-        intVal = 3030;
-        if(node2)
-        {
-            (*node2) >> strVal;
-            std::cout << "Config: local socket: " << strVal << "\n";
-            (*node2) >> intVal;
-            std::cout << "Config: setting local socket to " << intVal << "\n";
-            setLocalSocket( intVal );
-        }
-        else
-            std::cerr << "Found localSocket entry but no service\n";
-    }
-
-    node = config.FindValue("remoteSocket");
-    if(node)
-    {
-        std::cout << "Config: Reading remote socket\n";
-        int addr_family;
-        std::string addr_node,addr_service;
-        const YAML::Node* node2;
-
+    addr_family = AF_UNSPEC;
+    if (node["family"]) {
+      std::string family = node["family"].as<std::string>();
+      if (family.compare("AF_INET") == 0)
+        addr_family = AF_INET;
+      else if (family.compare("AF_INET6") == 0)
+        addr_family = AF_INET6;
+      else if (family.compare("AF_UNSPEC") == 0)
         addr_family = AF_UNSPEC;
-        node2 = node->FindValue("family");
-        if(node2)
-        {
-            *node2 >> strVal;
-            if( strVal.compare("AF_INET")==0 )
-                addr_family = AF_INET;
-            else if( strVal.compare("AF_INET6")==0 )
-                addr_family = AF_INET6;
-            else if( strVal.compare("AF_UNSPEC")==0 )
-                addr_family = AF_UNSPEC;
-            else
-            {
-                std::cerr << "Failed to determine address family " << strVal
-                          << ", using AF_UNSPEC";
-            }
-        }
-
-        node2 = node->FindValue("node");
-        if(node2)
-        {
-            (*node2) >> addr_node;
-            if(addr_node.compare("any")==0)
-                addr_node = "";
-        }
-
-        node2 = node->FindValue("service");
-        if(node2)
-            (*node2) >> addr_service;
-
-        setRemoteSocket( addr_family, addr_node, addr_service );
+      else {
+        std::cerr << "Failed to determine address family " << family
+            << ", using AF_UNSPEC";
+      }
     }
 
-    node = config.FindValue("clientSocket");
-    if(node)
-    {
-        int addr_family;
-        std::string addr_node;
-        const YAML::Node* node2;
+    if (node["node"]) {
+      addr_node = node["node"].as<std::string>();
+      if (addr_node.compare("any") == 0)
+        addr_node = "";
+    }
 
+    if (node["service"])
+      addr_service = node["service"].as<std::string>();
+
+    setRemoteSocket(addr_family, addr_node, addr_service);
+  }
+
+  if (config["clientSocket"]) {
+    YAML::Node node = config["clientSocket"];
+    int addr_family;
+    std::string addr_node;
+
+    addr_family = AF_UNSPEC;
+    if (node["family"]) {
+      std::string family = node["family"].as<std::string>();
+      if (family.compare("AF_INET") == 0)
+        addr_family = AF_INET;
+      else if (family.compare("AF_INET6") == 0)
+        addr_family = AF_INET6;
+      else if (family.compare("AF_UNSPEC") == 0)
         addr_family = AF_UNSPEC;
-        node2 = node->FindValue("family");
-        if(node2)
-        {
-            *node2 >> strVal;
-            if( strVal.compare("AF_INET")==0 )
-                addr_family = AF_INET;
-            else if( strVal.compare("AF_INET6")==0 )
-                addr_family = AF_INET6;
-            else if( strVal.compare("AF_UNSPEC")==0 )
-                addr_family = AF_UNSPEC;
-            else
-            {
-                std::cerr << "Failed to determine address family " << strVal
-                          << ", using AF_UNSPEC";
-            }
-        }
-
-        node2 = node->FindValue("node");
-        if(node2)
-        {
-            (*node2) >> addr_node;
-            if(addr_node.compare("any")==0)
-                addr_node = "";
-        }
-
-        setClientSocket( addr_family, addr_node);
+      else {
+        std::cerr << "Failed to determine address family " << family
+                  << ", using AF_UNSPEC";
+      }
     }
 
-    node = config.FindValue("maxConnections");
-    if( node )
-    {
-        (*node) >> intVal;
-        setMaxConnections( intVal );
+    if (node["node"]) {
+      addr_node = node["node"].as<std::string>();
+      if (addr_node.compare("any") == 0)
+        addr_node = "";
     }
 
-    node = config.FindValue("mountPoints");
-    if( node )
-    {
-        for(int i=0; i < node->size(); i++)
-        {
-            const int   nargs =100;
-            const int   nchars=256;
+    setClientSocket(addr_family, addr_node);
+  }
 
-            std::string mountPoint;
-            std::string relDir;
-            char        argBuf[nchars]; //< buffer for arguments
-            int         argw = 0;       //< write offset
-            char*       argv[nargs];    //< argument index
-            int         argc = 0;       //< number of arguments
+  if (config["maxConnections"]) {
+    setMaxConnections(config["maxConnections"].as<int>());
+  }
 
-            // zero out contents for ease of debugging, and to implicitly
-            // set null terminals for strings
-            memset(argBuf,0,sizeof(argBuf));
-            memset(argv,0,sizeof(argv));
+  if (config["mountPoints"]) {
+    int entry_index = -1;
+    for (const auto& node : config["mountPoints"]) {
+      entry_index++;
+      const int nargs = 100;
+      const int nchars = 256;
 
-            const YAML::Node* node2;
-            node2 = (*node)[i].FindValue("mount");
-            if(node2)
-                (*node2) >> mountPoint;
-            else
-            {
-                std::cerr << "Backend::loadConfig: "
-                          << "mount point " << i << " is missing 'mount'\n";
-                continue;
-            }
-            node2 = (*node)[i].FindValue("relDir");
-            if(node2)
-            {
-                (*node2) >> relDir;
-                if( relDir == "/" || relDir == "~" )
-                    relDir = "";
-            }
-            else
-                relDir = "";
+      std::string mountPoint;
+      std::string relDir;
+      char argBuf[nchars];  //< buffer for arguments
+      int argw = 0;       //< write offset
+      char* argv[nargs];    //< argument index
+      int argc = 0;       //< number of arguments
 
+      // zero out contents for ease of debugging, and to implicitly
+      // set null terminals for strings
+      memset(argBuf, 0, sizeof(argBuf));
+      memset(argv, 0, sizeof(argv));
 
-            node2 = (*node)[i].FindValue("argv");
-            if(node2)
-            {
-                char*   pwrite = argBuf; //< write head
+      if (node["mount"])
+        mountPoint = node["mount"].as<std::string>();
+      else {
+        std::cerr << "Backend::loadConfig: " << "mount point " << entry_index
+            << " is missing 'mount'\n";
+        continue;
+      }
 
-                // for each argument in the sequence
-                for(int j=0; j < node2->size(); j++)
-                {
-                    // retrieve the argument into a string
-                    std::string arg;
-                    (*node2)[j] >> arg;
+      if (node["relDir"]) {
+        relDir = node["relDir"].as<std::string>();
+        if (relDir == "/" || relDir == "~")
+          relDir = "";
+      } else
+        relDir = "";
 
-                    // number of chars left in buffer
-                    int remainder = nchars - (pwrite - argBuf);
+      if (node["argv"]) {
+        char* pwrite = argBuf;  //< write head
 
-                    // if we dont have room for the argument then quit
-                    if( arg.length() + 1 > remainder )
-                        break;
+        // for each argument in the sequence
+        for (const auto& arg : node["argv"]) {
+          // retrieve the argument into a string
+          std::string arg_i = arg.as<std::string>();
 
-                    argv[argc++] = pwrite;  //< point the j'th argument to
-                                            //  current write head
-                    arg.copy(pwrite,arg.length(),0);    //< copy the argument
-                    pwrite += arg.length() + 1;   //< advance the write head
-                }
-            }
+          // number of chars left in buffer
+          int remainder = nchars - (pwrite - argBuf);
 
-            try
-            {
-                std::cout << "Backend::loadConfig mounting:"
-                          << "\n  mount point: " << mountPoint
-                          << "\n relative dir: " << relDir
-                          << "\n         args: ";
-                for(int i=0; i < argc; i++)
-                    std::cout << "\n        " << argv[i];
-                std::cout << "\n";
+          // if we dont have room for the argument then quit
+          if (arg_i.length() + 1 > remainder)
+            break;
 
-                mount(mountPoint,relDir,argc,argv);
-            }
-            catch( const std::exception& ex )
-            {
-                std::cerr << "Backend::loadConfig: Failed to mount "
-                          << mountPoint << "\n";
-            }
+          argv[argc++] = pwrite;  //< point the j'th argument to
+                                  //  current write head
+          arg_i.copy(pwrite, arg_i.length(), 0);    //< copy the argument
+          pwrite += arg_i.length() + 1;   //< advance the write head
         }
-    }
+      }
 
+      try {
+        std::cout << "Backend::loadConfig mounting:" << "\n  mount point: "
+                  << mountPoint << "\n relative dir: " << relDir
+                  << "\n         args: ";
+        for (int i = 0; i < argc; i++)
+          std::cout << "\n        " << argv[i];
+        std::cout << "\n";
+
+        mount(mountPoint, relDir, argc, argv);
+      } catch (const std::exception& ex) {
+        std::cerr << "Backend::loadConfig: Failed to mount " << mountPoint
+                  << "\n";
+      }
+    }
+  }
 
 }
 

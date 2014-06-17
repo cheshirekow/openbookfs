@@ -76,7 +76,8 @@ if( (Boost_FOUND)
                     commands/SetRemoteSocket.cpp
                     commands/StartSync.cpp
                     )
-                            
+                     
+    set_source_files_properties(${MESSAGES_PB_CC} PROPERTIES GENERATED TRUE)
     set_target_properties( obfs
         PROPERTIES COMPILE_FLAGS "-D_FILE_OFFSET_BITS=64 -std=gnu++0x" )
     

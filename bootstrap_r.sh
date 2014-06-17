@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export PREFIX=$HOME/devroot/usr
+export PREFIX=$HOME/devroot
 
 export SCRIPT_DIR=`dirname $0`;
 export CMAKE_PREFIX_PATH=$PREFIX:$CMAKE_PREFIX_PATH
